@@ -10,8 +10,8 @@ CPP_FLAGS=
 default: solution/code.out
 
 .PHONY: pcm_submission
-pcm_submission: submission/code.out
-	cp submission/code.out ./result.out
+pcm_submission: submission/code.pcm
+	cp submission/code.pcm ./result.out
 
 %.o : %.c
 	$(CC) -c $(CFLAGS)  $< -o $@
