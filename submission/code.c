@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "lab_files/tools.h"
 
-#define N (128*4*4096)
+#define N (128*4096*4096)
 #define ITERS 100
 
 
