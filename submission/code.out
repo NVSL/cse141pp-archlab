@@ -1,8 +1,0 @@
-vector: 0.127968
-naive: 0.202350
-unroll2: 0.049727
-unroll4: 0.203974
-unroll8: 0.903097
-unroll2_temps: 0.026677
-unroll4_temps: 0.055778
-unroll8_temps: 0.142023

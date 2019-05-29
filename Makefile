@@ -11,6 +11,7 @@ default: solution/code.out
 
 .PHONY: pcm_submission
 pcm_submission: submission/code.out
+	cp submission/code.out ./result.out
 
 %.o : %.c
 	$(CC) -c $(CFLAGS)  $< -o $@
