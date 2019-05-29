@@ -1,5 +1,5 @@
 PCM = pcm.x
-CFLAGS=-Wall -Werror -g -O4 $(USER_CFLAGS)
+CFLAGS=-Wall -Werror -g -O4 -I. $(USER_CFLAGS)
 LDFLAGS=$(USER_LDFLAGS)
 ASM_FLAGS=
 CPP_FLAGS=
