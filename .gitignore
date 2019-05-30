@@ -4,3 +4,5 @@
 *.exe
 a.out
 *.i
+*.json
+*.out

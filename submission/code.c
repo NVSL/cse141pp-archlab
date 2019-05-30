@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include "lab_files/tools.h"
 
-#define N (128*4096*4096)
+#define N (128ll*4096ll*4096ll)
 #define ITERS 100
 
 
-double naive(double * A, double *B, int len) {
+double naive(double * A, double *B, long int len) {
   double sum = 0.0; 
   for(int i = 0; i < len; i++) {
     sum += A[i] * B[i];
@@ -24,7 +24,7 @@ int go(int argc, char *argv[]) {
 
 #define CHECK_TIME(f) do {					\
     last = wall_time();						\
-    for(int j= 0; j < ITERS; j++) {				\
+    for(long int j= 0; j < ITERS; j++) {				\
       s += f(A, B, N);						\
     }								\
     fprintf(stdout, #f": %f\n",  wall_time() - last);		\
