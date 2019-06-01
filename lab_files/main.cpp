@@ -1,10 +1,12 @@
-#include "lab_files/lab.hpp"
+#include "lab_files/archlab.hpp"
 #include <cstdlib>
 #include <getopt.h>
 
+#include "lab.h"
+
 // from https://github.com/nlohmann/json
 extern "C" {
-  int go(int argc, char *argv[]);
+  int go(int argc, char *argv[], void *args);
 }
 
 char * system_config_filename = strdup("system.json");
@@ -48,14 +50,76 @@ void parse_cmd_line(int argc, char *argv[]) {
   }
 }
 
-int main(int argc, char *argv[]) {
-  parse_cmd_line(argc, argv);
+void naive(int argc, char * argv[], void* _args) {
+  struct dot_product_args * args = (struct dot_product_args*)_args;
+  double * A = args->A;
+  double * B = args->B;
+  int len = args->len;
   
-  SystemCounterState before = getSystemCounterState();
-  go(argc, argv);
-  SystemCounterState after = getSystemCounterState();
+  double sum = 0.0; 
+  for(int i = 0; i < len; i++) {
+    sum += A[i] * B[i];
+  }
+
+  args->sum =sum;
+}
+
+int main(int argc, char *argv[]) {
+
+  // Boiler plate
+  
+  parse_cmd_line(argc, argv);
+  archlab_init();
+  
+  struct dot_product_args dp_args;
+#define KB 1024
+#define MB (1024*KB)
+#define GB (1024*MB)
+  
+#define L1_CACHE_SIZE (128*KB)
+#define L2_CACHE_SIZE (1*MB)
+#define L3_CACHE_SIZE (8*MB)
+#define N (L1_CACHE_SIZE/sizeof(double))
+  dp_args.A = (double *)malloc(N*sizeof(double));
+  dp_args.B = (double *)malloc(N*sizeof(double));
+  dp_args.len = N;
+  
+  for(uint i = 0; i < N; i++) {
+    dp_args.A[i] = rand_double();
+    dp_args.B[i] = rand_double();
+  }
+  naive(argc, argv, &dp_args);
+  double correct = dp_args.sum;
+  
+  SystemCounterState one = getSystemCounterState();
+  go(argc, argv, &dp_args);
+  if (correct != dp_args.sum) {
+    std::cout << "Incorrect output." << std::endl;
+  }
+  SystemCounterState two = getSystemCounterState();
+  pristine_machine();
+  go(argc, argv, &dp_args);
+  if (correct != dp_args.sum) {
+    std::cout << "Incorrect output." << std::endl;
+  }
+  SystemCounterState three = getSystemCounterState();
+  go(argc, argv, &dp_args);
+  if (correct != dp_args.sum) {
+    std::cout << "Incorrect output." << std::endl;
+  }
+  SystemCounterState four = getSystemCounterState();
+  go(argc, argv, &dp_args);
+  if (correct != dp_args.sum) {
+    std::cout << "Incorrect output." << std::endl;
+  }
+  SystemCounterState five = getSystemCounterState();
+  
   write_system_config(system_config_filename);
-  write_run_stats(stats_filename, before, after);
+  write_run_stats(stats_filename, one, four);
+  write_run_stats("warm.json", one, two);
+  write_run_stats("cold.json", two, three);
+  write_run_stats("reheated.json", three, four);
+  write_run_stats("rereheated.json", four, five);
   return 0;
 }	
 

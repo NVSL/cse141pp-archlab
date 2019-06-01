@@ -1,11 +1,13 @@
 #include <iostream>
 #include <cpucounters.h>
-#include "lab.hpp"
+#include "archlab.hpp"
 #include <cstring>
 #include <lab_files/cache_control/cache_control.h>
 #include <sys/ioctl.h>
 // from https://github.com/nlohmann/json
 #include <json.hpp>
+#include <stdlib.h>
+#include<time.h>
 
 // for convenience
 using json = nlohmann::json;
@@ -13,6 +15,7 @@ using json = nlohmann::json;
 void archlab_init()
 {
   PCM::getInstance()->program();
+  srand(time(0));
 }
 
 void write_system_config(const char * filename)
@@ -64,6 +67,7 @@ void write_run_stats(std::ostream & out,
   json j;
   GET_RUN_STAT(j, IPC, before, after);
   GET_RUN_STAT(j, L3CacheHitRatio, before, after);
+  GET_RUN_STAT(j, L2CacheHitRatio, before, after);
   GET_RUN_STAT(j, BytesReadFromMC, before, after);
   out << j.dump(4) << std::endl;  
 }

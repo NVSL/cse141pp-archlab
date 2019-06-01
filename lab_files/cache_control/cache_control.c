@@ -36,7 +36,7 @@ static int my_close(struct inode *i, struct file *f)
 static void __cpa_flush_all(void *arg)
 {
   //unsigned long cache = (unsigned long)arg;
-
+  printk("flushed a cache");
   /*
    * Flush all to work around Errata in early athlons regarding
    * large page flushing.
@@ -47,7 +47,7 @@ static void __cpa_flush_all(void *arg)
     wbinvd();
 }
 
-static void cpa_flush_all()
+static void cpa_flush_all(void )
 {
   BUG_ON(irqs_disabled());
 

@@ -1,5 +1,5 @@
-#ifndef LAB_INCLUDED
-#define LAB_INCLUDED
+#ifndef ARCHLAB_INCLUDED
+#define ARCHLAB_INCLUDED
 
 #include<iostream>
 #include <cpucounters.h>
@@ -8,6 +8,8 @@
 #else
 #include <time.h> // For struct timespec, clock_gettime, CLOCK_MONOTONIC
 #endif
+
+#include <stdlib.h>
 
 
 void archlab_init();
@@ -36,4 +38,11 @@ static inline double wall_time ()
 #endif
 }
 
+static inline int rand_int() {
+  return rand();
+}
+
+static inline double rand_double() {
+  return (rand() + 0.0)/(RAND_MAX + 0.0);
+}
 #endif
