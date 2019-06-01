@@ -72,14 +72,10 @@ int main(int argc, char *argv[]) {
   archlab_init();
   
   struct dot_product_args dp_args;
-#define KB 1024
-#define MB (1024*KB)
-#define GB (1024*MB)
-  
 #define L1_CACHE_SIZE (128*KB)
 #define L2_CACHE_SIZE (1*MB)
 #define L3_CACHE_SIZE (8*MB)
-#define N (L1_CACHE_SIZE/sizeof(double))
+#define N (L3_CACHE_SIZE/sizeof(double)/2)
   dp_args.A = (double *)malloc(N*sizeof(double));
   dp_args.B = (double *)malloc(N*sizeof(double));
   dp_args.len = N;
@@ -91,35 +87,40 @@ int main(int argc, char *argv[]) {
   naive(argc, argv, &dp_args);
   double correct = dp_args.sum;
   
-  SystemCounterState one = getSystemCounterState();
+  struct Measurement one;
+  take_measurement(&one);
   go(argc, argv, &dp_args);
   if (correct != dp_args.sum) {
     std::cout << "Incorrect output." << std::endl;
   }
-  SystemCounterState two = getSystemCounterState();
   pristine_machine();
+  struct Measurement two;
+  take_measurement(&two);
   go(argc, argv, &dp_args);
   if (correct != dp_args.sum) {
     std::cout << "Incorrect output." << std::endl;
   }
-  SystemCounterState three = getSystemCounterState();
+  struct Measurement three;
+  take_measurement(&three);
   go(argc, argv, &dp_args);
   if (correct != dp_args.sum) {
     std::cout << "Incorrect output." << std::endl;
   }
-  SystemCounterState four = getSystemCounterState();
+  struct Measurement four;
+  take_measurement(&four);
   go(argc, argv, &dp_args);
   if (correct != dp_args.sum) {
     std::cout << "Incorrect output." << std::endl;
   }
-  SystemCounterState five = getSystemCounterState();
+  struct Measurement five;
+  take_measurement(&five);
   
   write_system_config(system_config_filename);
-  write_run_stats(stats_filename, one, four);
-  write_run_stats("warm.json", one, two);
-  write_run_stats("cold.json", two, three);
-  write_run_stats("reheated.json", three, four);
-  write_run_stats("rereheated.json", four, five);
+  write_run_stats(stats_filename, &one, &four);
+  write_run_stats("warm.json", &one, &two);
+  write_run_stats("cold.json", &two, &three);
+  write_run_stats("reheated.json", &three, &four);
+  write_run_stats("rereheated.json", &four, &five);
   return 0;
 }	
 

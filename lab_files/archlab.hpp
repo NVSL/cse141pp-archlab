@@ -11,19 +11,37 @@
 
 #include <stdlib.h>
 
+#define KB 1024
+#define MB (1024*KB)
+#define GB (1024*MB)
+  
+struct Measurement {
+  float time;
+  SystemCounterState pcm_system_counter_state;
+  std::vector<SocketCounterState> pcm_socket_counter_state;
+  std::vector<CoreCounterState> pcm_core_counter_state;
+};
+
+struct MeasurementInterval {
+  struct Measurement start;
+  struct Measurement end;
+};
+
+void take_measurement(struct Measurement * measurement);
 
 void archlab_init();
 void write_system_config(const char * filename);
 void write_system_config(std::ostream & out);
 void write_run_stats(const char * filename,
-		     const SystemCounterState & before,
-		     const SystemCounterState & after);
+		     struct Measurement * before,
+		     struct Measurement * after) ; 
 void write_run_stats(std::ostream & out,
-		     const SystemCounterState & before,
-		     const SystemCounterState & after);
+		     struct Measurement * before,
+		     struct Measurement * after);
 
-void flush_caches();
-void pristine_machine();
+int flush_caches();
+int pristine_machine();
+int set_cpu_clock_frequency(int mhz);
 
 static inline double wall_time ()
 {

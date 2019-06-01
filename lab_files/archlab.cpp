@@ -43,9 +43,8 @@ void write_system_config(std::ostream & out)
 }
 
 void write_run_stats(const char * filename,
-		     const SystemCounterState & before,
-		     const SystemCounterState & after)
-  
+		     struct Measurement * before,
+		     struct Measurement * after)  
 {
   std::fstream out;
   out.open(filename, std::ios_base::out);
@@ -56,35 +55,66 @@ void write_run_stats(const char * filename,
   out.close();
 }
 
+void take_measurement(struct Measurement * measurement)
+{
+  measurement->time = wall_time();
+  PCM::getInstance()->getAllCounterStates(measurement->pcm_system_counter_state,
+					  measurement->pcm_socket_counter_state,
+					  measurement->pcm_core_counter_state);
+}
 
 void write_run_stats(std::ostream & out,
-		     const SystemCounterState & before,
-		     const SystemCounterState & after)
+		     struct Measurement * before,
+		     struct Measurement * after)
 {
 
 #define GET_RUN_STAT(j, s, before, after) j[#s] = get##s(before, after)
 
   json j;
-  GET_RUN_STAT(j, IPC, before, after);
-  GET_RUN_STAT(j, L3CacheHitRatio, before, after);
-  GET_RUN_STAT(j, L2CacheHitRatio, before, after);
-  GET_RUN_STAT(j, BytesReadFromMC, before, after);
+  GET_RUN_STAT(j, IPC,
+	       before->pcm_system_counter_state,
+	       after->pcm_system_counter_state);
+  GET_RUN_STAT(j, L3CacheHitRatio,
+	       before->pcm_system_counter_state,
+	       after->pcm_system_counter_state);
+  GET_RUN_STAT(j, L2CacheHitRatio,
+	       before->pcm_system_counter_state,
+	       after->pcm_system_counter_state);
+  GET_RUN_STAT(j, BytesReadFromMC,
+	       before->pcm_system_counter_state,
+	       after->pcm_system_counter_state);
+  j["wall_time"] = after->time - before->time;
+  
   out << j.dump(4) << std::endl;  
 }
 
 
-void flush_caches() {
+int flush_caches() {
   int fd = open("/dev/cache_control", O_RDWR);
   if (fd == -1) {
     std::cerr << "Couldn't open '/dev/cache_control' to flush caches: " << strerror(errno) << std::endl;
-    return;
+    return 0;
   }
   int r = ioctl(fd, CACHE_CONTROL_FLUSH_CACHES);
   if (r == -1) {
     std::cerr << "Flushing caches failed: " << strerror(errno) << std::endl;
+    return 0;
   }
+  return 1;
 }
 
-void pristine_machine() {
-  flush_caches();
+int pristine_machine() {
+  return flush_caches();
+}
+
+int set_cpu_clock_frequency(int mhz)
+{
+  char buf[1024];
+  sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz",mhz);
+  int r = system(buf);
+  if (r != 0) {
+    std::cerr << "Couldn't set cpu frequency to " << mhz << "MHz (" << r << ")" << std::endl;
+    return 0;
+  }
+  return 1;
 }
