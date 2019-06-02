@@ -37,7 +37,7 @@ pcm_submission: submission/code.pcm
 
 .PHONY: %.out
 %.out : %.exe %.i %.S
-	./$< --system-config $*-system.json --stats-file $*-stats.json $(CMD_LINE_ARGS) > $@  2>&1 
+	./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) 2>&1  | tee $@
 
 #%.pcm: %.exe %.i %.S
 #	$(PCM) -- ./$< $(CMD_LINE_ARGS) > $@ 2>&1 > $@ # capture everything.
