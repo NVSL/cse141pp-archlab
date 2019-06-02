@@ -61,111 +61,77 @@ void naive(int argc, char * argv[], void* _args) {
 }
 
 int main(int argc, char *argv[]) {
-
-  // Boiler plate
   
   parse_cmd_line(argc, argv);
-  archlab_init();
+  archlab_init(); // initialize lab infrastructure. 
   
-  struct dot_product_args dp_args;
-#define L1_CACHE_SIZE (128*KB)
-#define L2_CACHE_SIZE (1*MB)
-#define L3_CACHE_SIZE (8*MB)
-#define N (L2_CACHE_SIZE/sizeof(double)/2)
-  dp_args.A = (double *)malloc(N*sizeof(double));
-  dp_args.B = (double *)malloc(N*sizeof(double));
-  dp_args.len = N;
-  
-  for(uint i = 0; i < N; i++) {
-    dp_args.A[i] = rand_double();
-    dp_args.B[i] = rand_double();
-  }
-  naive(argc, argv, &dp_args);
-#if (0)
-  double correct = dp_args.sum;
-
-
-  start_timing("warm", NULL);
-  go(argc, argv, &dp_args);
-  if (correct != dp_args.sum) {
-    std::cout << "Incorrect output." << std::endl;
-  }
-  stop_timing();
-  
-  pristine_machine();
-  
-  start_timing("flushed", NULL);
-  go(argc, argv, &dp_args);
-  if (correct != dp_args.sum) {
-    std::cout << "Incorrect output." << std::endl;
-  }
-  stop_timing();
-  
-  start_timing("reheated", NULL);
-  go(argc, argv, &dp_args);
-  if (correct != dp_args.sum) {
-    std::cout << "Incorrect output." << std::endl;
-  }
-  stop_timing();
-  
-  start_timing("reheated_again", NULL);
-  go(argc, argv, &dp_args);
-  if (correct != dp_args.sum) {
-    std::cout << "Incorrect output." << std::endl;
-  }
-  stop_timing();
-#endif
-  
-  {
 #define SIZE_COUNT 4
 #define SIZE_BASE (4*MB)
 
 #define ITERATIONS 10
     
-    struct dot_product_args dp_args;
-    dp_args.A = (double *)malloc((SIZE_BASE << SIZE_COUNT)*sizeof(double));
-    dp_args.B = (double *)malloc((SIZE_BASE << SIZE_COUNT)*sizeof(double));
+  struct dot_product_args dp_args; // structure holds arguments and results, so we can provide inputs and check correctness.  Putting it in a struct means the interface is more invariant across labs.
+  dp_args.A = (double *)malloc((SIZE_BASE << SIZE_COUNT)*sizeof(double)); // allocate two big vectors
+  dp_args.B = (double *)malloc((SIZE_BASE << SIZE_COUNT)*sizeof(double));
+  
+  for(uint i = 0; i < (SIZE_BASE << SIZE_COUNT); i++) {
+    dp_args.A[i] = rand_double(); // fill them with random data
+    dp_args.B[i] = rand_double();
+  }
+
 
 #define CPU_FREQUENCY_COUNT
-    int cpu_frequencies[] = {
-      3500,
-      3100,
-      2900,
-      2700,
-      2500,
-      2300,
-      2100,
-      2000,
-      1800,
-      1600,
-      1400,
-      1200,
-      1000,
-      800};
+  int cpu_frequencies[] = { // Table of frequencies our servers support.
+    3500,
+    3100,
+    2900,
+    2700,
+    2500,
+    2300,
+    2100,
+    2000,
+    1800,
+    1600,
+    1400,
+    1200,
+    1000,
+    800};
 
-    for(unsigned int j = 0; j < sizeof(cpu_frequencies)/sizeof(cpu_frequencies[0]); j++) {
+  for(unsigned int j = 0; j < sizeof(cpu_frequencies)/sizeof(cpu_frequencies[0]); j++) { // Run the code at different frequencies
       
-      for(int i = 0; i < SIZE_COUNT; i++) {
-	int size = SIZE_BASE << i;
-	dp_args.len = size;
-	pristine_machine();
-	set_cpu_clock_frequency(cpu_frequencies[j]);
-	char name[1024];
-	sprintf(name, "%d", size);
-	char clock[1024];
-	sprintf(clock, "%dMHz", cpu_frequencies[j]);
-	start_timing(name,
-		     "VectorSize", name,
-		     "ClockSpeed", clock,
-		     NULL);
-	for(int k = 0; k < ITERATIONS; k++) {
-	  go(argc, argv, &dp_args);
+    for(int i = 0; i < SIZE_COUNT; i++) { // and for different vector sizes
+      int size = SIZE_BASE << i; // compute vector size
+      dp_args.len = size;
+
+      naive(argc, argv, &dp_args); // compute correct answer
+      double correct = dp_args.sum; // and record it
+	
+      pristine_machine(); // clear caches, disable turbo boost, reset clock speed
+      set_cpu_clock_frequency(cpu_frequencies[j]); // set clock speed
+
+      char name[1024];  // prepare two user-defined attributes for this run: vector size and clock speed
+      sprintf(name, "%d", size);
+
+      char clock[1024];
+      sprintf(clock, "%dMHz", cpu_frequencies[j]);
+
+      start_timing(name, // Start timing
+		   "VectorSize", name, // pass NULL-terminated list of user-defined key-value pairs
+		   "ClockSpeed", clock,
+		   NULL);
+      for(int k = 0; k < ITERATIONS; k++) {
+	go(argc, argv, &dp_args);  // Call submitted code
+	if (dp_args.sum != correct) {
+	  std::cerr << "Incorrect result" << std::endl;
+	  exit(1);
 	}
-	stop_timing();
       }
+      stop_timing(); // stop timing.
     }
   }
-  write_csv(stats_filename);
+  
+  write_csv(stats_filename); // dump data for all runs.
+  
   return 0;
 }	
 
