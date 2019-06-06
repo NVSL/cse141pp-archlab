@@ -12,15 +12,16 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include "PCMDataCollector.hpp"
+#include "PAPIDataCollector.hpp"
 DataCollector *theDataCollector = NULL;
 
 void archlab_init(int collector)
 {
   if (collector == ARCHLAB_COLLECTOR_PCM) {
     theDataCollector = new PCMDataCollector();
-  } else if  (collector == ARCHLAB_COLLECTOR_PAPI) {
-    //theDataCollector = new PAPIDataCollector();
-  } else if  (collector == ARCHLAB_COLLECTOR_NONE) {
+  } else if (collector == ARCHLAB_COLLECTOR_PAPI) {
+    theDataCollector = new PAPIDataCollector();
+  } else if (collector == ARCHLAB_COLLECTOR_NONE) {
     theDataCollector = new DataCollector();
   } else {
     std::cerr << "Unknown data collector: " << collector << std::endl;
@@ -29,7 +30,16 @@ void archlab_init(int collector)
   theDataCollector->init();
 }
 
-
+void papi_track_event(int event)
+{
+  PAPIDataCollector *dc = dynamic_cast<PAPIDataCollector*>(theDataCollector);
+  dc->track_event(event);
+}
+void papi_clear_events()
+{
+  PAPIDataCollector *dc = dynamic_cast<PAPIDataCollector*>(theDataCollector);
+  dc->clear_events();
+}
 
 void start_timing(const char * name...)
 {

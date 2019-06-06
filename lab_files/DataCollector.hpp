@@ -36,8 +36,8 @@ public:
   
   void add_string(char * name, char * value);
   void add_double(char * name, double value);
-  void start();
-  void stop();
+  virtual void start();
+  virtual void stop();
   virtual json build_json();
   std::string build_csv();
   std::string build_csv_header();
@@ -53,8 +53,8 @@ protected:
   
 public:
   virtual void init();
-  void start_timing(const char * name, json & kv);
-  void stop_timing();
+  virtual void start_timing(const char * name, json & kv);
+  virtual void stop_timing();
 
   void enqueue_interval(MeasurementInterval *mi) {
     stored_intervals.push_back(mi);

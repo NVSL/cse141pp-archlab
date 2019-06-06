@@ -29,6 +29,8 @@ int pristine_machine();
 int set_cpu_clock_frequency(int mhz);  
 void write_csv(const char * filename);
 
+void papi_track_event(int event);
+void papi_clear_events();
 
 static inline double wall_time ()
 {

@@ -5,6 +5,8 @@
 #include "lab.h"
 #include<string.h>
 #include<iostream>
+#include<papi.h>
+
 // from https://github.com/nlohmann/json
 extern "C" {
   int go(int argc, char *argv[], void *args);
@@ -13,6 +15,8 @@ extern "C" {
 char * system_config_filename = strdup("system.json");
 char * stats_filename = strdup("stats.json");
 
+int data_collector_type = ARCHLAB_COLLECTOR_PAPI;
+
 void parse_cmd_line(int argc, char *argv[]) {
   int c;
 
@@ -20,7 +24,9 @@ void parse_cmd_line(int argc, char *argv[]) {
     static struct option long_options[] =
       {
 	{"stats-file",    required_argument,       0, 's'},
-	{"no-pcm",        no_argument,             0, 'n'},
+	{"no-counters",        no_argument,             0, 'n'},
+	{"papi-counters",        no_argument,             0, 'p'},
+	{"pcm-counters",        no_argument,             0, 'i'},
 	{0, 0, 0, 0}
       };
     /* getopt_long stores the option index here. */
@@ -39,7 +45,13 @@ void parse_cmd_line(int argc, char *argv[]) {
 	stats_filename = strdup(optarg);
 	break;
       case 'n':
-	//archlab_disable_pcm();
+	data_collector_type = ARCHLAB_COLLECTOR_NONE;
+	break;
+      case 'p':
+	data_collector_type = ARCHLAB_COLLECTOR_PAPI;
+	break;
+      case 'i':
+	data_collector_type = ARCHLAB_COLLECTOR_PCM;
 	break;
       case '?':
 	/* getopt_long already printed an error message. */
@@ -100,6 +112,7 @@ int main(int argc, char *argv[]) {
     args.memory[i] = 0;
   }
 
+
   args.access_count = (8*MB)/sizeof(int) * 128; //Hit the whole L3 a couple times
   //  for(unsigned int j = 0; j < sizeof(cpu_frequencies)/sizeof(cpu_frequencies[0]); j++) { // Run the code at different frequencies
   for(int i = 0; i < SIZE_COUNT; i++) { // and for different vector sizes
@@ -135,7 +148,9 @@ int main(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
 
   parse_cmd_line(argc, argv);
-  archlab_init(ARCHLAB_COLLECTOR_PCM); // initialize lab infrastructure.
+  archlab_init(data_collector_type); // initialize lab infrastructure.
+
+  
   struct random_access_args args;
   args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
 
@@ -146,6 +161,13 @@ int main(int argc, char *argv[]) {
   for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
     args.memory[i] = 0;
   }
+  papi_track_event(PAPI_TOT_INS);
+  start_timing("test", // Start timing
+	       NULL);
+  for(int i =0; i <10000 ;i++) {}
+  stop_timing(); // stop timing.
+  write_csv(stats_filename); // dump data for all runs.
+  return 0;
   
   args.read_ratio = 100;
   args.access_count = (8*MB)/sizeof(int) * 128; //Hit the whole L3 a couple times

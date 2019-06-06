@@ -27,6 +27,7 @@ public:
   void init();
 
   MeasurementInterval * newMeasurementInterval() {return new PCMMeasurementInterval();}
+
   
 };
 #endif

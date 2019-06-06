@@ -1,7 +1,7 @@
 PCM = pcm.x
-CFLAGS=-Wall -Werror -g -O4 -I. -Ilab_files -I/root/pcm $(USER_CFLAGS) -pthread
+CFLAGS=-Wall -Werror -g -O0 -I. -Ilab_files -I/root/pcm $(USER_CFLAGS) -pthread -I../papi-5.7.0/install/include
 CXXFLAGS=$(CFLAGS) -std=gnu++11
-LDFLAGS=$(USER_LDFLAGS) -L/root/pcm -pthread -lPCM 
+LDFLAGS=$(USER_LDFLAGS)  -L../papi-5.7.0/install/lib  -L/root/pcm -pthread -lPCM -lpapi -static
 ASM_FLAGS=
 CPP_FLAGS=
 
@@ -32,7 +32,7 @@ pcm_submission: submission/code.pcm
 %.S : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
-%.exe : %.o lab_files/main.o lab_files/archlab.o lab_files/microbenchmarks.o lab_files/DataCollector.o lab_files/PCMDataCollector.o
+%.exe : %.o lab_files/main.o lab_files/archlab.o lab_files/microbenchmarks.o lab_files/DataCollector.o lab_files/PCMDataCollector.o lab_files/PAPIDataCollector.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PHONY: %.out
