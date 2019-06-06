@@ -1,7 +1,7 @@
 PCM = pcm.x
 CFLAGS=-Wall -Werror -g -O4 -I. -Ilab_files -I/root/pcm $(USER_CFLAGS) -pthread
 CXXFLAGS=$(CFLAGS) -std=gnu++11
-LDFLAGS=$(USER_LDFLAGS) -L/root/pcm -lPCM -pthread
+LDFLAGS=$(USER_LDFLAGS) -L/root/pcm -pthread -lPCM 
 ASM_FLAGS=
 CPP_FLAGS=
 
@@ -28,11 +28,11 @@ pcm_submission: submission/code.pcm
 	$(CC) -E -c $(CFLAGS) $(CPP_FLAGS) $< -o $@
 
 %.S : %.cpp
-	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o - |c++filt > $@
 %.S : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
-%.exe : %.o lab_files/main.o lab_files/archlab.o
+%.exe : %.o lab_files/main.o lab_files/archlab.o lab_files/microbenchmarks.o lab_files/DataCollector.o lab_files/PCMDataCollector.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PHONY: %.out
