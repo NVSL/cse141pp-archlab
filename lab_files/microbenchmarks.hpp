@@ -8,7 +8,7 @@
 struct random_access_args {
   int *memory;
   size_t array_length;
-  uint32 read_ratio;
+  uint32_t read_ratio;
   size_t access_count;
 };
 

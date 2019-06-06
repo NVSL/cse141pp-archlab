@@ -1,62 +1,34 @@
 #ifndef ARCHLAB_INCLUDED
 #define ARCHLAB_INCLUDED
 #include<stdint.h>
-#include<iostream>
-#include <cpucounters.h>
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday
 #else
 #include <time.h> // For struct timespec, clock_gettime, CLOCK_MONOTONIC
 #endif
-#include <json.hpp>
-using json = nlohmann::json;
 
 #include <stdlib.h>
 
 #define KB 1024
 #define MB (1024*KB)
 #define GB (1024*MB)
-  
-struct Measurement {
-  float time;
-  SystemCounterState pcm_system_counter_state;
-  std::vector<SocketCounterState> pcm_socket_counter_state;
-  std::vector<CoreCounterState> pcm_core_counter_state;
-};
 
-struct MeasurementInterval {
-  json kv;
-  struct Measurement start;
-  struct Measurement end;
-};
-void archlab_init();
 
-void measurement_interval_add_string(struct MeasurementInterval * m, char * name, char * value);
-void measurement_interval_add_double(struct MeasurementInterval * m, char * name, double value);
-void measurement_interval_start(struct MeasurementInterval * m, char * name);
-void measurement_interval_stop(struct MeasurementInterval * m);
+#define ARCHLAB_COLLECTOR_PCM 0
+#define ARCHLAB_COLLECTOR_PAPI 1
+#define ARCHLAB_COLLECTOR_NONE 2
+
+class DataCollector;
+extern DataCollector *theDataCollector;
+void archlab_init(int collector);
 
 void start_timing(const char * name...);
 void stop_timing();
-
-void write_csv(const char * filename);
-void write_csv(std::ostream & out);
-
-void take_measurement(struct Measurement * measurement);
-
-
-void measurement_interval_write_json(const char * filename,
-				     struct MeasurementInterval * m);
-void measurement_interval_write_json(std::ostream & out,
-				     struct MeasurementInterval * m);
-void measurement_interval_write_csv(const char * filename,
-				    struct MeasurementInterval * m);
-void measurement_interval_write_csv(std::ostream & out,
-				    struct MeasurementInterval * m);
-
 int flush_caches();
 int pristine_machine();
-int set_cpu_clock_frequency(int mhz);
+int set_cpu_clock_frequency(int mhz);  
+void write_csv(const char * filename);
+
 
 static inline double wall_time ()
 {
@@ -73,7 +45,7 @@ static inline double wall_time ()
 }
 
 // default system random number generator
-static inline uint64 rand_int() {
+static inline uint64_t rand_int() {
   return rand()*RAND_MAX + rand();
 }
 
@@ -82,15 +54,28 @@ static inline double rand_double() {
 }
 
 
+//https://en.wikipedia.org/wiki/Xorshift
+inline static uint64_t fast_rand2(uint64_t * seed)
+{
+  if (*seed == 0) {
+    *seed = 1;
+  }
+  uint64_t x = *seed;
+  x ^= x << 13;
+  x ^= x >> 7;
+  x ^= x << 17;
+  *seed = x;
+  return *seed << 32;
+}
 
 #define TAP(a) (((a) == 0) ? 0 : ((1ull) << (((uint64_t)(a)) - (1ull))))
 
 #define RAND_LFSR_DECL(BITS, T1, T2, T3, T4)				\
   inline static uint##BITS##_t RandLFSR##BITS(uint##BITS##_t *seed) {	\
     if (*seed == 0) {							\
-      *seed = rand();							\
+      *seed = 1;							\
     }									\
-    									\
+ 									\
     const uint##BITS##_t mask = TAP(T1) | TAP(T2) | TAP(T3) | TAP(T4);	\
     *seed = (*seed >> 1) ^ (uint##BITS##_t)(-(*seed & (uint##BITS##_t)(1)) & mask); \
     return *seed;							\
@@ -102,7 +87,7 @@ RAND_LFSR_DECL(16, 16,14,13,11);
 RAND_LFSR_DECL(8 ,  8, 6, 5, 4);
 
 // Very fast (but not so random) random number generator.
-inline static uint64_t RandLFSR(uint64_t * x) {
+inline static uint64_t fast_rand(uint64_t * x) {
   return RandLFSR64(x);
 }
 

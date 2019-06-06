@@ -8,12 +8,13 @@ void random_access(int argc, char *argv[], void *_args)
   uint64_t seed = 1;
   int s = 0;  
   int * array = args->memory;
-  uint32 read_ratio = args->read_ratio;
+  uint32_t read_ratio = args->read_ratio;
   size_t array_length = args->array_length;
   size_t access_count = args->access_count;
+
   
   for(unsigned int i= 0; i < access_count; i++) {
-    uint64 t = fast_rand2(&seed) % array_length;
+    uint64_t t = fast_rand2(&seed) % array_length;
       
     if(fast_rand2(&seed) % 100 > read_ratio) {
       array[t] = s;
