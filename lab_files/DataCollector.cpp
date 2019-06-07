@@ -104,11 +104,6 @@ std::string MeasurementInterval::build_csv()
     out << el.value() << ",";
   }
 
-  for (auto& el : j.items()) {
-    if (el.key() == NAME_KEY) continue;
-    out << el.value() << ",";
-  }
-  
   out << "\n";
   return out.str();
 }
@@ -121,10 +116,6 @@ std::string MeasurementInterval::build_csv_header()
 
   out << NAME_KEY <<  ",";
   for (auto& el : kv.items()) {
-    if (el.key() == NAME_KEY) continue;
-    out << el.key() << ",";
-  }
-  for (auto& el : j.items()) {
     if (el.key() == NAME_KEY) continue;
     out << el.key() << ",";
   }

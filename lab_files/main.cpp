@@ -6,6 +6,7 @@
 #include<string.h>
 #include<iostream>
 #include<papi.h>
+#include <unistd.h>
 
 // from https://github.com/nlohmann/json
 extern "C" {
@@ -27,6 +28,7 @@ void parse_cmd_line(int argc, char *argv[]) {
 	{"no-counters",        no_argument,             0, 'n'},
 	{"papi-counters",        no_argument,             0, 'p'},
 	{"pcm-counters",        no_argument,             0, 'i'},
+	{"pin-counters",        no_argument,             0, 'k'},
 	{0, 0, 0, 0}
       };
     /* getopt_long stores the option index here. */
@@ -52,6 +54,9 @@ void parse_cmd_line(int argc, char *argv[]) {
 	break;
       case 'i':
 	data_collector_type = ARCHLAB_COLLECTOR_PCM;
+	break;
+      case 'k':
+	data_collector_type = ARCHLAB_COLLECTOR_PIN;
 	break;
       case '?':
 	/* getopt_long already printed an error message. */
@@ -144,7 +149,8 @@ int main(int argc, char *argv[]) {
 }
 #endif
 
-#if (1)
+
+#ifdef PAPI_TEST
 int main(int argc, char *argv[]) {
 
   parse_cmd_line(argc, argv);
@@ -168,34 +174,39 @@ int main(int argc, char *argv[]) {
   stop_timing(); // stop timing.
   write_csv(stats_filename); // dump data for all runs.
   return 0;
+}
+#endif
+
+#define PIN_TEST
+#ifdef PIN_TEST
+#include"pin-tools/dcache_archlab.hpp"
+
+int main(int argc, char *argv[]) {
+
+  parse_cmd_line(argc, argv);
+  archlab_init(data_collector_type); // initialize lab infrastructure.
   
-  args.read_ratio = 100;
-  args.access_count = (8*MB)/sizeof(int) * 128; //Hit the whole L3 a couple times
-  //  for(unsigned int j = 0; j < sizeof(cpu_frequencies)/sizeof(cpu_frequencies[0]); j++) { // Run the code at different frequencies
-  for(int i = 0; i < SIZE_COUNT; i++) { // and for different vector sizes
-    int size = SIZE_BASE << i; // compute vector size in bytes
-    args.array_length= size/sizeof(int); // length in ints
-    
-    pristine_machine();
-    set_cpu_clock_frequency(cpu_frequencies[0]); // set clock speed
-    
-    char name[1024];  // prepare two user-defined attributes for this run: vector size and clock speed
-    sprintf(name, "%d", size);
-    
-    char clock[1024];
-    sprintf(clock, "%dMHz", cpu_frequencies[0]);
-    
-    start_timing(name, // Start timing
-		 "MemoryRangeSize", name, // pass NULL-terminated list of user-defined key-value pairs
-		 "ClockSpeed", clock,
-		 NULL);
-    random_access(argc, argv, &args);  // Call submitted code
-    stop_timing(); // stop timing.
+  struct random_access_args args;
+  args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
+
+  if (args.memory == NULL) {
+    std::cerr << "couldn't allocate memory." << std::endl;
+    exit(1);
   }
-  //  }
-  
+  for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
+    args.memory[i] = 0;
+  }
+  pin_track_event(DCACHE_HITS_EVENT);
+  pin_track_event(DCACHE_MISSES_EVENT);
+  pin_track_event(DCACHE_LOAD_HITS_EVENT);
+  pin_track_event(DCACHE_LOAD_MISSES_EVENT);
+  pin_track_event(DCACHE_STORE_HITS_EVENT);
+  pin_track_event(DCACHE_STORE_MISSES_EVENT);
+  start_timing("test", // Start timing
+	       NULL);
+  sleep(3);
+  stop_timing(); // stop timing.
   write_csv(stats_filename); // dump data for all runs.
-  
   return 0;
 }
 #endif

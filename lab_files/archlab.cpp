@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include "PCMDataCollector.hpp"
 #include "PAPIDataCollector.hpp"
+#include "PINDataCollector.hpp"
 DataCollector *theDataCollector = NULL;
 
 void archlab_init(int collector)
@@ -21,6 +22,8 @@ void archlab_init(int collector)
     theDataCollector = new PCMDataCollector();
   } else if (collector == ARCHLAB_COLLECTOR_PAPI) {
     theDataCollector = new PAPIDataCollector();
+  } else if (collector == ARCHLAB_COLLECTOR_PIN) {
+    theDataCollector = new PINDataCollector();
   } else if (collector == ARCHLAB_COLLECTOR_NONE) {
     theDataCollector = new DataCollector();
   } else {
@@ -39,6 +42,12 @@ void papi_clear_events()
 {
   PAPIDataCollector *dc = dynamic_cast<PAPIDataCollector*>(theDataCollector);
   dc->clear_events();
+}
+
+void pin_track_event(int event)
+{
+  PINDataCollector *dc = dynamic_cast<PINDataCollector*>(theDataCollector);
+  dc->track_event(event);
 }
 
 void start_timing(const char * name...)

@@ -16,7 +16,8 @@
 
 #define ARCHLAB_COLLECTOR_PCM 0
 #define ARCHLAB_COLLECTOR_PAPI 1
-#define ARCHLAB_COLLECTOR_NONE 2
+#define ARCHLAB_COLLECTOR_PIN 2
+#define ARCHLAB_COLLECTOR_NONE 3
 
 class DataCollector;
 extern DataCollector *theDataCollector;
@@ -31,6 +32,8 @@ void write_csv(const char * filename);
 
 void papi_track_event(int event);
 void papi_clear_events();
+
+void pin_track_event(int event);
 
 static inline double wall_time ()
 {

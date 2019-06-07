@@ -32,7 +32,7 @@ pcm_submission: submission/code.pcm
 %.S : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
-%.exe : %.o lab_files/main.o lab_files/archlab.o lab_files/microbenchmarks.o lab_files/DataCollector.o lab_files/PCMDataCollector.o lab_files/PAPIDataCollector.o
+%.exe : %.o lab_files/main.o lab_files/archlab.o lab_files/microbenchmarks.o lab_files/DataCollector.o lab_files/PCMDataCollector.o lab_files/PAPIDataCollector.o lab_files/PINDataCollector.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PHONY: %.out

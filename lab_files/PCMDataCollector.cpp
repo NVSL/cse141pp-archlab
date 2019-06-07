@@ -13,7 +13,6 @@ void PCMDataCollector::init()
   DataCollector::init();
 }
 
-
 #define PCM_MEASUREMENT_STAT_FIELDS \
   MEASUREMENT_STAT_FIELD(IPC, core)			\
   MEASUREMENT_STAT_FIELD(L3CacheHitRatio, core)		\
