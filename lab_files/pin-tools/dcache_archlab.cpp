@@ -119,6 +119,7 @@ COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile;
 VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId)
 {
     // first level D-cache
+    if (!tracking)  return;
     const BOOL dl1Hit = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
@@ -130,6 +131,7 @@ VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId)
 VOID StoreMulti(ADDRINT addr, UINT32 size, UINT32 instId)
 {
     // first level D-cache
+    if (!tracking)  return;
     const BOOL dl1Hit = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
@@ -142,6 +144,7 @@ VOID LoadSingle(ADDRINT addr, UINT32 instId)
 {
     // @todo we may access several cache lines for 
     // first level D-cache
+    if (!tracking)  return;
     const BOOL dl1Hit = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
@@ -153,6 +156,7 @@ VOID StoreSingle(ADDRINT addr, UINT32 instId)
 {
     // @todo we may access several cache lines for 
     // first level D-cache
+    if (!tracking)  return;
     const BOOL dl1Hit = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
@@ -163,6 +167,7 @@ VOID StoreSingle(ADDRINT addr, UINT32 instId)
 
 VOID LoadMultiFast(ADDRINT addr, UINT32 size)
 {
+    if (!tracking)  return;
     dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
 }
 
@@ -170,6 +175,7 @@ VOID LoadMultiFast(ADDRINT addr, UINT32 size)
 
 VOID StoreMultiFast(ADDRINT addr, UINT32 size)
 {
+    if (!tracking)  return;
     dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
 }
 
@@ -177,6 +183,7 @@ VOID StoreMultiFast(ADDRINT addr, UINT32 size)
 
 VOID LoadSingleFast(ADDRINT addr)
 {
+    if (!tracking)  return;
     dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);    
 }
 
@@ -184,6 +191,7 @@ VOID LoadSingleFast(ADDRINT addr)
 
 VOID StoreSingleFast(ADDRINT addr)
 {
+  if (!tracking)  return;
     dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);    
 }
 
@@ -334,12 +342,12 @@ void pin_stop_collection(uint64_t * counters)
 {
   tracking = false;
   
-  counters[DCACHE_HITS_EVENT] = 1;
-  counters[DCACHE_MISSES_EVENT] = 2;
-  counters[DCACHE_LOAD_HITS_EVENT] = 3;
-  counters[DCACHE_LOAD_MISSES_EVENT] = 4;
-  counters[DCACHE_STORE_HITS_EVENT] = 5;
-  counters[DCACHE_STORE_MISSES_EVENT] = 6;
+  counters[DCACHE_HITS_EVENT] = dl1->Hits();
+  counters[DCACHE_MISSES_EVENT] = dl1->Misses();
+  counters[DCACHE_LOAD_HITS_EVENT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_LOAD);
+  counters[DCACHE_LOAD_MISSES_EVENT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_LOAD);
+  counters[DCACHE_STORE_HITS_EVENT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_STORE);
+  counters[DCACHE_STORE_MISSES_EVENT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_STORE);
 	
   std::cerr << "Stopping collection in PIN\n";
 }
