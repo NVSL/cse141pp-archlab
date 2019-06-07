@@ -1,7 +1,7 @@
 #ifndef MICROBENCHMARKS_INCLUDED
 #define MICROBENCHMARKS_INCLUDED
 
-#include "lab_files/archlab.hpp"
+#include "archlab.hpp"
 #include <cstdlib>
 #include<stdint.h>
 

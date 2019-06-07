@@ -2,7 +2,7 @@
 #include <cpucounters.h>
 #include "archlab.hpp"
 #include <cstring>
-#include <lab_files/cache_control/cache_control.h>
+#include <cache_control/cache_control.h>
 #include <sys/ioctl.h>
 // from https://github.com/nlohmann/json
 #include <json.hpp>
@@ -16,6 +16,7 @@
 #include "PINDataCollector.hpp"
 DataCollector *theDataCollector = NULL;
 
+extern "C" {
 void archlab_init(int collector)
 {
   if (collector == ARCHLAB_COLLECTOR_PCM) {
@@ -107,6 +108,7 @@ int set_cpu_clock_frequency(int mhz)
     exit(1);
   }
   return 1;
+}
 }
 
 

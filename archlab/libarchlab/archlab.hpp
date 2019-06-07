@@ -19,8 +19,10 @@
 #define ARCHLAB_COLLECTOR_PIN 2
 #define ARCHLAB_COLLECTOR_NONE 3
 
-class DataCollector;
+struct DataCollector;
 extern DataCollector *theDataCollector;
+
+extern "C" {
 void archlab_init(int collector);
 
 void start_timing(const char * name...);
@@ -34,6 +36,7 @@ void papi_track_event(int event);
 void papi_clear_events();
 
 void pin_track_event(int event);
+
 
 static inline double wall_time ()
 {
@@ -96,5 +99,5 @@ inline static uint64_t fast_rand(uint64_t * x) {
   return RandLFSR64(x);
 }
 
-
+}
 #endif

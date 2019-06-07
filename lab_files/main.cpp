@@ -1,7 +1,7 @@
-#include "lab_files/archlab.hpp"
+#include "archlab.hpp"
 #include <cstdlib>
 #include <getopt.h>
-#include "lab_files/microbenchmarks.hpp"
+#include "microbenchmarks.hpp"
 #include "lab.h"
 #include<string.h>
 #include<iostream>
