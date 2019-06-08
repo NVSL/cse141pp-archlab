@@ -42,7 +42,6 @@ END_LEGAL */
 
 #include "dcache.H"
 #include "pin_profile.H"
-#include "archlab_pintool.hpp"
 #include <map>
 
 std::ofstream outFile;

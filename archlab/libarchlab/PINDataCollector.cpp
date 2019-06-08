@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <json.hpp>
 
-#include "pin-tools/archlab_pintool.hpp"
 
 using json = nlohmann::json;
 
