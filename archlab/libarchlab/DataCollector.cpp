@@ -1,14 +1,20 @@
-#include "archlab.hpp"
-#include"PCMDataCollector.hpp"
+#include "archlab.h"
+#include "DataCollector.hpp"
 #include <iostream>
 #include <cstring>
 #include <json.hpp>
 #include <stdlib.h>
 #include <sstream>      // std::stringstream
 #include <time.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <sys/types.h>
-
+#include <unistd.h>
+#include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <cache_control/cache_control.h>
+#include <sys/ioctl.h>
 #include <sched.h>
 
 // for convenience
@@ -29,13 +35,23 @@ void DataCollector::init()
                                                     /* the defined mask, i.e. only 7. */
   // Disable turboboost on core 0
   // https://askubuntu.com/questions/619875/disabling-intel-turbo-boost-in-ubuntu
-  int r = system("/usr/sbin/wrmsr -p0 0x1a0 0x4000850089 >/dev/null");
+  /*int r = system("/usr/sbin/wrmsr -p0 0x1a0 0x4000850089 >/dev/null");
   if (r != 0) {
     std::cerr << "Couldn't disable turbo boost." << std::endl;
     exit(1);
+    }*/
+}
+
+
+void DataCollector::track_stat(const std::string  & stat)
+{
+  if (stat != "ARCHLAB_WALL_TIME") {
+    unknown_stat(stat);
   }
 }
 
+void DataCollector::clear_tracked_stats() {
+}
 
 void DataCollector::start_timing(const char * name, json & kv)
 {
@@ -174,4 +190,41 @@ void DataCollector::write_csv(std::ostream & out)
       out << (*i)->build_csv();
     }
   }
+}
+
+void DataCollector::pristine_machine()
+{
+  flush_caches();
+  set_cpu_clock_frequency(3500);
+}
+
+void DataCollector::set_cpu_clock_frequency(int MHz) {
+  char buf[1024];
+  sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz > /dev/null", MHz);
+  int r = system(buf);
+  if (r != 0) {
+    std::cerr << "Couldn't set cpu frequency to " << MHz << "MHz (" << r << ")" << std::endl;
+    exit(1);
+  }
+}
+
+void DataCollector::flush_caches() {
+  
+  int fd = open("/dev/cache_control", O_RDWR);
+  if (fd == -1) {
+    std::cerr << "Couldn't open '/dev/cache_control' to flush caches: " << strerror(errno) << std::endl;
+    exit(1);
+    
+  }
+  int r = ioctl(fd, CACHE_CONTROL_FLUSH_CACHES);
+  if (r == -1) {
+    std::cerr << "Flushing caches failed: " << strerror(errno) << std::endl;
+    exit(1);
+  }
+  
+}
+
+
+void DataCollector::unknown_stat(const std::string & s) {
+  std::cerr << collector_name << " engine cannot record '" << s << "'. Ignoring." << std::endl;
 }

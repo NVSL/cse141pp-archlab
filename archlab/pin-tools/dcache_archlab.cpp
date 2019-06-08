@@ -42,10 +42,44 @@ END_LEGAL */
 
 #include "dcache.H"
 #include "pin_profile.H"
-#include "dcache_archlab.hpp"
+#include "archlab_pintool.hpp"
+#include <map>
 
 std::ofstream outFile;
 bool tracking = false;
+
+#define PIN_REGISTERS				\
+  REG(DCACHE_HITS)				\
+  REG(DCACHE_MISSES)				\
+  REG(DCACHE_LOAD_HITS)				\
+  REG(DCACHE_LOAD_MISSES)			\
+  REG(DCACHE_STORE_HITS)			\
+  REG(DCACHE_STORE_MISSES)
+
+
+enum {
+#define REG(x) x##_EVENT,
+  PIN_REGISTERS
+#undef REG
+};
+
+std::map<std::string, int> register_name_to_index;
+std::map<int, std::string> register_index_to_name;
+
+void init_register_map() {
+#define REG(x)  register_name_to_index[#x] = x##_EVENT;	   register_index_to_name[x##_EVENT] = std::string(#x);
+  
+  PIN_REGISTERS;
+#undef REG
+}
+
+int pin_get_register_by_name(char *name) {
+  return register_name_to_index[name];
+}
+
+const char * pin_get_register_by_index(int i) {
+  return register_index_to_name[i].c_str();
+}
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -352,21 +386,37 @@ void pin_stop_collection(uint64_t * counters)
   std::cerr << "Stopping collection in PIN\n";
 }
 
+void pin_reset_tool() {
+  if (dl1) {
+    delete dl1;
+  }
+  dl1 = new DL1::CACHE("L1 Data Cache", 
+                         KnobCacheSize.Value() * KILO,
+                         KnobLineSize.Value(),
+                         KnobAssociativity.Value());
+  
+}
+
 VOID Routine(RTN rtn, VOID *v)
 {
-  //std::cerr << RTN_Name(rtn) <<"\n";
-  if (RTN_Name(rtn) == "pin_start_collection") {
-    RTN_Replace(rtn, (AFUNPTR)pin_start_collection);
+
+
+#define DIRECT_REPLACE(f) \
+  if (RTN_Name(rtn) == #f) { \
+    RTN_Replace(rtn, (AFUNPTR)f);\
   }
-  if (RTN_Name(rtn) == "pin_stop_collection") {
-    RTN_Replace(rtn, (AFUNPTR)pin_stop_collection);
-  }
+
+  DIRECT_REPLACE(pin_get_register_by_name);
+  DIRECT_REPLACE(pin_get_register_by_index);
+  DIRECT_REPLACE(pin_start_collection);
+  DIRECT_REPLACE(pin_stop_collection);
+  DIRECT_REPLACE(pin_reset_tool);
 }
   
 /* ===================================================================== */
 /* Main                                                                  */
 /* ===================================================================== */
-
+    
 int main(int argc, char *argv[])
 {
     PIN_InitSymbols();
@@ -378,10 +428,12 @@ int main(int argc, char *argv[])
 
     outFile.open(KnobOutputFile.Value().c_str());
 
-    dl1 = new DL1::CACHE("L1 Data Cache", 
-                         KnobCacheSize.Value() * KILO,
-                         KnobLineSize.Value(),
-                         KnobAssociativity.Value());
+    init_register_map();
+
+   
+
+
+    pin_reset_tool();
     
     profile.SetKeyName("iaddr          ");
     profile.SetCounterName("dcache:miss        dcache:hit");

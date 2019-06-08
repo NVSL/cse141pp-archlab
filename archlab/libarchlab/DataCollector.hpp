@@ -47,15 +47,27 @@ public:
 class DataCollector {
   std::vector<MeasurementInterval* > stored_intervals;
   MeasurementInterval * current_interval;
-  
+  std::string stats_filname;
+  const std::string collector_name;
 protected:
   virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
-  
+  explicit DataCollector(const std::string &name): collector_name(name) {}
 public:
+
+  DataCollector() : DataCollector("Native"){}
+  
   virtual void init();
   virtual void start_timing(const char * name, json & kv);
   virtual void stop_timing();
+  virtual void pristine_machine();
+  virtual void flush_caches();
+  virtual void set_cpu_clock_frequency(int MHz);
 
+  virtual void track_stat(const std::string &stat);
+  virtual void clear_tracked_stats();
+  
+
+  void set_stats_filename(const std::string &s) {stats_filname = s;}
   void enqueue_interval(MeasurementInterval *mi) {
     stored_intervals.push_back(mi);
     current_interval = mi;
@@ -66,7 +78,10 @@ public:
   void write_json(std::ostream & out);
   void write_csv(const char * filename);
   void write_csv(std::ostream & out);
+  void write_stats() {write_csv(stats_filname.c_str());}
 
+  const std::string & get_name() const {return collector_name;} 
+  void unknown_stat(const std::string & s);
 };
 
 #endif

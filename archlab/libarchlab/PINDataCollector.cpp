@@ -4,7 +4,52 @@
 #include <stdlib.h>
 #include <json.hpp>
 
+#include "pin-tools/archlab_pintool.hpp"
+
 using json = nlohmann::json;
+
+
+extern "C" {
+
+#define UNPATCHED_PIN_FUNC     std::cerr << "Tried to invoke " << __FUNCTION__ << " on pin tool, but function is not patched." << std::endl
+  void pin_start_collection(uint64_t * data){
+    UNPATCHED_PIN_FUNC;
+  }
+  void pin_stop_collection(uint64_t * data)
+  {
+    UNPATCHED_PIN_FUNC;
+  }
+  
+  void pin_reset_tool()
+  {
+    UNPATCHED_PIN_FUNC;
+  }
+  
+  int pin_get_register_by_name(const char *)
+  {
+    UNPATCHED_PIN_FUNC;
+    return -1;
+  }
+  const char * pin_get_register_by_index(int i)
+  {
+    UNPATCHED_PIN_FUNC;
+    return NULL;
+  }
+}
+
+
+void PINDataCollector::track_stat(const std::string  & stat)
+{
+  int r = pin_get_register_by_name(stat.c_str());
+  if (r == -1) {
+    unknown_stat(stat);
+  }
+}
+
+void PINDataCollector::clear_tracked_stats() {
+  tracked_registers.clear();
+}
+
 
 void PINMeasurementInterval::start()
 {
@@ -28,7 +73,7 @@ json PINMeasurementInterval::build_json()
   for(auto i = dc->tracked_registers.begin();
       i != dc->tracked_registers.end();
       i++) {
-    kv[archlab_pin_registers[*i]] = registers[*i];
+    kv[pin_get_register_by_index(*i)] = registers[*i];
   }
   
   MeasurementInterval::build_json();
@@ -36,10 +81,16 @@ json PINMeasurementInterval::build_json()
   return kv; 
 }
 
-void pin_start_collection(uint64_t * data){
-  std::cerr << "Tried to start PIN data collection, but function is not patched." << std::endl;
+
+void PINDataCollector::flush_caches() {
 }
-void pin_stop_collection(uint64_t * data)
+
+void PINDataCollector::pristine_machine()
 {
-  std::cerr << "Tried to stop PIN data collection, but function is not patched." << std::endl;
+  pin_reset_tool();
 }
+
+void PINDataCollector::set_cpu_clock_frequency(int MHz) {
+  std::cerr << "CPU Frequency is irrelevant with PIN" << std::endl;
+}
+

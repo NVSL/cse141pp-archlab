@@ -21,18 +21,18 @@ class PINDataCollector: public DataCollector {
   std::vector<int> tracked_registers;
 public:
 
+  PINDataCollector() : DataCollector("PIN"){}
   MeasurementInterval * newMeasurementInterval() {return new PINMeasurementInterval();}
 
-  void track_event(int index) {
-    tracked_registers.push_back(index);
-  }
+  void track_stat(const std::string &stat);
+  void clear_tracked_stats();
+
+  void flush_caches();
+  void pristine_machine();
+  void set_cpu_clock_frequency(int MHz);
 
 };
 
 
-extern "C" {
-void pin_start_collection(uint64_t * data);
-void pin_stop_collection(uint64_t * data);
-}
 
 #endif

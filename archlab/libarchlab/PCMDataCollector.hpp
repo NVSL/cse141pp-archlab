@@ -24,6 +24,7 @@ public:
 
 class PCMDataCollector: public DataCollector {
 public:
+  PCMDataCollector() : DataCollector("PCM"){}
   void init();
 
   MeasurementInterval * newMeasurementInterval() {return new PCMMeasurementInterval();}

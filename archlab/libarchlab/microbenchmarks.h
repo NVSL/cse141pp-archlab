@@ -1,9 +1,13 @@
 #ifndef MICROBENCHMARKS_INCLUDED
 #define MICROBENCHMARKS_INCLUDED
 
-#include "archlab.hpp"
-#include <cstdlib>
-#include<stdint.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  
 
 struct random_access_args {
   int *memory;
@@ -23,5 +27,8 @@ struct sequential_read_args {
 
 void sequential_read(int argc, char *argv[], void *_args);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,5 +1,8 @@
-#include"microbenchmarks.hpp"
+#include"microbenchmarks.h"
+#include"archlab.h"
 
+extern "C" {
+  
 int sink;
 
 void random_access(int argc, char *argv[], void *_args)
@@ -39,4 +42,6 @@ void sequential_read(int argc, char *argv[], void *_args)
   }
   
   sink = s;
+}
+  
 }

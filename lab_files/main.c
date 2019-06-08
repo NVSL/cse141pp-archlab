@@ -1,72 +1,15 @@
-#include "archlab.hpp"
-#include <cstdlib>
+#include "archlab.h"
+#include <stdlib.h>
 #include <getopt.h>
-#include "microbenchmarks.hpp"
+#include "microbenchmarks.h"
 #include "lab.h"
+#include <stdio.h>
 #include<string.h>
-#include<iostream>
 #include<papi.h>
-#include <unistd.h>
+#include<unistd.h>
 
-// from https://github.com/nlohmann/json
-extern "C" {
-  int go(int argc, char *argv[], void *args);
-}
 
-char * system_config_filename = strdup("system.json");
-char * stats_filename = strdup("stats.json");
-
-int data_collector_type = ARCHLAB_COLLECTOR_PAPI;
-
-void parse_cmd_line(int argc, char *argv[]) {
-  int c;
-
-  while (1) {
-    static struct option long_options[] =
-      {
-	{"stats-file",    required_argument,       0, 's'},
-	{"no-counters",        no_argument,             0, 'n'},
-	{"papi-counters",        no_argument,             0, 'p'},
-	{"pcm-counters",        no_argument,             0, 'i'},
-	{"pin-counters",        no_argument,             0, 'k'},
-	{0, 0, 0, 0}
-      };
-    /* getopt_long stores the option index here. */
-    int option_index = 0;
-    
-    c = getopt_long (argc, argv, "ns:",
-		     long_options, &option_index);
-    
-    /* Detect the end of the options. */
-    if (c == -1)
-      break;
-    
-    switch (c)
-      {
-      case 's':
-	stats_filename = strdup(optarg);
-	break;
-      case 'n':
-	data_collector_type = ARCHLAB_COLLECTOR_NONE;
-	break;
-      case 'p':
-	data_collector_type = ARCHLAB_COLLECTOR_PAPI;
-	break;
-      case 'i':
-	data_collector_type = ARCHLAB_COLLECTOR_PCM;
-	break;
-      case 'k':
-	data_collector_type = ARCHLAB_COLLECTOR_PIN;
-	break;
-      case '?':
-	/* getopt_long already printed an error message. */
-	break;
-
-      default:
-	abort ();
-      }
-  }
-}
+int go(int argc, char *argv[], void *args);
 
 void naive(int argc, char * argv[], void* _args) {
   struct dot_product_args * args = (struct dot_product_args*)_args;
@@ -82,35 +25,19 @@ void naive(int argc, char * argv[], void* _args) {
   args->sum =sum;
 }
 
-int cpu_frequencies[] = { // Table of frequencies our servers support.
-  3500,
-  3100,
-  2900,
-  2700,
-  2500,
-  2300,
-  2100,
-  2000,
-  1800,
-  1600,
-  1400,
-  1200,
-  1000,
-  800};
- 
 #define SIZE_BASE ((4<<16)*KB)
 #define SIZE_COUNT 1
 
 #if (0)
 int main(int argc, char *argv[]) {
 
-  parse_cmd_line(argc, argv);
-  archlab_init(); // initialize lab infrastructure.
+  archlab_parse_cmd_line(&argc, argv);
+
   struct sequential_read_args args;
   args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
 
   if (args.memory == NULL) {
-    std::cerr << "couldn't allocate memory." << std::endl;
+    fprintf(stderr, "Couldn't allocate memory.\n");
     exit(1);
   }
   for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
@@ -143,7 +70,8 @@ int main(int argc, char *argv[]) {
   }
   //  }
   
-  write_csv(stats_filename); // dump data for all runs.
+  archlab_write_stats();
+
   
   return 0;
 }
@@ -153,26 +81,25 @@ int main(int argc, char *argv[]) {
 #ifdef PAPI_TEST
 int main(int argc, char *argv[]) {
 
-  parse_cmd_line(argc, argv);
-  archlab_init(data_collector_type); // initialize lab infrastructure.
+  archlab_parse_cmd_line(&argc, argv);
 
   
   struct random_access_args args;
   args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
 
   if (args.memory == NULL) {
-    std::cerr << "couldn't allocate memory." << std::endl;
+    fprintf(stderr, "Couldn't allocate memory.\n");
     exit(1);
   }
   for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
     args.memory[i] = 0;
   }
-  papi_track_event(PAPI_TOT_INS);
+  papi_track_stat(PAPI_TOT_INS);
   start_timing("test", // Start timing
 	       NULL);
   for(int i =0; i <10000 ;i++) {}
   stop_timing(); // stop timing.
-  write_csv(stats_filename); // dump data for all runs.
+  archlab_write_stats();
   return 0;
 }
 #endif
@@ -183,43 +110,39 @@ int main(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 
-  parse_cmd_line(argc, argv);
-  archlab_init(data_collector_type); // initialize lab infrastructure.
+  archlab_parse_cmd_line(&argc, argv);
   
   struct random_access_args args;
   args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
 
   if (args.memory == NULL) {
-    std::cerr << "couldn't allocate memory." << std::endl;
+    fprintf(stderr, "Couldn't allocate memory.\n");
     exit(1);
   }
   for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
     args.memory[i] = 0;
   }
-  pin_track_event(DCACHE_HITS_EVENT);
-  pin_track_event(DCACHE_MISSES_EVENT);
-  pin_track_event(DCACHE_LOAD_HITS_EVENT);
-  pin_track_event(DCACHE_LOAD_MISSES_EVENT);
-  pin_track_event(DCACHE_STORE_HITS_EVENT);
-  pin_track_event(DCACHE_STORE_MISSES_EVENT);
+  track_stat("DCACHE_HITS_EVENT");
+  track_stat("DCACHE_MISSES_EVENT");
+  track_stat("DCACHE_LOAD_HITS_EVENT");
+  track_stat("DCACHE_LOAD_MISSES_EVENT");
+  track_stat("DCACHE_STORE_HITS_EVENT");
+  track_stat("DCACHE_STORE_MISSES_EVENT");
   start_timing("test", // Start timing
 	       NULL);
   sleep(3);
   stop_timing(); // stop timing.
-  write_csv(stats_filename); // dump data for all runs.
+  archlab_write_stats();
   return 0;
 }
 #endif
 
 
-  
-
-
 #if (0)
 int main(int argc, char *argv[]) {
   
-  parse_cmd_line(argc, argv);
-  archlab_init(); // initialize lab infrastructure. 
+  archlab_parse_cmd_line(&argc, argv);
+
   
 #define SIZE_COUNT 4
 #define SIZE_BASE (4*MB)
@@ -260,15 +183,15 @@ int main(int argc, char *argv[]) {
       for(int k = 0; k < ITERATIONS; k++) {
 	go(argc, argv, &dp_args);  // Call submitted code
 	if (dp_args.sum != correct) {
-	  std::cerr << "Incorrect result" << std::endl;
+	  fprintf(stderr, "Incorrect result.\n");
 	  exit(1);
 	}
       }
       stop_timing(); // stop timing.
     }
   }
-  
-  write_csv(stats_filename); // dump data for all runs.
+
+  archlab_write_stats();
   
   return 0;
 }	

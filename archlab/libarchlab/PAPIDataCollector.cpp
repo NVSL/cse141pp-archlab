@@ -6,6 +6,21 @@
 
 using json = nlohmann::json;
 
+
+void PAPIDataCollector::track_stat(const std::string  & stat)
+{
+  int event;
+  if (PAPI_OK == PAPI_event_name_to_code(stat.c_str(), &event)) {
+    events.push_back(event);
+  } else {
+    unknown_stat(stat);
+  }
+}
+
+void PAPIDataCollector::clear_tracked_stats() {
+  events.clear();
+}
+
 void PAPIMeasurementInterval::start()
 {
   PAPIDataCollector* dc = dynamic_cast<PAPIDataCollector*>(theDataCollector);
