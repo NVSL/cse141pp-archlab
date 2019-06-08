@@ -46,15 +46,15 @@ public:
 
 class DataCollector {
   std::vector<MeasurementInterval* > stored_intervals;
-  MeasurementInterval * current_interval;
   std::string stats_filname;
   const std::string collector_name;
+  MeasurementInterval * current_interval;
 protected:
   virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
-  explicit DataCollector(const std::string &name): collector_name(name) {}
+  explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
 public:
 
-  DataCollector() : DataCollector("Native"){}
+  DataCollector() : DataCollector("Native") {}
   
   virtual void init();
   virtual void start_timing(const char * name, json & kv);

@@ -67,7 +67,6 @@ std::map<int, std::string> register_index_to_name;
 
 void init_register_map() {
 #define REG(x)  register_name_to_index[#x] = x##_EVENT;	   register_index_to_name[x##_EVENT] = std::string(#x);
-  
   PIN_REGISTERS;
 #undef REG
 }
@@ -79,6 +78,7 @@ int pin_get_register_by_name(char *name) {
 const char * pin_get_register_by_index(int i) {
   return register_index_to_name[i].c_str();
 }
+
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -398,11 +398,10 @@ void pin_reset_tool() {
 
 VOID Routine(RTN rtn, VOID *v)
 {
-
-
-#define DIRECT_REPLACE(f) \
-  if (RTN_Name(rtn) == #f) { \
-    RTN_Replace(rtn, (AFUNPTR)f);\
+#define DIRECT_REPLACE(f)			\
+  if (RTN_Name(rtn) == #f) {			\
+    RTN_Replace(rtn, (AFUNPTR)f);		\
+    std::cerr << "Patched " << #f << std::endl;	\
   }
 
   DIRECT_REPLACE(pin_get_register_by_name);
@@ -410,6 +409,7 @@ VOID Routine(RTN rtn, VOID *v)
   DIRECT_REPLACE(pin_start_collection);
   DIRECT_REPLACE(pin_stop_collection);
   DIRECT_REPLACE(pin_reset_tool);
+
 }
   
 /* ===================================================================== */
@@ -428,9 +428,6 @@ int main(int argc, char *argv[])
     outFile.open(KnobOutputFile.Value().c_str());
 
     init_register_map();
-
-   
-
 
     pin_reset_tool();
     
