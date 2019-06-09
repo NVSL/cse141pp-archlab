@@ -7,16 +7,27 @@
 using json = nlohmann::json;
 
 
+PAPIDataCollector::PAPIDataCollector() : DataCollector("PAPI"){
+  int retval = PAPI_library_init( PAPI_VER_CURRENT );
+  if ( retval != PAPI_VER_CURRENT ) {
+    std::cerr << "PAPI version mismatch." << std::endl;
+  }
+}
+
 void PAPIDataCollector::track_stat(const std::string  & stat)
 {
   int event;
   if (PAPI_OK == PAPI_event_name_to_code(stat.c_str(), &event)) {
+    std::cerr << "Tracking " << stat << std::endl;
     events.push_back(event);
   } else {
     unknown_stat(stat);
   }
 }
 
+void PAPIDataCollector::get_usage(std::ostream &f) {
+  f << "Run `papi_available` for a list available counters.  Also, not all combinations are allowed.  That's a likely source of failures." <<std::endl;
+}
 void PAPIDataCollector::clear_tracked_stats() {
   events.clear();
 }

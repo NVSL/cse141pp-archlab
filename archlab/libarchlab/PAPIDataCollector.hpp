@@ -18,9 +18,9 @@ class PAPIDataCollector: public DataCollector {
   std::vector<int> events;
   
 public:
-  PAPIDataCollector() : DataCollector("PAPI"){}
+  PAPIDataCollector();
   MeasurementInterval * newMeasurementInterval() {return new PAPIMeasurementInterval();}
-
+  void get_usage(std::ostream &f);
   void track_stat(const std::string &stat);
   void clear_tracked_stats();
 };

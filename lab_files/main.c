@@ -5,7 +5,6 @@
 #include "lab.h"
 #include <stdio.h>
 #include<string.h>
-#include<papi.h>
 #include<unistd.h>
 
 
@@ -80,27 +79,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef PAPI_TEST
 int main(int argc, char *argv[]) {
-
-  archlab_parse_cmd_line(&argc, argv);
-
-  
-  struct random_access_args args;
-  args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
-
-  if (args.memory == NULL) {
-    fprintf(stderr, "Couldn't allocate memory.\n");
-    exit(1);
-  }
-  for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
-    args.memory[i] = 0;
-  }
-  papi_track_stat(PAPI_TOT_INS);
-  start_timing("test", // Start timing
-	       NULL);
-  for(int i =0; i <10000 ;i++) {}
-  stop_timing(); // stop timing.
-  archlab_write_stats();
-  return 0;
+  return 1;
 }
 #endif
 
@@ -109,31 +88,7 @@ int main(int argc, char *argv[]) {
 #include"pin-tools/dcache_archlab.hpp"
 
 int main(int argc, char *argv[]) {
-
-  archlab_parse_cmd_line(&argc, argv);
-  
-  struct random_access_args args;
-  args.memory = (int *)malloc((SIZE_BASE << SIZE_COUNT)); // allocate a big vector
-
-  if (args.memory == NULL) {
-    fprintf(stderr, "Couldn't allocate memory.\n");
-    exit(1);
-  }
-  for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
-    args.memory[i] = 0;
-  }
-  /*  track_stat("DCACHE_HITS_STAT");
-  track_stat("DCACHE_MISSES_STAT");
-  track_stat("DCACHE_LOAD_HITS_STAT");
-  track_stat("DCACHE_LOAD_MISSES_STAT");
-  track_stat("DCaACHE_STORE_HITS_STAT");
-  track_stat("DCACHE_STORE_MISSES_STAT");*/
-  start_timing("test", // Start timing
-	       NULL);
-  sleep(3);
-  stop_timing(); // stop timing.
-  archlab_write_stats();
-  return 0;
+  return 1;
 }
 #endif
 

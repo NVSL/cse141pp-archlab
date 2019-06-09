@@ -49,7 +49,7 @@ extern "C" {
       ("help"      , "produce help message")
       ("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
       ("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-      ("stats"     , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect");
+      ("stat"     , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect");
     
     po::parsed_options parsed = po::command_line_parser(*argc, argv).options(desc).allow_unregistered().run();
   
@@ -69,17 +69,19 @@ extern "C" {
       archlab_init(ARCHLAB_COLLECTOR_PCM); 
     } else {
       std::cerr << "Unknown engine: '" << vm["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
+      abort();
     }
-
+    std::cerr << "Loading " << theDataCollector->get_name() << " engine." << std::endl;
+    
     if (vm.count("help")) {
       std::cout << desc << std::endl;
+      
       if (theDataCollector) {
 	theDataCollector->get_usage(std::cerr);
       }
-      exit(0);
     }
   
-    for(auto i: vm["stats"].as<std::vector<std::string > >() ) {
+    for(auto i: vm["stat"].as<std::vector<std::string > >() ) {
       theDataCollector->track_stat(i);
     }
 
@@ -90,6 +92,10 @@ extern "C" {
     int c = 1;
     for(auto i: to_pass_further) {
       argv[c++] = strdup(i.c_str());
+    }
+    if (vm.count("help")) {
+      argv[c++] = strdup("--help");
+      (*argc)++;
     }
     
   }

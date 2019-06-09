@@ -8,15 +8,7 @@
 extern "C" {
 #endif
   
-
-struct random_access_args {
-  int *memory;
-  size_t array_length;
-  uint32_t read_ratio;
-  size_t access_count;
-};
-
-void random_access(int argc, char *argv[], void *_args);
+  void random_access(register int * array, register size_t len, register uint32_t read_ratio, register size_t access_count);
 
 struct sequential_read_args {
   int *memory;
@@ -25,8 +17,11 @@ struct sequential_read_args {
   size_t stride;
 };
 
-void sequential_read(int argc, char *argv[], void *_args);
+void sequential_read(void *_args);
 
+  void nop();
+  void do_sleep(int seconds);
+  
 #ifdef __cplusplus
 }
 #endif

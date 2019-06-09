@@ -1,8 +1,8 @@
 
-subdirs=libarchlab cache_control pin-tools
+subdirs=libarchlab cache_control pin-tools examples
 
 .PHONY: $(subdirs)
-all: $(subdirs)
+all: $(subdirs) $(EXAMPLES)
 clean: $(subdirs)
 
 $(subdirs):
@@ -13,3 +13,4 @@ install-prereqs:
 
 
 include compile.make
+

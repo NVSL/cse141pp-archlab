@@ -9,7 +9,9 @@ default: libarchlab.a
 libarchlab.a: $(OBJS)
 	ar rcs $@ $^
 
-clean: 
+clean:  libarchlab-clean archlab-clean
+
+libarchlab-clean:
 	rm -rf *.o *.a
 
 -include $(SRCS:.cpp=.d)

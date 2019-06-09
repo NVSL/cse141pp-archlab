@@ -61,7 +61,7 @@ extern "C" {
 
 
   //https://en.wikipedia.org/wiki/Xorshift
-  inline static uint64_t fast_rand2(uint64_t * seed)
+  inline static uint64_t fast_rand(uint64_t * seed)
   {
     if (*seed == 0) {
       *seed = 1;
@@ -71,7 +71,7 @@ extern "C" {
     x ^= x >> 7;
     x ^= x << 17;
     *seed = x;
-    return *seed << 32;
+    return *seed;
   }
 
 #define TAP(a) (((a) == 0) ? 0 : ((1ull) << (((uint64_t)(a)) - (1ull))))
@@ -93,7 +93,7 @@ extern "C" {
   RAND_LFSR_DECL(8 ,  8, 6, 5, 4);
 
   // Very fast (but not so random) random number generator.
-  inline static uint64_t fast_rand(uint64_t * x) {
+  inline static uint64_t fast_rand2(uint64_t * x) {
     return RandLFSR64(x);
   }
 
