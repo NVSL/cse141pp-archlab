@@ -16,10 +16,10 @@ int main(int argc, char *argv[]) {
   po::options_description desc("Measure performance with random accesses");
   desc.add_options()
     ("help", "print help")
-    ("memory-size-small",po::value<size_t>()->default_value(4096), "Small memory region size (bytes).")
-    ("memory-size-large",po::value<size_t>()->default_value(32*MB), "Large memory region size (bytes).")
+    ("mem-small", po::value<si_uint64_t>()->default_value(4096), "Small memory region size (bytes).")
+    ("mem-large", po::value<si_uint64_t>()->default_value(32*MB), "Large memory region size (bytes).")
     ("read-ratio",   po::value<int>()->default_value(100), "Read ratio (percent).")
-    ("access-count", po::value<size_t>()->default_value(1000), "Accesses to perform.");
+    ("count", po::value<si_uint64_t>()->default_value(1000), "Accesses to perform.");
   
   po::parsed_options parsed = po::command_line_parser(argc, argv).options(desc).run();
   
@@ -30,10 +30,11 @@ int main(int argc, char *argv[]) {
     std::cout << desc << std::endl;
     exit(0);
   }
-  size_t mem_size_small = vm["memory-size-small"].as<size_t>();
-  size_t mem_size_large = vm["memory-size-large"].as<size_t>();
+  
+  uint64_t mem_size_small = vm["mem-small"].as<si_uint64_t>();
+  uint64_t mem_size_large = vm["mem-large"].as<si_uint64_t>();
   int read_ratio = vm["read-ratio"].as<int>();
-  size_t access_count = vm["access-count"].as<size_t>();
+  uint64_t access_count = vm["count"].as<si_uint64_t>();
     
   int array_length = mem_size_large/sizeof(int);
   int * memory = (int *)calloc(array_length*sizeof(int), 1);
@@ -43,19 +44,40 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  for(size_t s = mem_size_small; s < mem_size_large; s*= 2) {
-    pristine_machine();
-    
-    char name[1024];  // prepare two user-defined attributes for this run: vector size and clock speed
-    sprintf(name, "%lu", s);
-    
-    start_timing(name, // Start timing
-		 "MemoryRangeSize", name, // pass NULL-terminated list of user-defined key-value pairs
-		 NULL);
-    random_access(memory, s/sizeof(int), read_ratio, access_count);
-    stop_timing(); // stop timing.
+  // Using C interface
+  for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
+    pristine_machine(); // reset the machine 
+    char size[1024];
+    sprintf(size, "%lu", s);
+    start_timing("MemoryRange",size, //You must provide at least 1 key-value pai describing the experiment in the C interface.
+		 "Method", "C", // The keys and values all must be strings.
+		 NULL); // End with NULL
+    random_access(memory, s/sizeof(int), read_ratio, access_count); // Time this.
+    stop_timing(); // Stop timing.
   }
-  
+
+  // Using timer object
+  for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
+    ArchLabTimer timer; // create it.
+    pristine_machine(); // reset the machine 
+    timer("MemoryRange", s) // add key-value pairs.  strings, ints, and floats are fine for values.
+      ("Method", "function") // Describing the measurement.
+      .go(); // Start measuring
+    random_access(memory, s/sizeof(int), read_ratio, access_count);
+    // Measurements tops when timer goes out of scope.
+  }
+
+  // Timer object + lambdas
+  for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
+    ArchLabTimer timer;
+    pristine_machine();
+    timer("MemoryRange", s) // Same as above 
+      ("Method", "lambda")
+      .go([&]()->void{ // use a lambda.   you can put any code you want in the braces.
+	random_access(memory, s/sizeof(int), read_ratio, access_count);
+      });
+  }
+
   archlab_write_stats();
   
   return 0;

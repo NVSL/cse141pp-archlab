@@ -135,20 +135,20 @@ extern "C" {
     va_list args;
     va_start(args, name);
 
-    while (char* k = va_arg(args, char *)) {
-      //std::cerr << k << std::endl;
-      char * v = va_arg(args, char *);
+    const char * k = name;
+    const char * v = NULL;
+    while (k && (v = va_arg(args, char *))) {
       //    std::cerr << v << std::endl;
       if (v == NULL) {
 	std::cerr << "Missing value for last key-value pair in start_timing." << std::endl;
 	exit(1);
       }
       kv[k] = v;
+      k = va_arg(args, char *);
     }
-
     va_end(args);
 
-    theDataCollector->start_timing(name, kv);
+    theDataCollector->start_timing(kv);
   }
 
   void stop_timing()  {theDataCollector->stop_timing();}
@@ -170,7 +170,55 @@ extern "C" {
   void archlab_write_stats() {
     theDataCollector->write_stats();
   }
-  
+
+  uint64_t si_parse(const char *s)
+  {
+    static std::map<std::string, uint64_t> prefixes;
+    if (!prefixes.size()) {
+      prefixes["ki"] = 1024;
+      prefixes["Mi"] = 1024*1024;
+      prefixes["Gi"] = 1024*1024*1024;
+      prefixes["Ti"] = 1024ull*1024*1024*1024;
+      prefixes["k"] = 1000;
+      prefixes["M"] = 1000*1000;
+      prefixes["G"] = 1000*1000*1000;
+      prefixes["T"] = 1000ull*1000*1000*1000;
+    }
+
+    char *tail;
+    uint64_t b = strtoll(s, &tail, 0);
+
+    auto p = prefixes.find(tail);
+    if (*tail == '\0') {
+      return b;
+    } else if (p != prefixes.end()) {
+      return b * p->second;
+    } else {
+      std::cerr << "unknown suffix: " << tail << std::endl;
+      abort();
+    }
+    
+  }
+
 }
 
 
+void ArchLabTimer::go() {
+  theDataCollector->start_timing(kv);
+  timing = true;
+}
+
+void ArchLabTimer::go(std::function<void()> f)
+{
+  timing = true;
+  theDataCollector->start_timing(kv);
+  f();
+  theDataCollector->stop_timing();
+  timing = false;
+}
+
+ArchLabTimer::~ArchLabTimer() {
+  if (timing) {
+    theDataCollector->stop_timing();
+  }
+}

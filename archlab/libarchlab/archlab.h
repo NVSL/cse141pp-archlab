@@ -7,6 +7,10 @@
 #include <time.h> // For struct timespec, clock_gettime, CLOCK_MONOTONIC
 #endif
 
+#ifdef __cplusplus
+#include<iostream>
+#endif
+
 #include <stdlib.h>
 
 #define KB 1024
@@ -50,6 +54,9 @@ extern "C" {
 #endif
   }
 
+  uint64_t si_parse(const char *);
+  
+  
   // default system random number generator
   static inline uint64_t rand_int() {
     return rand()*RAND_MAX + rand();
@@ -103,6 +110,9 @@ extern "C" {
   extern int cpu_frequencies[];
 
 #ifdef __cplusplus
-}
+} // C linkage
 #endif
+
+#include "archlab_impl.hpp"
+
 #endif

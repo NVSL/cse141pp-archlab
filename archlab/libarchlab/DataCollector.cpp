@@ -21,7 +21,6 @@
 using json = nlohmann::json;
 
 
-#define NAME_KEY "Name"
 
 void DataCollector::init()
 {
@@ -55,16 +54,12 @@ void DataCollector::track_stat(const std::string  & stat)
 void DataCollector::clear_tracked_stats() {
 }
 
-void DataCollector::start_timing(const char * name, json & kv)
+void DataCollector::start_timing(json & kv)
 {
   MeasurementInterval *n = newMeasurementInterval();
-  
   n->kv = kv;
-  n->kv[NAME_KEY] = name;
-
-  std::cerr << "Starting " << name << " at " << wall_time() <<  std::endl;
   if (current_interval) {
-    std::cerr << "You are already timing something (\"" << current_interval->kv[NAME_KEY] << "\").  You can't time something else." << std::endl;
+    std::cerr << "You are already timing something.  You can't time something else." << std::endl;
     exit(1);
   }
   enqueue_interval(n);
@@ -116,9 +111,7 @@ std::string MeasurementInterval::build_csv()
 
   std::stringstream out;
 
-  out << kv[NAME_KEY] <<  ",";
   for (auto& el : kv.items()) {
-    if (el.key() == NAME_KEY) continue;
     out << el.value() << ",";
   }
 
@@ -132,9 +125,7 @@ std::string MeasurementInterval::build_csv_header()
 
   std::stringstream out;
 
-  out << NAME_KEY <<  ",";
   for (auto& el : kv.items()) {
-    if (el.key() == NAME_KEY) continue;
     out << el.key() << ",";
   }
 
@@ -148,7 +139,7 @@ json DataCollector::build_json() {
   for(auto i = stored_intervals.begin();
       i != stored_intervals.end();
       i++) {
-    j[(*i)->kv[NAME_KEY].get<std::string>()] = (*i)->kv;
+    j.push_back((*i)->kv);
   }
   return j;
 }
