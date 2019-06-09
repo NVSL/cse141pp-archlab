@@ -17,7 +17,7 @@ public:
   ~ArchLabTimer();
   
   template<class T>
-  ArchLabTimer & operator()(const std::string &name, const T & value) {
+  ArchLabTimer & attr(const std::string &name, const T & value) {
     kv[name] = value;
     return *this;
   }
