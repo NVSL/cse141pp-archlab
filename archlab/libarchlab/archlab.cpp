@@ -59,14 +59,6 @@ extern "C" {
 
     std::vector<std::string> to_pass_further = po::collect_unrecognized(parsed.options, po::include_positional);
 
-    for (auto i: to_pass_further)
-      std::cout << i << ' ';
-  
-    if (vm.count("help")) {
-      std::cout << desc << "\n";
-      exit(0);
-    }
-  
     if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PAPI") {
       archlab_init(ARCHLAB_COLLECTOR_PAPI);
     } else if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PIN") {
@@ -76,9 +68,17 @@ extern "C" {
     } else if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PCM") {
       archlab_init(ARCHLAB_COLLECTOR_PCM); 
     } else {
-      std::cerr << "Unknown engine: " << vm["engine"].as<std::string>() << std::endl;
+      std::cerr << "Unknown engine: '" << vm["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
     }
 
+    if (vm.count("help")) {
+      std::cout << desc << std::endl;
+      if (theDataCollector) {
+	theDataCollector->get_usage(std::cerr);
+      }
+      exit(0);
+    }
+  
     for(auto i: vm["stats"].as<std::vector<std::string > >() ) {
       theDataCollector->track_stat(i);
     }

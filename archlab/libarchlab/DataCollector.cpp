@@ -42,6 +42,8 @@ void DataCollector::init()
     }*/
 }
 
+void DataCollector::get_usage(std::ostream & f) {
+}
 
 void DataCollector::track_stat(const std::string  & stat)
 {

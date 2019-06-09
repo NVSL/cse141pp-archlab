@@ -56,6 +56,7 @@ public:
 
   DataCollector() : DataCollector("Native") {}
   
+  
   virtual void init();
   virtual void start_timing(const char * name, json & kv);
   virtual void stop_timing();
@@ -65,7 +66,7 @@ public:
 
   virtual void track_stat(const std::string &stat);
   virtual void clear_tracked_stats();
-  
+  virtual void get_usage(std::ostream & f);
 
   void set_stats_filename(const std::string &s) {stats_filname = s;}
   void enqueue_interval(MeasurementInterval *mi) {

@@ -21,6 +21,7 @@ TEST_TOOL_ROOTS := dcache_archlab #edgcnt pinatrace trace icount inscount2_mt op
 	           #catmix regmix ilenmix coco extmix get_source_location xed-print xed-use ldstmix topopcode regval \
                    #oper-imm bsr_bsf inscount_and_check_tls
 
+TOOL_CXXFLAGS +=  -std=gnu++11
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
 

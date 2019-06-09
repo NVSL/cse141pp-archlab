@@ -122,12 +122,12 @@ int main(int argc, char *argv[]) {
   for(unsigned int i = 0; i < (SIZE_BASE <<  SIZE_COUNT)/sizeof(int); i++) {
     args.memory[i] = 0;
   }
-  track_stat("DCACHE_HITS_EVENT");
-  track_stat("DCACHE_MISSES_EVENT");
-  track_stat("DCACHE_LOAD_HITS_EVENT");
-  track_stat("DCACHE_LOAD_MISSES_EVENT");
-  track_stat("DCACHE_STORE_HITS_EVENT");
-  track_stat("DCACHE_STORE_MISSES_EVENT");
+  /*  track_stat("DCACHE_HITS_STAT");
+  track_stat("DCACHE_MISSES_STAT");
+  track_stat("DCACHE_LOAD_HITS_STAT");
+  track_stat("DCACHE_LOAD_MISSES_STAT");
+  track_stat("DCaACHE_STORE_HITS_STAT");
+  track_stat("DCACHE_STORE_MISSES_STAT");*/
   start_timing("test", // Start timing
 	       NULL);
   sleep(3);

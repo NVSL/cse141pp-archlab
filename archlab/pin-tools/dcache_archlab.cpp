@@ -38,12 +38,12 @@ END_LEGAL */
 
 #include <iostream>
 #include <fstream>
-
+#include <cstring>
 
 #include "dcache.H"
 #include "pin_profile.H"
 #include <map>
-
+#include "ArchLabPinTool.hpp"
 std::ofstream outFile;
 bool tracking = false;
 
@@ -57,7 +57,7 @@ bool tracking = false;
 
 
 enum {
-#define REG(x) x##_EVENT,
+#define REG(x) x##_STAT,
   PIN_REGISTERS
 #undef REG
 };
@@ -66,13 +66,20 @@ std::map<std::string, int> register_name_to_index;
 std::map<int, std::string> register_index_to_name;
 
 void init_register_map() {
-#define REG(x)  register_name_to_index[#x] = x##_EVENT;	   register_index_to_name[x##_EVENT] = std::string(#x);
+#define REG(x)  register_name_to_index[#x "_STAT"] = x##_STAT;	   register_index_to_name[x##_STAT] = std::string(#x);
   PIN_REGISTERS;
 #undef REG
 }
 
-int pin_get_register_by_name(char *name) {
-  return register_name_to_index[name];
+int pin_get_register_by_name(const char *name) {
+  std::map<std::string, int>::iterator i = register_name_to_index.find(name);
+  int r = 0 ;
+  if (i == register_name_to_index.end()) {
+    r = -1;
+  } else {
+    r = i->second;
+  }
+  return r;
 }
 
 const char * pin_get_register_by_index(int i) {
@@ -375,12 +382,12 @@ void pin_stop_collection(uint64_t * counters)
 {
   tracking = false;
   
-  counters[DCACHE_HITS_EVENT] = dl1->Hits();
-  counters[DCACHE_MISSES_EVENT] = dl1->Misses();
-  counters[DCACHE_LOAD_HITS_EVENT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_LOAD);
-  counters[DCACHE_LOAD_MISSES_EVENT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_LOAD);
-  counters[DCACHE_STORE_HITS_EVENT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_STORE);
-  counters[DCACHE_STORE_MISSES_EVENT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_STORE);
+  counters[DCACHE_HITS_STAT] = dl1->Hits();
+  counters[DCACHE_MISSES_STAT] = dl1->Misses();
+  counters[DCACHE_LOAD_HITS_STAT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_LOAD);
+  counters[DCACHE_LOAD_MISSES_STAT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_LOAD);
+  counters[DCACHE_STORE_HITS_STAT] = dl1->Hits(CACHE_BASE::ACCESS_TYPE_STORE);
+  counters[DCACHE_STORE_MISSES_STAT] = dl1->Misses(CACHE_BASE::ACCESS_TYPE_STORE);
 	
   std::cerr << "Stopping collection in PIN\n";
 }
@@ -396,6 +403,11 @@ void pin_reset_tool() {
   
 }
 
+ArchLabPinTool * tool = NULL;
+ArchLabPinTool * pin_get_tool() {
+  return tool;
+}
+
 VOID Routine(RTN rtn, VOID *v)
 {
 #define DIRECT_REPLACE(f)			\
@@ -404,14 +416,45 @@ VOID Routine(RTN rtn, VOID *v)
     std::cerr << "Patched " << #f << std::endl;	\
   }
 
-  DIRECT_REPLACE(pin_get_register_by_name);
-  DIRECT_REPLACE(pin_get_register_by_index);
-  DIRECT_REPLACE(pin_start_collection);
-  DIRECT_REPLACE(pin_stop_collection);
-  DIRECT_REPLACE(pin_reset_tool);
+  DIRECT_REPLACE(pin_get_tool);
 
 }
+
+class DCacheControl : public ArchLabPinTool {
+public:
+  DCacheControl() : ArchLabPinTool("DCache") {}
+  void start_collection(uint64_t * data){
+    pin_start_collection(data);
+  }
+  void stop_collection(uint64_t * data){
+    pin_stop_collection(data);
+  }
+  void reset(){
+    pin_reset_tool();
+  }
+  int get_register_by_name(const char *n){
+    return pin_get_register_by_name(n);
+  }
+  const char * get_register_by_index(int i){
+    return pin_get_register_by_index(i);
+  }
   
+  void get_available_registers(int * count, char *names[]) {
+    // This is very inelegant.  Create static array to avoid a memory leak.
+    static char *register_names[PIN_MAX_REGISTERS];
+    *count = 0;
+    for(std::map<std::string, int>::const_iterator i = register_name_to_index.begin(); i != register_name_to_index.end(); i++) {
+      if (!register_names[*count]) {
+	register_names[*count] = strdup(i->first.c_str());
+      }
+      *count += 1;
+    }
+    for(int i= 0; i < *count; i++){
+      names[i] =register_names[i];
+    }
+  }
+};
+
 /* ===================================================================== */
 /* Main                                                                  */
 /* ===================================================================== */
@@ -429,6 +472,7 @@ int main(int argc, char *argv[])
 
     init_register_map();
 
+    tool = new DCacheControl();
     pin_reset_tool();
     
     profile.SetKeyName("iaddr          ");
