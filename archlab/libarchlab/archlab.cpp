@@ -21,6 +21,10 @@
 namespace po = boost::program_options;
 
 
+po::options_description archlab_cmd_line_options("ArchLab driver");
+std::vector<BaseOptionSpec*> options;
+
+po::variables_map archlab_parsed_options;
 DataCollector *theDataCollector = NULL;
 
 extern "C" {
@@ -44,48 +48,49 @@ extern "C" {
 
   void archlab_parse_cmd_line(int *argc, char *argv[])
   {
-    po::options_description desc("ArchLab driver");
-    desc.add_options()
+    archlab_cmd_line_options.add_options()
       ("help"      , "produce help message")
       ("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
       ("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-      ("stat"     , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect");
+      ("stat"      , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect");
     
-    po::parsed_options parsed = po::command_line_parser(*argc, argv).options(desc).allow_unregistered().run();
-  
-    po::variables_map vm;
-    po::store(parsed, vm);
-    po::notify(vm);
+    po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
+    po::store(parsed, archlab_parsed_options);
+    po::notify(archlab_parsed_options);
+
+    for(auto i: options) {
+      i->assign(archlab_parsed_options);
+    }
 
     std::vector<std::string> to_pass_further = po::collect_unrecognized(parsed.options, po::include_positional);
 
-    if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PAPI") {
+    if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PAPI") {
       archlab_init(ARCHLAB_COLLECTOR_PAPI);
-    } else if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PIN") {
+    } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PIN") {
       archlab_init(ARCHLAB_COLLECTOR_PIN); 
-    } else if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "NATIVE") {
+    } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "NATIVE") {
       archlab_init(ARCHLAB_COLLECTOR_NONE); 
-    } else if (boost::to_upper_copy<std::string>(vm["engine"].as<std::string>()) == "PCM") {
+    } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
       archlab_init(ARCHLAB_COLLECTOR_PCM); 
     } else {
-      std::cerr << "Unknown engine: '" << vm["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
+      std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
       abort();
     }
     std::cerr << "Loading " << theDataCollector->get_name() << " engine." << std::endl;
     
-    if (vm.count("help")) {
-      std::cout << desc << std::endl;
+    if (archlab_parsed_options.count("help")) {
+      std::cout << archlab_cmd_line_options << std::endl;
       
       if (theDataCollector) {
 	theDataCollector->get_usage(std::cerr);
       }
     }
   
-    for(auto i: vm["stat"].as<std::vector<std::string > >() ) {
+    for(auto i: archlab_parsed_options["stat"].as<std::vector<std::string > >() ) {
       theDataCollector->track_stat(i);
     }
 
-    theDataCollector->set_stats_filename(vm["stats-file"].as<std::string>());
+    theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
 
 
     *argc = to_pass_further.size() + 1;
@@ -93,7 +98,7 @@ extern "C" {
     for(auto i: to_pass_further) {
       argv[c++] = strdup(i.c_str());
     }
-    if (vm.count("help")) {
+    if (archlab_parsed_options.count("help")) {
       argv[c++] = strdup("--help");
       (*argc)++;
     }
@@ -221,4 +226,11 @@ ArchLabTimer::~ArchLabTimer() {
   if (timing) {
     theDataCollector->stop_timing();
   }
+}
+
+
+void archlab_add_flag(const std::string & name, bool & dest, const bool& def, const std::string & desc) {
+  archlab_cmd_line_options.add_options()
+    (name.c_str(), desc.c_str());
+  options.push_back(new FlagOptionSpec(name, dest));
 }

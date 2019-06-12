@@ -1,5 +1,5 @@
 
-EXAMPLES=random_access.exe
+EXAMPLES=random_access.exe hello_world.exe
 
 default: $(EXAMPLES)
 
