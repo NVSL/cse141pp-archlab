@@ -18,7 +18,6 @@ install-pin:
 	tar xzf pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
 
 install-prereqs: install-papi install-pin install-pcm
-#	sudo apt-get install -y libboost-all-dev
 
 install-pcm:
 	(git clone https://github.com/opcm/pcm.git; cd pcm; make)
