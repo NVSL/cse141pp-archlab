@@ -11,7 +11,7 @@ $(subdirs):
 install-papi:
 	curl  http://icl.utk.edu/projects/papi/downloads/papi-5.7.0.tar.gz -o papi-5.7.0.tar.gz
 	tar xzf papi-5.7.0.tar.gz
-	(cd papi-5.7.0; ./configure; make; make install; make install-man)
+	(cd papi-5.7.0/src; ./configure; make; make install; make install-man)
 
 install-pin:
 	curl https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz -o pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
