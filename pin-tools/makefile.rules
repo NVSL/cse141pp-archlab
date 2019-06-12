@@ -30,7 +30,7 @@ TEST_ROOTS :=
 TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := call_magic.cpp #get_source_app regval_app oper_imm_app bsr_bsf_app
+APP_ROOTS := #call_magic.cpp get_source_app regval_app oper_imm_app bsr_bsf_app
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS := oper_imm_asm bsr_bsf_asm
@@ -50,24 +50,24 @@ endif
 
 # Place intel64-specific definitions here if they apply to all supported operating systems.
 ifeq ($(TARGET),intel64)
-    TEST_TOOL_ROOTS += inscount2_vregs
+#    TEST_TOOL_ROOTS += inscount2_vregs
 endif
 
 ###### Place OS-specific definitions here ######
 
 # Linux
 ifeq ($(TARGET_OS),linux)
-    TEST_ROOTS += get_source_location_gnu_debug
-    APP_ROOTS += get_source_app_gnu_debug
+ #   TEST_ROOTS += get_source_location_gnu_debug
+ #    APP_ROOTS += get_source_app_gnu_debug
     ifeq ($(TARGET),intel64)
-        TEST_TOOL_ROOTS += fence
+#        TEST_TOOL_ROOTS += fence
     endif
 endif
 
 # Mac OS X*
 ifeq ($(TARGET_OS),mac)
     ifeq ($(TARGET),intel64)
-        TEST_TOOL_ROOTS += fence
+#        TEST_TOOL_ROOTS += fence
     endif
 endif
 
