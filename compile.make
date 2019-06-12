@@ -1,7 +1,7 @@
-PCM_ROOT=/root/pcm
-PAPI_ROOT=/root/swanson//papi-5.7.0/install/
-PIN_ROOT=/root/pin-3.7-97619-g0d0c92f4f-gcc-linux
-ARCHLAB=/root/swanson/CSE141pp-lab-dot-product/archlab
+PCM_ROOT=/pcm
+PAPI_ROOT=/usr/local
+PIN_ROOT=/pin
+ARCHLAB=/cse141pp-archlab
 export PIN_ROOT
 C_OPTS ?= -O4
 CFLAGS ?=-Wall -Werror -g $(C_OPTS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I../
