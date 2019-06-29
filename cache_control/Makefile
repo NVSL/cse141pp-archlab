@@ -10,7 +10,7 @@ test.exe: test.c
 
 .PHONY: test
 test: test.exe all
-	rmmod cache_control
+	-rmmod cache_control
 	insmod cache_control.ko
 	./test.exe
 	dmesg | tail
