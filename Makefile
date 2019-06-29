@@ -6,7 +6,7 @@ all: $(subdirs) $(EXAMPLES)
 clean: $(subdirs)
 
 $(subdirs):
-	make -C $@ $(MAKECMDGOALS)
+	make -C $@ $(MAKECMDGOALS) PIN_ROOT=$(PWD)/pin-3.7-97619-g0d0c92f4f-gcc-linux
 
 install-papi:
 	curl  http://icl.utk.edu/projects/papi/downloads/papi-5.7.0.tar.gz -o papi-5.7.0.tar.gz
@@ -21,6 +21,9 @@ install-prereqs: install-papi install-pin install-pcm
 
 install-pcm:
 	(git clone https://github.com/opcm/pcm.git; cd pcm; make)
+
+setup:
+	insmod cache_control/cache_control.ko
 
 include compile.make
 
