@@ -16,6 +16,10 @@
 #include <cache_control/cache_control.h>
 #include <sys/ioctl.h>
 #include <sched.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+
 
 // for convenience
 using json = nlohmann::json;
@@ -39,6 +43,35 @@ void DataCollector::init()
     std::cerr << "Couldn't disable turbo boost." << std::endl;
     exit(1);
     }*/
+}
+
+int DataCollector::run_child(char *exec, char *argv[])
+{
+  pid_t child_pid;
+  if( (child_pid = fork()) == 0 )  //Purposeful assignment, not comparison
+    {
+      int r = execvp(exec, argv);
+      std::cerr << "Exec returned\n";
+      if (r == -1) {
+	std::cerr << "Couldn't exec '" << exec << "': " << strerror(errno) << "\n";
+	exit(1);
+      }
+    }
+  else if( child_pid < 0 )
+    {
+      fprintf( stderr, "Failed to create child process. Exiting...\n" );
+      exit(1);
+    }
+  
+  int status;
+  //usleep( (useconds_t) 5000 ); Not sure why leo had this in here.
+  pid_t r = waitpid(child_pid, &status,0);
+  if (r == -1) {
+    std::cerr << "Couldn't wait for child to exit. I'm exiting...\n";
+    exit(1);
+  }
+
+  return WEXITSTATUS(status);
 }
 
 void DataCollector::get_usage(std::ostream & f) {

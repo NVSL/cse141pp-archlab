@@ -67,7 +67,8 @@ public:
   virtual void track_stat(const std::string &stat);
   virtual void clear_tracked_stats();
   virtual void get_usage(std::ostream & f);
-
+  virtual int  run_child(char *exec, char *argv[]);
+  
   void set_stats_filename(const std::string &s) {stats_filname = s;}
   void enqueue_interval(MeasurementInterval *mi) {
     stored_intervals.push_back(mi);

@@ -9,4 +9,7 @@
 
 class DataCollector;
 extern DataCollector *theDataCollector;
+
+#include<DataCollector.hpp>
+
 #endif

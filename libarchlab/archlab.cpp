@@ -76,6 +76,7 @@ extern "C" {
       std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
       abort();
     }
+
     std::cerr << "Loading " << theDataCollector->get_name() << " engine." << std::endl;
     
     if (archlab_parsed_options.count("help")) {
@@ -91,7 +92,6 @@ extern "C" {
     }
 
     theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
-
 
     *argc = to_pass_further.size() + 1;
     int c = 1;
