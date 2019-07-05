@@ -1,0 +1,282 @@
+Only in ./benchmarks/spec2017/benchspec/CPU/500.perlbench_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/500.perlbench_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/500.perlbench_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/502.gcc_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/502.gcc_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/502.gcc_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/503.bwaves_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/503.bwaves_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/503.bwaves_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/505.mcf_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/505.mcf_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/505.mcf_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/507.cactuBSSN_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/507.cactuBSSN_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/507.cactuBSSN_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/508.namd_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/508.namd_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/508.namd_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/510.parest_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/510.parest_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/510.parest_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/511.povray_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/511.povray_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/511.povray_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/519.lbm_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/519.lbm_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/519.lbm_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/520.omnetpp_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/520.omnetpp_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/520.omnetpp_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/521.wrf_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/521.wrf_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/521.wrf_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/523.xalancbmk_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/523.xalancbmk_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/523.xalancbmk_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/525.x264_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/525.x264_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/525.x264_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/526.blender_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/526.blender_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/526.blender_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/527.cam4_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/527.cam4_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/527.cam4_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/531.deepsjeng_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/531.deepsjeng_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/531.deepsjeng_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/538.imagick_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/538.imagick_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/538.imagick_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/541.leela_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/541.leela_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/541.leela_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/544.nab_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/544.nab_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/544.nab_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/548.exchange2_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/548.exchange2_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/548.exchange2_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/549.fotonik3d_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/549.fotonik3d_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/549.fotonik3d_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/554.roms_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/554.roms_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/554.roms_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/557.xz_r: build
+Only in ./benchmarks/spec2017/benchspec/CPU/557.xz_r: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/557.xz_r: run
+Only in ./benchmarks/spec2017/benchspec/CPU/600.perlbench_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/600.perlbench_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/600.perlbench_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/602.gcc_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/602.gcc_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/602.gcc_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/603.bwaves_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/603.bwaves_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/603.bwaves_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/605.mcf_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/605.mcf_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/605.mcf_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/607.cactuBSSN_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/607.cactuBSSN_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/607.cactuBSSN_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/619.lbm_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/619.lbm_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/619.lbm_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/620.omnetpp_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/620.omnetpp_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/620.omnetpp_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/621.wrf_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/621.wrf_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/621.wrf_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/623.xalancbmk_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/623.xalancbmk_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/623.xalancbmk_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/625.x264_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/625.x264_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/625.x264_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/627.cam4_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/627.cam4_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/627.cam4_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/628.pop2_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/628.pop2_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/628.pop2_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/631.deepsjeng_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/631.deepsjeng_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/631.deepsjeng_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/638.imagick_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/638.imagick_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/638.imagick_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/641.leela_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/641.leela_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/641.leela_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/644.nab_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/644.nab_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/644.nab_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/648.exchange2_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/648.exchange2_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/648.exchange2_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/649.fotonik3d_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/649.fotonik3d_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/649.fotonik3d_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/654.roms_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/654.roms_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/654.roms_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/657.xz_s: build
+Only in ./benchmarks/spec2017/benchspec/CPU/657.xz_s: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/657.xz_s: run
+Only in ./benchmarks/spec2017/benchspec/CPU/996.specrand_fs: build
+Only in ./benchmarks/spec2017/benchspec/CPU/996.specrand_fs: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/996.specrand_fs: run
+Only in ./benchmarks/spec2017/benchspec/CPU/997.specrand_fr: build
+Only in ./benchmarks/spec2017/benchspec/CPU/997.specrand_fr: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/997.specrand_fr: run
+Only in ./benchmarks/spec2017/benchspec/CPU/998.specrand_is: build
+Only in ./benchmarks/spec2017/benchspec/CPU/998.specrand_is: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/998.specrand_is: run
+Only in ./benchmarks/spec2017/benchspec/CPU/999.specrand_ir: build
+Only in ./benchmarks/spec2017/benchspec/CPU/999.specrand_ir: exe
+Only in ./benchmarks/spec2017/benchspec/CPU/999.specrand_ir: run
+diff -x MANIFEST -ru ./benchmarks/.pristine_spec2017/bin/common/setup_common.pl ./benchmarks/spec2017/bin/common/setup_common.pl
+--- ./benchmarks/.pristine_spec2017/bin/common/setup_common.pl	2018-04-19 17:53:15.000000000 +0000
++++ ./benchmarks/spec2017/bin/common/setup_common.pl	2019-07-04 16:40:15.154721773 +0000
+@@ -164,9 +164,10 @@
+         if (-f $path) {
+             # Make it relative to $SPEC for looking up in MANIFEST
+             $path =~ s#^\Q${ENV{'SPEC'}}\E[/\\]*##;
+-            if ($::check_integrity && !check_files(\%::file_sums, $path)) {
+-                die "\n\nPart of the tools ($module in $path) is corrupt!  Aborting...\n\n";
+-            }
++	    # SS: We hacked the script, so integrity checks will fail.
++            #if ($::check_integrity && !check_files(\%::file_sums, $path)) {
++            #    die "\n\nPart of the tools ($module in $path) is corrupt!  Aborting...\n\n";
++            #}
+             eval "$pre require \"$module\";";
+             print '.' unless ($quiet);
+             if ($@) {
+diff -x MANIFEST -ru ./benchmarks/.pristine_spec2017/bin/common/util_common.pl ./benchmarks/spec2017/bin/common/util_common.pl
+--- ./benchmarks/.pristine_spec2017/bin/common/util_common.pl	2018-05-22 16:14:48.000000000 +0000
++++ ./benchmarks/spec2017/bin/common/util_common.pl	2019-07-04 16:40:15.154721773 +0000
+@@ -1253,6 +1253,7 @@
+                 open(STDERR, '>'.$opts->{'errfile'}) or die "Can't redirect stderr to '".$opts->{'errfile'}."': $!\n";
+             }
+         }
++	print STDERR "EXECING: exec(".join(' ', @cmd).")\n";
+         if (!exec @cmd) {
+             # Command didn't exist _and_ no shell was involved
+             print STDERR "exec(".join(' ', @cmd).") failed: $!\n";
+diff -x MANIFEST -ru ./benchmarks/.pristine_spec2017/bin/harness/benchmark.pm ./benchmarks/spec2017/bin/harness/benchmark.pm
+--- ./benchmarks/.pristine_spec2017/bin/harness/benchmark.pm	2017-05-12 15:27:56.000000000 +0000
++++ ./benchmarks/spec2017/bin/harness/benchmark.pm	2019-07-04 21:20:05.389985269 +0000
+@@ -3249,6 +3249,16 @@
+ 
+         $start = time;
+         my $outname = istrue($me->fake) ? 'benchmark_run' : undef;
++	# SS: This is as close as we will get to the executables, since they don't ship the source for specinvoke, which is what actually gets called here.
++	if ($ENV{'ARCHLAB_RUNNER'}) {
++	    my $t = $ENV{'ARCHLAB_RUNNER'};
++	    my $l = $me->name.".".$me->num;
++	    $t =~ s/BENCHMARK_LABEL/$l/g;
++	    my $wd = getcwd();
++	    $t =~ s/PWD/$wd/g;
++	    $command = "$t $command"
++	}
++	print STDERR "RUNNING BENCHMARK: $command\n";
+         my $rc = ::log_system($command, { 'basename' => $outname, 'env_vars' => istrue($me->env_vars) });
+         $stop = time;
+         $elapsed = $stop-$start;
+Only in ./benchmarks/spec2017/bin/harness: benchmark.pm~
+Only in ./benchmarks/spec2017/config: cse141pp.cfg
+Only in ./benchmarks/spec2017/config: cse141pp.cfg.2019-07-04T164150
+Only in ./benchmarks/spec2017/result: CPU2017.001.log
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.002.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.002.log
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.003.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.003.log
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.004.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.004.log
+Only in ./benchmarks/spec2017/result: CPU2017.005.log
+Only in ./benchmarks/spec2017/result: CPU2017.005.log.debug
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.csv
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.html
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.006.intrate.refrate.txt
+Only in ./benchmarks/spec2017/result: CPU2017.006.log
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.007.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.007.log
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.008.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.008.log
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.009.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.009.log
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.010.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.010.log
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.csv
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.flags.html
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.html
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.orig.cfg
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.pdf
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.rsf
+Only in ./benchmarks/spec2017/result: CPU2017.011.intrate.test.txt
+Only in ./benchmarks/spec2017/result: CPU2017.011.log
+Only in ./benchmarks/spec2017/result: invalid.gif
+Only in ./benchmarks/spec2017/result: lock.CPU2017
+Only in ./benchmarks/spec2017: runner_ran
+Only in ./benchmarks/.pristine_spec2017: spec2017
+Only in ./benchmarks/spec2017/tmp: CPU2017.002.0
+Only in ./benchmarks/spec2017/tmp: CPU2017.003.0

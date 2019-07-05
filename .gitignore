@@ -23,3 +23,14 @@
 *.d
 *.d.*
 *.a
+.pristine_spec2017
+*.iso
+papi-*.tar.gz
+papi-*
+pcm
+pin-*-gcc-linux*
+pin-tools/obj-*
+core
+benchmarks/spec2017
+benchmarks/new-*.patch
+
