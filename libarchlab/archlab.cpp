@@ -52,7 +52,7 @@ extern "C" {
       ("help"      , "produce help message")
       ("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
       ("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-      ("stat"      , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect");
+      ("stat"      , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect")      ("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement");
     
     po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
     po::store(parsed, archlab_parsed_options);
@@ -91,6 +91,15 @@ extern "C" {
       theDataCollector->track_stat(i);
     }
 
+    if (archlab_parsed_options.find("tag") != archlab_parsed_options.end()) {
+      for(auto s: archlab_parsed_options["tag"].as<std::vector<std::string > >() ) {
+	int l = s.find(":");
+	std::string key = s.substr(0, l);
+	std::string value = s.substr(l + 1, s.size());
+	theDataCollector->add_default_kv(key, value);
+      }
+    }
+      
     theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
 
     *argc = to_pass_further.size() + 1;

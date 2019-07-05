@@ -90,7 +90,8 @@ void DataCollector::clear_tracked_stats() {
 void DataCollector::start_timing(json & kv)
 {
   MeasurementInterval *n = newMeasurementInterval();
-  n->kv = kv;
+  n->kv = default_kv;
+  n->kv.merge_patch(kv);
   if (current_interval) {
     std::cerr << "You are already timing something.  You can't time something else." << std::endl;
     exit(1);
