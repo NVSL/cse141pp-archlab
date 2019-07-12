@@ -30,6 +30,9 @@ default:
 %.S : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
+%.o : %.s
+	$(CC) -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+
 %.d: %.c
 	 @set -e; rm -f $@; \
          $(CC) -MM $(CXXFLAGS) $< > $@.$$$$; \
