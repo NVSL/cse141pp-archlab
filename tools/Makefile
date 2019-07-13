@@ -13,5 +13,3 @@ archlab_run: archlab_run.exe
 %.exe : %.o  ../libarchlab/libarchlab.a
 	$(CXX) $(filter %o,$^) $(LDFLAGS) -o $@
 
-
-

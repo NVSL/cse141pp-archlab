@@ -33,4 +33,6 @@ pin-tools/obj-*
 core
 benchmarks/spec2017
 benchmarks/new-*.patch
-
+.DS_Store
+*.gv
+*-gv.pdf
