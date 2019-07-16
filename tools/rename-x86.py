@@ -162,7 +162,7 @@ output.append(["line num", "code", "depth", "ins", "outs", "renamed_ins", "renam
 
 inst_id = 0 
 inst_count = 0 
-max_depth = 0
+max_depth = 1
 for l in lines:
     log.debug("Analyzing {}".format(l))
     inst_id += 1
@@ -199,8 +199,8 @@ for l in lines:
         continue
     inst_count += 1
 
-    args=g.group(2).split(", ");
-    args = [s.strip() for s in args]
+    args= g.group(2).split(", ");
+    args = [s.strip() for s in args if s.strip() != ""]
     
     assert len(args) <= 4, "Too many argument: {} has {}".format(l, len(args))
     op = g.group(1)
@@ -208,11 +208,11 @@ for l in lines:
         op = op[0:-1]
 
     inst = x86_inst_map.get((op, len(args)))
-
     if not inst:
         log.error("Unknown instruction: {} ({} args)".format(op, len(args)))
         sys.exit(1)
         continue;
+    log.debug("Using {} with {} args".format(inst.name, inst.arg_count))
     inputs = []
     outputs = []
 

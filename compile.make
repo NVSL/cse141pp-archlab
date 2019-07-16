@@ -10,10 +10,14 @@ CXXFLAGS ?=$(CFLAGS) -std=gnu++11
 LDFLAGS ?= $(USER_LDFLAGS)  -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -pthread -larchlab -static -lPCM -lpapi -lboost_program_options
 ASM_FLAGS=
 CPP_FLAGS=
-.PRECIOUS: %.o %.exe %.S %.i
+.PRECIOUS: %.o %.exe %.s %.i
 .PHONY: default
 
 default:
+
+
+%.o : %.s
+	$(CC) -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
 %.o : %.cpp
 	$(CXX) -c $(CXXFLAGS)  $< -o $@
@@ -26,15 +30,12 @@ default:
 %.i : %.c
 	$(CC) -E -c $(CFLAGS) $(CPP_FLAGS) $< -o $@
 
-%.S : %.cpp
+%.s : %.cpp
 	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o - |c++filt > $@
-%.S : %.c
+%.s : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
-%.o : %.s
-	$(CC) -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
-
-%.S: %.hS
+%.trace.s: %.trace
 	cp $< $@
 
 %.d: %.c
@@ -55,7 +56,7 @@ RENAME_FLAGS?=
 
 .PRECIOUS: %.gv
 
-%.gv %.csv: %.S
+%.gv %.csv: %.s
 	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $< 
 
 %-gv.pdf: %.gv
@@ -69,11 +70,11 @@ clean: rename-clean
 
 
 .PHONY: %.out
-%.out : %.exe %.i %.S
+%.out : %.exe %.i %.s
 	./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) 2>&1  | tee $@
 
 .PHONY: archlab-clean
 archlab-clean:
-	rm -rf *.exe *.o *.i *.S *.out *.d *.gcda *.gcno
+	rm -rf *.exe *.o *.i *.s *.out *.d *.gcda *.gcno
 
 clean: archlab-clean
