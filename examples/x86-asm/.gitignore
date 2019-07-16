@@ -1,3 +1,5 @@
 *.gv
 *-gv.pdf
 *_gcc*.c
+*_clang*.c
+
