@@ -18,10 +18,10 @@ install-pin:
 	curl https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz -o pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
 	tar xzf pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
 
-install-prereqs: install-papi install-pin install-pcm create-venv
+install-prereqs: create-venv install-papi install-pin install-pcm 
 
 create-venv:
-	virtual-env archcloud/venv
+	virtualenv archcloud/venv
 
 install-pcm:
 	(git clone https://github.com/opcm/pcm.git; cd pcm; make)
