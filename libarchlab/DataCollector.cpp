@@ -87,6 +87,11 @@ void DataCollector::track_stat(const std::string  & stat)
 void DataCollector::clear_tracked_stats() {
 }
 
+void DataCollector::add_default_kv(const std::string & key, const std::string & value)
+{
+	default_kv[key] = value;
+}
+
 void DataCollector::start_timing(json & kv)
 {
   MeasurementInterval *n = newMeasurementInterval();

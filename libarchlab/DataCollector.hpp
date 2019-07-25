@@ -49,6 +49,8 @@ class DataCollector {
   std::string stats_filname;
   const std::string collector_name;
   MeasurementInterval * current_interval;
+	json default_kv;
+
 protected:
   virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
   explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
@@ -81,6 +83,7 @@ public:
   void write_csv(const char * filename);
   void write_csv(std::ostream & out);
   void write_stats() {write_csv(stats_filname.c_str());}
+  void add_default_kv(const std::string & key, const std::string & value);
 
   const std::string & get_name() const {return collector_name;} 
   void unknown_stat(const std::string & s);
