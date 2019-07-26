@@ -14,6 +14,7 @@ import requests
 import json
 import copy
 from contextlib import contextmanager
+import docker
 
 @contextmanager
 def environment(**kwds):
@@ -81,12 +82,13 @@ def load_lab_spec(root, repo=None):
 
 
 def run_submission_remotely(sub, host, port):
+    log.debug("Running remotely on {}".format(host))
     r = requests.post("{}/run-job".format(host), data=dict(payload=json.dumps(sub._asdict())))
     log.debug(r.raw.read())
     log.debug(r.json())
-    #return SubmissionResult._fromdict(r.json())
-    return run_submission_locally(sub)
+    return SubmissionResult._fromdict(r.json())
 
+#def run_submission_in_docker(sub):
 
 def run_submission_locally(sub):
     out = StringIO()
@@ -147,6 +149,7 @@ def main(argv):
     parser = argparse.ArgumentParser(description='Run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
     parser.add_argument('--local', action='store_true', dest="run_local", help="Run job locally")
+    parser.add_argument('--remote', default="http://localhost:5000", help="Run remotely on this host")
 #    parser.add_argument('--repo', help="git repo")
     args = parser.parse_args(argv)
     log.basicConfig(format="%(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s", level=log.DEBUG if args.verbose else log.INFO)
@@ -175,7 +178,7 @@ def main(argv):
     if args.run_local:
         result = run_submission_locally(s)
     else:
-        result = run_submission_remotely(s, "http://localhost:5000", "5000")
+        result = run_submission_remotely(s, args.remote, "5000")
 
     for i in spec.output_files:
         if i in result.files:
