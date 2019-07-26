@@ -241,19 +241,22 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
 }
 
 void DataCollector::flush_caches() {
-  
-  int fd = open("/dev/cache_control", O_RDWR);
-  if (fd == -1) {
-    std::cerr << "Couldn't open '/dev/cache_control' to flush caches: " << strerror(errno) << std::endl;
-    exit(1);
-    
-  }
-  int r = ioctl(fd, CACHE_CONTROL_FLUSH_CACHES);
-  if (r == -1) {
-    std::cerr << "Flushing caches failed: " << strerror(errno) << std::endl;
-    exit(1);
-  }
-  
+
+	if( access( fname, F_OK ) != -1 ) {
+		std::cerr << "Couldn't open '/dev/cache_control'.  Not flushing caches.\n";
+		return
+	}  
+
+	int fd = open("/dev/cache_control", O_RDWR);
+	if (fd == -1) {
+		std::cerr << "Couldn't open '/dev/cache_control' to flush caches: " << strerror(errno) << std::endl;
+	}
+
+	int r = ioctl(fd, CACHE_CONTROL_FLUSH_CACHES);
+	if (r == -1) {
+		std::cerr << "Flushing caches failed: " << strerror(errno) << std::endl;
+		exit(1);
+	}
 }
 
 
