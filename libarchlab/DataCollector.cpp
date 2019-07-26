@@ -236,13 +236,13 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
   int r = system(buf);
   if (r != 0) {
     std::cerr << "Couldn't set cpu frequency to " << MHz << "MHz (" << r << ")" << std::endl;
-    exit(1);
+
   }
 }
 
 void DataCollector::flush_caches() {
 
-	if( access( "/dev/cache_control/", F_OK ) != -1 ) {
+	if( access( "/dev/cache_control/", F_OK ) == -1 ) {
 		std::cerr << "Couldn't open '/dev/cache_control'.  Not flushing caches.\n";
 		return;
 	}  
