@@ -244,7 +244,7 @@ void DataCollector::flush_caches() {
 
 	if( access( fname, F_OK ) != -1 ) {
 		std::cerr << "Couldn't open '/dev/cache_control'.  Not flushing caches.\n";
-		return
+		return;
 	}  
 
 	int fd = open("/dev/cache_control", O_RDWR);
