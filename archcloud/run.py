@@ -15,6 +15,8 @@ import json
 import copy
 from contextlib import contextmanager
 import docker
+client = docker.from_env()
+import docker.types
 
 @contextmanager
 def environment(**kwds):
@@ -65,20 +67,17 @@ class SubmissionResult(object):
                    files=j['files'])
 
 
-def load_lab_spec(root, repo=None):
+def load_lab_spec(root):
     log.debug("Importing {}".format(os.path.join(root, "lab.py")))
     spec = importlib.util.spec_from_file_location("LabInfo", os.path.join(root, "lab.py"))
     lab_info = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lab_info)
-    if repo is None:
-        log.debug("Figuring out upstream repo for {}".format(root))
-        repo = subprocess.check_output(['git',  'config', '--get', 'remote.upstream.url'], cwd=root).strip().decode("utf-8")
-        log.debug("it is {}".format(repo))
-    return LabSpec(repo=repo,
+    return LabSpec(
                    output_files=lab_info.output_files + ['STDOUT', 'STDERR'],
                    input_files=lab_info.input_files,
                    cmd=lab_info.cmd,
-                   env=lab_info.env)
+                   env=lab_info.env,
+                   repo=lab_info.base_repo)
 
 
 def run_submission_remotely(sub, host, port):
@@ -88,9 +87,17 @@ def run_submission_remotely(sub, host, port):
     log.debug(r.json())
     return SubmissionResult._fromdict(r.json())
 
-#def run_submission_in_docker(sub):
+def run_submission_in_docker(sub):
+    pass
+#    docker
+#    run - it - p
+#    5000: 5000 - v $ARCHLAB_ROOT: / runner
+#    cse141pp / submission - runner: 0.10
+#    bash - c
+#    '. env.sh; cd archcloud/test_lab; ../run.py --local'    pass
 
-def run_submission_locally(sub):
+
+def run_submission_locally(sub, in_docker=False, run_pristine=False):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -108,26 +115,46 @@ def run_submission_locally(sub):
         err.write(errout.decode("utf-8"))
         #   rc = p.returncode
 
-    try:
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            log_run(cmd=['git', 'clone', sub.lab_spec.repo, tmpdirname])
+    @contextmanager
+    def directory(d=None):
+        if d is not None:
+            try:
+                yield os.path.abspath(d)
+            finally:
+                pass
+        else:
+            r = tempfile.TemporaryDirectory(dir="/tmp/")
+            try:
+                yield r.name
+            finally:
+                r.cleanup()
 
-            spec = load_lab_spec(tmpdirname, repo=sub.lab_spec.repo) # distrust submitters spec by loading the pristine one from the newly cloned repo.
+    try:
+        with directory("." if not run_pristine else None) as dirname:
+            if run_pristine:
+                log_run(cmd=['git', 'clone', sub.lab_spec.repo, dirname])
+
+            spec = load_lab_spec(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
 
-            for f in spec.input_files:
-                path = os.path.join(tmpdirname, f)
-                with open(path, "w") as of:
-                    log.debug("Writing input file {}".format(path))
-                    of.write(sub.files[f])
+            if run_pristine:
+                for f in spec.input_files:
+                    path = os.path.join(dirname, f)
+                    with open(path, "w") as of:
+                        log.debug("Writing input file {}".format(path))
+                        of.write(sub.files[f])
 
-            with environment(**sub.env):
-                log_run(spec.cmd, cwd=tmpdirname)
+            if in_docker:
+                image = "cse141pp/submission-runner:0.10"
+                log_run(cmd=["docker", "run",  "-v", f"{dirname}:/runner", image, "run.py", "--local"])
+            else:
+                with environment(**sub.env):
+                    log_run(spec.cmd, cwd=dirname)
 
             for i in spec.output_files:
                 if i in ['STDERR', 'STDOUT']:
                     continue
-                path = os.path.join(tmpdirname, i)
+                path = os.path.join(dirname, i)
                 if os.path.exists(path) and os.path.isfile(path):
                     with open(path, "r") as r:
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
@@ -147,12 +174,15 @@ def run_submission_locally(sub):
 
 def main(argv):
     parser = argparse.ArgumentParser(description='Run a lab.')
-    parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
-    parser.add_argument('--local', action='store_true', dest="run_local", help="Run job locally")
+    parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
+    parser.add_argument('--pristine', action='store_true', default=False, help="Run job locally")
     parser.add_argument('--remote', default="http://localhost:5000", help="Run remotely on this host")
+    parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
+    parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
 #    parser.add_argument('--repo', help="git repo")
     args = parser.parse_args(argv)
-    log.basicConfig(format="%(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s", level=log.DEBUG if args.verbose else log.INFO)
+    log.basicConfig(format="%(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s" if args.verbose else "%(message)s",
+                    level=log.DEBUG if args.verbose else log.INFO)
 
     spec = load_lab_spec(".")
 
@@ -175,8 +205,9 @@ def main(argv):
 
     log.debug("Submission: {}".format(s._asdict()))
     log.debug("Submission: {}".format(json.dumps(s._asdict())))
-    if args.run_local:
-        result = run_submission_locally(s)
+
+    if args.local:
+        result = run_submission_locally(s, in_docker=args.docker, run_pristine=args.pristine)
     else:
         result = run_submission_remotely(s, args.remote, "5000")
 
