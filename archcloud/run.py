@@ -6,6 +6,8 @@ import json
 import platform
 import argparse
 import sys
+import os
+import subprocess
 
 def main(argv):
     """
@@ -36,16 +38,33 @@ def main(argv):
     parser.add_argument('--directory', default=".", help="Directory to submit")
     parser.add_argument('--run-json', action='store_true', default=False, help="Read json submission spec from stdin")
     parser.add_argument('--docker-image', default="cse141pp/submission-runner:0.10", help="Docker image to use")
+    parser.add_argument('--options', default=[], nargs="*", help="Options to control compilation and execution (e.g., 'CC=gcc-8' or 'OPT=-O4'")
+    parser.add_argument('--list-options', action='store_true', default=False, help="List Available Options")
+    parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
+    parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
 
-#    parser.add_argument('--repo', help="git repo")
     args = parser.parse_args(argv)
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
+
     if args.run_json:
         submission = Submission._fromdict(json.loads(sys.stdin.read()))
     else:
-        submission = build_submission(args.directory)
+        submission = build_submission(args.directory, args.options)
+
+    if args.validate:
+        c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
+        p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
+            log.error(stdout.decode("utf-8"))
+            sys.exit(1)
+
+
+    if args.clean:
+        subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
 
     if args.json:
         sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
@@ -54,7 +73,7 @@ def main(argv):
 
     if not args.nop:
         if args.local:
-            result = run_submission_locally(submission, in_docker=args.docker, run_pristine=args.pristine)
+            result = run_submission_locally(submission, root=args.directory, in_docker=args.docker, run_pristine=args.pristine)
         else:
             result = run_submission_remotely(submission, args.remote, "5000")
 
@@ -70,7 +89,7 @@ def main(argv):
                 elif i == "STDOUT":
                     sys.stdout.write(result.files[i])
                 else:
-                    with open(i, "w") as t:
+                    with open(os.path.join(args.directory, i), "w") as t:
                         t.write(result.files[i])
 
     log.info("Finished")

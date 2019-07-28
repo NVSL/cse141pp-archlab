@@ -22,17 +22,26 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
-class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files cmd env lab_name")):
+class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag")):
 
     Field = collections.namedtuple("Field", "required default")
     fields = dict(
         output_files=Field(True, None),
         input_files=Field(True, None),
-        cmd=Field(True, None),
+        run_cmd=Field(True, None),
+        clean_cmd=Field(False, ['true']),
         env=Field(False, []),
         repo=Field(True, None),
         lab_name=Field(False, "<unnamed>"),
+        valid_options=Field(False, {}),
+        default_options = Field(False, {}),
+        reference_tag = Field(True, None)
     )
+
+    def _asdict(self):
+        t = super(LabSpec, self)._asdict()
+        t['valid_options'] = {}
+        return super(LabSpec, LabSpec(**t))._asdict()
 
     @classmethod
     def _fromdict(cls, j):
@@ -53,27 +62,63 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
                 if LabSpec.fields[i].required:
                     raise Exception(f"Your lab spec is missing '{i}'")
                 else:
-                    args[i] = LabSpec.fields[i].default
+                    args[i] = copy.deepcopy(LabSpec.fields[i].default)
 
         return cls(**args)
 
 
+
 class Submission(object):
-    def __init__(self, lab_spec, files, env):
+    def __init__(self, lab_spec, files, env, options):
         self.lab_spec = lab_spec
         self.files = files
         self.env = env
+        self.options = options
+        self.parse_options()
 
     def _asdict(self):
         return dict(lab_spec=self.lab_spec._asdict(),
                     files=self.files,
-                    env=self.env)
+                    env=self.env,
+                    options=self.options)
 
     @classmethod
     def _fromdict(cls, j):
         return cls(files=j['files'],
                    lab_spec=LabSpec._fromdict(j['lab_spec']),
-                   env=j['env'])
+                   env=j['env'],
+                   options=j['options'])
+
+    def parse_options(self):
+        log.debug(f"Parsing options {self.options}")
+
+        valid_options = self.lab_spec.valid_options
+
+        for k, v in list(self.options.items()) + list(self.lab_spec.default_options.items()):
+            if k not in valid_options:
+                raise Exception(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
+            if callable(valid_options[k]):
+                continue
+            if v not in valid_options[k]:
+                raise Exception(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
+            log.debug(f"Adding {valid_options[k][v]} to env")
+
+        def update_env(k, v):
+            if callable(valid_options[k]):
+                self.env.update(valid_options[k](v))
+            else:
+                self.env.update(valid_options[k][v])
+
+        for k, v in self.options.items():
+            update_env(k, v)
+
+        for k, v in self.lab_spec.default_options.items():
+            if k not in self.options:
+                update_env(k, v)
+
+        log.debug(f"New environment {self.env}.")
+
+
 
 class SubmissionResult(object):
     def __init__(self, submission, files):
@@ -99,7 +144,7 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, in_docker=False, run_pristine=False):
+def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -136,7 +181,7 @@ def run_submission_locally(sub, in_docker=False, run_pristine=False):
                 r.cleanup()
 
     try:
-        with directory("." if not run_pristine else None) as dirname:
+        with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
                 log_run(cmd=['git', 'clone', sub.lab_spec.repo, dirname])
 
@@ -155,7 +200,7 @@ def run_submission_locally(sub, in_docker=False, run_pristine=False):
                 log_run(cmd=["docker", "run",  "-v", f"{dirname}:/runner", image, "run.py", "--local"])
             else:
                 with environment(**sub.env):
-                    log_run(spec.cmd, cwd=dirname)
+                    log_run(spec.run_cmd, cwd=dirname)
 
             for i in spec.output_files:
                 if i in ['STDERR', 'STDOUT']:
@@ -178,20 +223,31 @@ def run_submission_locally(sub, in_docker=False, run_pristine=False):
         log.debug("STDERR: {}".format(err.getvalue()))
         return SubmissionResult(sub, result_files)
 
-def build_submission(directory):
+
+
+
+def build_submission(directory, options):
     spec = LabSpec.load(directory)
     files = {}
     for f in spec.input_files:
         try:
-            with open(f, "r") as o:
-                log.debug("Reading input file '{}'".format(f))
+            full_path = os.path.join(directory, f)
+            with open(full_path, "r") as o:
+                log.debug(f"Reading input file '{full_path}'")
                 files[f] = o.read()
         except Exception as e:
-            log.error("Failed to open {}".format(f))
+            log.error(f"Failed to open {full_path}")
             sys.exit(1)
     env = {}
     for e in spec.env:
         if e in os.environ:
             env[e] = os.environ[e]
-    s = Submission(spec, files, env)
+
+    options_dict = {}
+    for o in options:
+        log.debug(f"parsing option {o}")
+        k,v = o.split("=", maxsplit=1)
+        options_dict[k] = v
+
+    s = Submission(spec, files, env, options_dict)
     return s
