@@ -1,3 +1,4 @@
+import re
 import sys
 import collections
 import subprocess
@@ -69,12 +70,12 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
 
 
 class Submission(object):
+
     def __init__(self, lab_spec, files, env, options):
         self.lab_spec = lab_spec
         self.files = files
         self.env = env
         self.options = options
-        self.parse_options()
 
     def _asdict(self):
         return dict(lab_spec=self.lab_spec._asdict(),
@@ -91,7 +92,7 @@ class Submission(object):
 
     def parse_options(self):
         log.debug(f"Parsing options {self.options}")
-
+        log.debug(f"Using option spec {self.lab_spec.valid_options}")
         valid_options = self.lab_spec.valid_options
 
         for k, v in list(self.options.items()) + list(self.lab_spec.default_options.items()):
@@ -119,7 +120,6 @@ class Submission(object):
         log.debug(f"New environment {self.env}.")
 
 
-
 class SubmissionResult(object):
     def __init__(self, submission, files):
         self.submission = submission
@@ -135,7 +135,6 @@ class SubmissionResult(object):
                    files=j['files'])
 
 
-
 def run_submission_remotely(sub, host, port):
     log.debug("Running remotely on {}".format(host))
     r = requests.post("{}/run-job".format(host), data=dict(payload=json.dumps(sub._asdict())))
@@ -144,7 +143,7 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False):
+def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -155,16 +154,13 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False):
         #err.write(m)
         log.debug(m)
 
-        #subprocess.call(cmd, *args, stdout=None, stderr=err, **kwargs)
         p = subprocess.Popen(cmd, *args, stdin=None,
-                             #stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              **kwargs)
         output, errout = p.communicate()
         if output:
             out.write(output.decode("utf-8"))
         if errout:
             err.write(errout.decode("utf-8"))
-        #   rc = p.returncode
 
     @contextmanager
     def directory(d=None):
@@ -187,7 +183,9 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False):
 
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
+            sub.parse_options()
 
+            log.debug(f"Executing submission {sub._asdict()}")
             if run_pristine:
                 for f in spec.input_files:
                     path = os.path.join(dirname, f)
@@ -224,23 +222,25 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False):
         return SubmissionResult(sub, result_files)
 
 
-
-
 def build_submission(directory, options):
     spec = LabSpec.load(directory)
     files = {}
     for f in spec.input_files:
+        full_path = os.path.join(directory, f)
         try:
-            full_path = os.path.join(directory, f)
             with open(full_path, "r") as o:
                 log.debug(f"Reading input file '{full_path}'")
                 files[f] = o.read()
-        except Exception as e:
+        except Exception:
             log.error(f"Failed to open {full_path}")
             sys.exit(1)
     env = {}
     for e in spec.env:
         if e in os.environ:
+            v = os.environ[e]
+            safe_env = "[a-zA-Z0-9_\-\. ]"
+            if not re.match(f"^{safe_env}*$", v):
+                raise Exception(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
             env[e] = os.environ[e]
 
     options_dict = {}

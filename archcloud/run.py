@@ -62,7 +62,6 @@ def main(argv):
             log.error(stdout.decode("utf-8"))
             sys.exit(1)
 
-
     if args.clean:
         subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
 
