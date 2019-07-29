@@ -23,7 +23,7 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
-class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag")):
+class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit")):
 
     Field = collections.namedtuple("Field", "required default")
     fields = dict(
@@ -36,7 +36,8 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
         lab_name=Field(False, "<unnamed>"),
         valid_options=Field(False, {}),
         default_options = Field(False, {}),
-        reference_tag = Field(True, None)
+        reference_tag = Field(True, None),
+        time_limit = Field(False, 30)
     )
 
     def _asdict(self):
@@ -121,18 +122,24 @@ class Submission(object):
 
 
 class SubmissionResult(object):
-    def __init__(self, submission, files):
+    SUCCESS = "success"
+    TIMEOUT = "timeout"
+
+    def __init__(self, submission, files, status):
         self.submission = submission
         self.files = files
+        self.status = status
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
-                    files=self.files)
+                    files=self.files,
+                    status=self.status)
 
     @classmethod
     def _fromdict(cls, j):
         return cls(submission=Submission._fromdict(j['submission']),
-                   files=j['files'])
+                   files=j['files'],
+                   status=j['status'])
 
 
 def run_submission_remotely(sub, host, port):
@@ -143,24 +150,42 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False):
+def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False, timeout=None):
     out = StringIO()
     err = StringIO()
     result_files = {}
 
-    def log_run(cmd, *args, **kwargs):
+    def log_run(cmd, *args, timeout=None, **kwargs):
         m = "# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', "."))
         #out.write(m)
         #err.write(m)
         log.debug(m)
 
+        r = SubmissionResult.SUCCESS
+
         p = subprocess.Popen(cmd, *args, stdin=None,
                              **kwargs)
-        output, errout = p.communicate()
+
+        output, errout = b"", b""
+
+        try:
+            output, errout = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            log.error(f"Execution timed out.")
+            p.kill()
+            output, errout = p.communicate()
+            r = SubmissionResult.TIMEOUT
+            try:
+                subprocess.run(['stty', 'sane']) # Timeouts often leaves the terminal in a bad state.  Restore it.
+            except:
+                pass  # if it doesn't work, it's not a big deal
+
         if output:
             out.write(output.decode("utf-8"))
         if errout:
             err.write(errout.decode("utf-8"))
+
+        return r
 
     @contextmanager
     def directory(d=None):
@@ -175,6 +200,8 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
                 yield r.name
             finally:
                 r.cleanup()
+
+
 
     try:
         with directory(root if not run_pristine else None) as dirname:
@@ -195,10 +222,10 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
 
             if in_docker:
                 image = "cse141pp/submission-runner:0.10"
-                log_run(cmd=["docker", "run",  "-v", f"{dirname}:/runner", image, "run.py", "--local"])
+                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate"], timeout=spec.time_limit)
             else:
                 with environment(**sub.env):
-                    log_run(spec.run_cmd, cwd=dirname)
+                    status = log_run(spec.run_cmd, cwd=dirname, timeout=spec.time_limit)
 
             for i in spec.output_files:
                 if i in ['STDERR', 'STDOUT']:
@@ -209,7 +236,7 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
                         result_files[i] = r.read()
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc(file=err)
         traceback.print_exc()
         err.write("# Execution failed\n")
@@ -219,7 +246,7 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
         result_files['STDERR'] = err.getvalue()
         log.debug("STDOUT: {}".format(out.getvalue()))
         log.debug("STDERR: {}".format(err.getvalue()))
-        return SubmissionResult(sub, result_files)
+        return SubmissionResult(sub, result_files, status)
 
 
 def build_submission(directory, options):
