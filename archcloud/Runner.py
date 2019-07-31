@@ -126,7 +126,7 @@ class Submission(object):
             return
 
         try:
-            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).split("\n")
+            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).decode("utf-8").split("\n")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Calling 'cpupower' to extract frequency list failed: {e}")
 
@@ -161,6 +161,7 @@ class Submission(object):
 class SubmissionResult(object):
     SUCCESS = "success"
     TIMEOUT = "timeout"
+    ERROR = "error"
 
     def __init__(self, submission, files, status):
         self.submission = submission
@@ -238,7 +239,8 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
             finally:
                 r.cleanup()
 
-
+    status = SubmissionResult.ERROR
+    
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
         
