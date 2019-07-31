@@ -150,8 +150,8 @@ class Submission(object):
             target_MHz = max(frequencies)
 
         try:
-            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).split("\n")
-            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).split("\n")
+            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).decode("utf-8").split("\n")
+            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).decode("utf-8").split("\n")
             if f"{target_MHz}000" not in o[1]:
                 raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed.")
         except subprocess.CalledProcessError as e:
