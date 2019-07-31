@@ -120,6 +120,43 @@ class Submission(object):
 
         log.debug(f"New environment {self.env}.")
 
+    def apply_options(self):
+        if subprocess.call(['which', 'cpupower']) != 0:
+            log.warning("cpupower utility is not available.  Clock speed setting will not work.")
+            return
+
+        try:
+            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).split("\n")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Calling 'cpupower' to extract frequency list failed: {e}")
+
+        if "analyzing CPU" not in o[0]:
+            raise Exception("Error running cpu power to extract available frequencies")
+        fields = o[1].split(", ")
+        frequencies = []
+        for f in fields:
+            m = re.search("(\d+):(\d+)", f)
+            if not m:
+                raise Exception(f"Failed to parse output from cpupower: {f}")
+            frequencies.append(int(m.group(1))/1000)
+
+        self.env['AVAILABLE_FREQUENCIES'] = " ".join(map(str, frequencies))
+
+        if "MHz" in self.env:
+            if int(self.env['MHz']) not in frequencies:
+                raise Exception(f"Unsupported frequency in 'MHz': {self.env['MHz']}")
+            target_MHz = self.env['MHz']
+        else:
+            target_MHz = max(frequencies)
+
+        try:
+            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).split("\n")
+            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).split("\n")
+            if f"{target_MHz}000" not in o[1]:
+                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed.")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {e}")
+
 
 class SubmissionResult(object):
     SUCCESS = "success"
@@ -150,7 +187,7 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False, timeout=None):
+def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -211,6 +248,8 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
             sub.parse_options()
+            if apply_options:
+                sub.apply_options()
 
             log.debug(f"Executing submission {sub._asdict()}")
             if run_pristine:
@@ -222,7 +261,7 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
 
             if in_docker:
                 image = "cse141pp/submission-runner:0.10"
-                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate"], timeout=spec.time_limit)
+                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"], timeout=spec.time_limit)
             else:
                 with environment(**sub.env):
                     status = log_run(spec.run_cmd, cwd=dirname, timeout=spec.time_limit)

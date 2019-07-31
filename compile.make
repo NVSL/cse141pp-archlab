@@ -15,6 +15,9 @@ CPP_FLAGS=
 
 default:
 
+ifeq ($(shell uname -s),Darwin) 
+$(error You cannot compile code with archlab on an Mac.  Instead, develop inside the course docker container)
+endif
 
 %.o : %.s
 	$(CC) -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@

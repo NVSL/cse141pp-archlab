@@ -48,7 +48,7 @@ public:
   }
 
   void assign(const po::variables_map &vm) {
-    dest = vm[name].as<PARSED>();
+    dest = vm[name].template as<PARSED>();
   }
 };
 class FlagOptionSpec: public OptionSpec<bool, bool> {

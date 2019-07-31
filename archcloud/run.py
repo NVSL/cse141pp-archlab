@@ -42,9 +42,10 @@ def main(argv):
     parser.add_argument('--list-options', action='store_true', default=False, help="List Available Options")
     parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
+    parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
 
     args = parser.parse_args(argv)
-    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(message)s",
+    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
 
@@ -72,7 +73,7 @@ def main(argv):
 
     if not args.nop:
         if args.local:
-            result = run_submission_locally(submission, root=args.directory, in_docker=args.docker, run_pristine=args.pristine)
+            result = run_submission_locally(submission, root=args.directory, in_docker=args.docker, run_pristine=args.pristine, apply_options=args.apply_options)
         else:
             result = run_submission_remotely(submission, args.remote, "5000")
 
