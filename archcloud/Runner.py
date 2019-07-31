@@ -187,7 +187,7 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False):
+def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -239,7 +239,9 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
                 r.cleanup()
 
 
-
+    if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
+        raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
+        
     try:
         with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
@@ -259,7 +261,7 @@ def run_submission_locally(sub, root=".", in_docker=False, run_pristine=False, n
                         log.debug("Writing input file {}".format(path))
                         of.write(sub.files[f])
 
-            if in_docker:
+            if run_in_docker:
                 image = "cse141pp/submission-runner:0.10"
                 status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"], timeout=spec.time_limit)
             else:

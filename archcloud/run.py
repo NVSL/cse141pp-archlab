@@ -73,7 +73,7 @@ def main(argv):
 
     if not args.nop:
         if args.local:
-            result = run_submission_locally(submission, root=args.directory, in_docker=args.docker, run_pristine=args.pristine, apply_options=args.apply_options)
+            result = run_submission_locally(submission, root=args.directory, run_in_docker=args.docker, run_pristine=args.pristine, apply_options=args.apply_options)
         else:
             result = run_submission_remotely(submission, args.remote, "5000")
 
