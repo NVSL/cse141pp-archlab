@@ -15,8 +15,8 @@ install-papi:
 	(cd papi-5.7.0/src; ./configure; make; make install; make install-man)
 
 install-pin:
-	curl https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz -o pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
-	tar xzf pin-3.7-97619-g0d0c92f4f-gcc-linux.tar.gz
+	curl https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.11-97998-g7ecce2dac-msvc-windows.zip -o pin-3.11-97998-g7ecce2dac-msvc-windows.zip
+	tar xzf pin-3.11-97998-g7ecce2dac-msvc-windows.zip
 
 install-prereqs: create-venv install-papi install-pin install-pcm 
 
