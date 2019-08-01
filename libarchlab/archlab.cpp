@@ -104,10 +104,8 @@ extern "C" {
 
     const char* s = getenv("ARCHLAB_AVAILABLE_CPU_FREQUENCIES");
     if (!s) {
-      cpu_frequencies_array = new int[1];
-      cpu_frequencies_array[0] = 0;
+      cpu_frequencies.push_back(-1);
     } else {
-
       std::stringstream ss(s);
       while (ss) {
 	int t;
@@ -116,15 +114,14 @@ extern "C" {
 	//std::cerr << t << " .\n";
 	if  (ss.eof()) break;
       }
-
-      cpu_frequencies_array = new int[cpu_frequencies.size() + 1];
-      for(unsigned int i = 0; i < cpu_frequencies.size(); i++) {
-	cpu_frequencies_array[i] = cpu_frequencies[i];
-      }
-      cpu_frequencies_array[cpu_frequencies.size()] = 0;
-
     }
 
+    cpu_frequencies_array = new int[cpu_frequencies.size() + 1];
+    for(unsigned int i = 0; i < cpu_frequencies.size(); i++) {
+      cpu_frequencies_array[i] = cpu_frequencies[i];
+    }
+    cpu_frequencies_array[cpu_frequencies.size()] = 0;
+    
     // int i = 0;
     // while(cpu_frequencies_array[i] != 0) {
     //   std::cerr << cpu_frequencies_array[i] << " " << cpu_frequencies[i] << " + \n";
@@ -134,7 +131,6 @@ extern "C" {
   
   void archlab_init(int collector)
   {
-
     load_frequencies();
     if (collector == ARCHLAB_COLLECTOR_PCM) {
       theDataCollector = new PCMDataCollector();

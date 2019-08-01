@@ -227,10 +227,15 @@ void DataCollector::write_csv(std::ostream & out)
 void DataCollector::pristine_machine()
 {
   flush_caches();
-  set_cpu_clock_frequency(3500);
+ 
+  set_cpu_clock_frequency(cpu_frequencies[0]);
 }
 
 void DataCollector::set_cpu_clock_frequency(int MHz) {
+  if (MHz == -1) {
+    return;
+  }
+  
   char buf[1024];
   sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz > /dev/null", MHz);
   int r = system(buf);
