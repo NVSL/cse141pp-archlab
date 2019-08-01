@@ -138,9 +138,12 @@ class Submission(object):
             m = re.search("(\d+):(\d+)", f)
             if not m:
                 raise Exception(f"Failed to parse output from cpupower: {f}")
-            frequencies.append(int(m.group(1))/1000)
+            f = int(int(m.group(1))/1000)
+            if f % 10 == 0: # Sometimes the list includes things like 2001Mhz, but they don't seem to actually valid values, so trim them.
+                frequencies.append(f)
 
-        self.env['AVAILABLE_FREQUENCIES'] = " ".join(map(str, frequencies))
+            
+        self.env["ARCHLAB_AVAILABLE_CPU_FREQUENCIES"] = " ".join(map(str, frequencies))
 
         if "MHz" in self.env:
             if int(self.env['MHz']) not in frequencies:
@@ -153,7 +156,7 @@ class Submission(object):
             subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).decode("utf-8").split("\n")
             o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).decode("utf-8").split("\n")
             if f"{target_MHz}000" not in o[1]:
-                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed.")
+                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {o[1]}.")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {e}")
 

@@ -8,7 +8,7 @@ using json = nlohmann::json;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
-
+extern std::vector<int>cpu_frequencies;
 
 
 class ArchLabTimer {
