@@ -7,7 +7,7 @@ all: $(subdirs) $(EXAMPLES)
 clean: $(subdirs)
 
 $(subdirs):
-	make -C $@ $(MAKECMDGOALS) PIN_ROOT=$(PWD)/pin-3.7-97619-g0d0c92f4f-gcc-linux
+	make -C $@ $(MAKECMDGOALS) PIN_ROOT=$(PWD)/pin-3.11-97998-g7ecce2dac-gcc-linux
 
 install-papi:
 	curl  http://icl.utk.edu/projects/papi/downloads/papi-5.7.0.tar.gz -o papi-5.7.0.tar.gz
