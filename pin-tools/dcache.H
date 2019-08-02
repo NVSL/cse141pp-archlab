@@ -31,6 +31,8 @@ END_LEGAL */
 /*! @file
  *  This file contains a configurable cache class
  */
+using std::string;
+using std::ostringstream;
 
 #ifndef PIN_CACHE_H
 #define PIN_CACHE_H

@@ -164,6 +164,7 @@ class Submission(object):
 class SubmissionResult(object):
     SUCCESS = "success"
     TIMEOUT = "timeout"
+    MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
     def __init__(self, submission, files, status):
@@ -281,12 +282,17 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                     with open(path, "r") as r:
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
                         result_files[i] = r.read()
-
+                else:
+                    result_files[i] = f"<This output file did not exist>"
+                    if status == SubmissionResult.SUCCESS:
+                        status = SubmissionResult.MISSING_OUTPUT
+                    
     except Exception:
         traceback.print_exc(file=err)
         traceback.print_exc()
         err.write("# Execution failed\n")
         out.write("# Execution failed\n")
+        status=SubmissionResult.ERROR
     finally:
         result_files['STDOUT'] = out.getvalue()
         result_files['STDERR'] = err.getvalue()

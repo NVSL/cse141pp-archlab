@@ -33,6 +33,11 @@ END_LEGAL */
  *  data cache hierarchies
  */
 
+using std::ostringstream;
+using std::string;
+using std::cerr;
+using std::endl;
+
 
 #include "pin.H"
 
