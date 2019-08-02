@@ -240,8 +240,12 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
 
 
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
+        # the problem here is that when we spawn the new docker image, it's a symbling to this image, and it needs to
+        # be able to access the submission.  There's no really reliable way to export the current working directory to
+        # the sybling container.  Intsead, we need to clone into /tmp and share /tmp across the syblings, hence, we have
+        # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
-        
+
     try:
         with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
@@ -276,6 +280,8 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                     with open(path, "r") as r:
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
                         result_files[i] = r.read()
+                else:
+                    result_files[i] = "<This output file did not exist>"
 
     except Exception:
         traceback.print_exc(file=err)
