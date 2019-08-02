@@ -323,8 +323,18 @@ def build_submission(directory, options):
             env[e] = os.environ[e]
 
     options_dict = {}
+
+    with open("config") as config:
+        for l in config.readlines():
+            l = re.sub("#.*", "", l)
+            l = l.strip()
+            if l:
+                log.debug(f"parsing option {o} from config file")
+                k,v = l.split("=", maxsplit=1)
+                options_dict[k] = v
+            
     for o in options:
-        log.debug(f"parsing option {o}")
+        log.debug(f"parsing option {o} from command line")
         k,v = o.split("=", maxsplit=1)
         options_dict[k] = v
 
