@@ -16,7 +16,10 @@ public:
 class PAPIDataCollector: public DataCollector {
   friend PAPIMeasurementInterval;
   std::vector<int> events;
+  std::vector<int> rapl_events;
   int event_set;
+  int rapl_event_set;
+  
 public:
   PAPIDataCollector();
   MeasurementInterval * newMeasurementInterval() {return new PAPIMeasurementInterval();}
