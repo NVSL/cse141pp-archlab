@@ -24,7 +24,7 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
-class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit leader_board")):
+class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit figures_of_merit")):
 
     Field = collections.namedtuple("Field", "required default")
     fields = dict(
@@ -39,19 +39,19 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
         default_options = Field(False, {}),
         reference_tag = Field(True, None),
         time_limit = Field(False, 30),
-        leader_board = Field(False, [])
+        figures_of_merit = Field(False, [])
     )
 
     def _asdict(self):
         t = super(LabSpec, self)._asdict()
         t['valid_options'] = {}
-        t['leader_board'] = {}
+        t['figures_of_merit'] = {}
         return super(LabSpec, LabSpec(**t))._asdict()
 
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        t.leader_board = []
+        t.figures_of_merit = []
         t.valid_options = dict()
         return t
 
@@ -166,7 +166,9 @@ class Submission(object):
 
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
-    return float(list(reader)[0]['field'])
+    d = list(reader)
+    print(d[0])
+    return float(d[0][field])
 
 class SubmissionResult(object):
     SUCCESS = "success"
@@ -174,29 +176,29 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, leader_board):
+    def __init__(self, submission, files, status, figures_of_merit):
         self.submission = submission
         self.files = files
         self.status = status
         r = []
-        for i in submission.lab_spec.leader_board:
+        for i in submission.lab_spec.figures_of_merit:
             f = files[i['file']]
             v = extract_from_first_csv_line_by_field(f, i['field'])
             r.append(dict(name=i['field'], value=v))
-        self.leader_board = r
+        self.figures_of_merit = r
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
                     status=self.status,
-                    leader_board=self.leader_board)
+                    figures_of_merit=self.figures_of_merit)
 
     @classmethod
     def _fromdict(cls, j):
         return cls(submission=Submission._fromdict(j['submission']),
                    files=j['files'],
                    status=j['status'],
-                   leader_board=j['leader_board'])
+                   figures_of_merit=j['figures_of_merit'])
 
 
 def run_submission_remotely(sub, host, port):
@@ -267,7 +269,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
-    leader_board = []
+    figures_of_merit = []
 
     try:
         with directory(root if not run_pristine else None) as dirname:
@@ -318,7 +320,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         result_files['STDERR'] = err.getvalue()
         log.debug("STDOUT: {}".format(out.getvalue()))
         log.debug("STDERR: {}".format(err.getvalue()))
-        return SubmissionResult(sub, result_files, status, leader_board=leader_board)
+        return SubmissionResult(sub, result_files, status, figures_of_merit=figures_of_merit)
 
 
 def build_submission(directory, options):
