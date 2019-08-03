@@ -12,6 +12,7 @@ import requests
 import json
 import copy
 from contextlib import contextmanager
+import csv
 
 @contextmanager
 def environment(**kwds):
@@ -23,7 +24,7 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
-class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit")):
+class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit leader_board")):
 
     Field = collections.namedtuple("Field", "required default")
     fields = dict(
@@ -37,17 +38,22 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
         valid_options=Field(False, {}),
         default_options = Field(False, {}),
         reference_tag = Field(True, None),
-        time_limit = Field(False, 30)
+        time_limit = Field(False, 30),
+        leader_board = Field(False, [])
     )
 
     def _asdict(self):
         t = super(LabSpec, self)._asdict()
         t['valid_options'] = {}
+        t['leader_board'] = {}
         return super(LabSpec, LabSpec(**t))._asdict()
 
     @classmethod
     def _fromdict(cls, j):
-        return cls(**j)
+        t = cls(**j)
+        t.leader_board = []
+        t.valid_options = dict()
+        return t
 
     @classmethod
     def load(cls, root):
@@ -67,8 +73,6 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
                     args[i] = copy.deepcopy(LabSpec.fields[i].default)
 
         return cls(**args)
-
-
 
 class Submission(object):
 
@@ -126,7 +130,7 @@ class Submission(object):
             return
 
         try:
-            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).split("\n")
+            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).decode("utf-8").split("\n")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Calling 'cpupower' to extract frequency list failed: {e}")
 
@@ -138,9 +142,12 @@ class Submission(object):
             m = re.search("(\d+):(\d+)", f)
             if not m:
                 raise Exception(f"Failed to parse output from cpupower: {f}")
-            frequencies.append(int(m.group(1))/1000)
+            f = int(int(m.group(1))/1000)
+            if f % 10 == 0: # Sometimes the list includes things like 2001Mhz, but they don't seem to actually valid values, so trim them.
+                frequencies.append(f)
 
-        self.env['AVAILABLE_FREQUENCIES'] = " ".join(map(str, frequencies))
+            
+        self.env["ARCHLAB_AVAILABLE_CPU_FREQUENCIES"] = " ".join(map(str, frequencies))
 
         if "MHz" in self.env:
             if int(self.env['MHz']) not in frequencies:
@@ -150,33 +157,46 @@ class Submission(object):
             target_MHz = max(frequencies)
 
         try:
-            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).split("\n")
-            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).split("\n")
+            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).decode("utf-8").split("\n")
+            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).decode("utf-8").split("\n")
             if f"{target_MHz}000" not in o[1]:
-                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed.")
+                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {o[1]}.")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {e}")
 
+def extract_from_first_csv_line_by_field(file_contents, field):
+    reader = csv.DictReader(StringIO(file_contents))
+    return float(list(reader)[0]['field'])
 
 class SubmissionResult(object):
     SUCCESS = "success"
     TIMEOUT = "timeout"
+    MISSING_OUTPUT= "missing_output"
+    ERROR = "error"
 
-    def __init__(self, submission, files, status):
+    def __init__(self, submission, files, status, leader_board):
         self.submission = submission
         self.files = files
         self.status = status
+        r = []
+        for i in submission.lab_spec.leader_board:
+            f = files[i['file']]
+            v = extract_from_first_csv_line_by_field(f, i['field'])
+            r.append(dict(name=i['field'], value=v))
+        self.leader_board = r
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
-                    status=self.status)
+                    status=self.status,
+                    leader_board=self.leader_board)
 
     @classmethod
     def _fromdict(cls, j):
         return cls(submission=Submission._fromdict(j['submission']),
                    files=j['files'],
-                   status=j['status'])
+                   status=j['status'],
+                   leader_board=j['leader_board'])
 
 
 def run_submission_remotely(sub, host, port):
@@ -238,13 +258,16 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
             finally:
                 r.cleanup()
 
-
+    status = SubmissionResult.ERROR
+    
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
         # the problem here is that when we spawn the new docker image, it's a symbling to this image, and it needs to
         # be able to access the submission.  There's no really reliable way to export the current working directory to
         # the sybling container.  Intsead, we need to clone into /tmp and share /tmp across the syblings, hence, we have
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
+
+    leader_board = []
 
     try:
         with directory(root if not run_pristine else None) as dirname:
@@ -267,7 +290,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
 
             if run_in_docker:
                 image = "cse141pp/submission-runner:0.10"
-                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"], timeout=spec.time_limit)
+                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"] + (['-v'] if (log.getLogger().getEffectiveLevel() <= log.INFO) else []), timeout=spec.time_limit)
             else:
                 with environment(**sub.env):
                     status = log_run(spec.run_cmd, cwd=dirname, timeout=spec.time_limit)
@@ -281,19 +304,21 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
                         result_files[i] = r.read()
                 else:
-                    result_files[i] = "<This output file did not exist>"
-
+                    result_files[i] = f"<This output file did not exist>"
+                    if status == SubmissionResult.SUCCESS:
+                        status = SubmissionResult.MISSING_OUTPUT
     except Exception:
         traceback.print_exc(file=err)
         traceback.print_exc()
         err.write("# Execution failed\n")
         out.write("# Execution failed\n")
+        status=SubmissionResult.ERROR
     finally:
         result_files['STDOUT'] = out.getvalue()
         result_files['STDERR'] = err.getvalue()
         log.debug("STDOUT: {}".format(out.getvalue()))
         log.debug("STDERR: {}".format(err.getvalue()))
-        return SubmissionResult(sub, result_files, status)
+        return SubmissionResult(sub, result_files, status, leader_board=leader_board)
 
 
 def build_submission(directory, options):
@@ -318,8 +343,18 @@ def build_submission(directory, options):
             env[e] = os.environ[e]
 
     options_dict = {}
+
+    with open("config") as config:
+        for l in config.readlines():
+            l = re.sub("#.*", "", l)
+            l = l.strip()
+            if l:
+                log.debug(f"parsing option {o} from config file")
+                k,v = l.split("=", maxsplit=1)
+                options_dict[k] = v
+            
     for o in options:
-        log.debug(f"parsing option {o}")
+        log.debug(f"parsing option {o} from command line")
         k,v = o.split("=", maxsplit=1)
         options_dict[k] = v
 

@@ -33,7 +33,6 @@ END_LEGAL */
  *  data cache hierarchies
  */
 
-
 #include "pin.H"
 
 #include <iostream>
@@ -44,6 +43,12 @@ END_LEGAL */
 #include "pin_profile.H"
 #include <map>
 #include "ArchLabPinTool.hpp"
+
+using std::ostringstream;
+using std::string;
+using std::cerr;
+using std::endl;
+
 std::ofstream outFile;
 bool tracking = false;
 

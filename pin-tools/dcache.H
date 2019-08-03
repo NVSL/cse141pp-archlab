@@ -44,6 +44,8 @@ typedef UINT64 CACHE_STATS; // type of cache hit/miss counters
 
 #include <sstream>
 
+using std::string;
+using std::ostringstream;
 /*! RMR (rodric@gmail.com) 
  *   - temporary work around because decstr()
  *     casts 64 bit ints to 32 bit ones

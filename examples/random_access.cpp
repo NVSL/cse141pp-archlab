@@ -36,17 +36,21 @@ int main(int argc, char *argv[]) {
   }
 
   // Using timer object
-  for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
-    ArchLabTimer timer; // create it.
-    pristine_machine(); // reset the machine 
-    timer.
-      attr("MemoryRange", s). // add key-value pairs.  strings, ints, and floats are fine for values.
-      attr("Method", "function"). // Describing the measurement.
-      go(); // Start measuring
-    random_access(memory, s/sizeof(int), read_ratio, access_count);
-    // Measurements tops when timer goes out of scope.
+  for(auto mhz: cpu_frequencies) {
+    for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
+      ArchLabTimer timer; // create it.
+      pristine_machine(); // reset the machine
+      set_cpu_clock_frequency(mhz);
+      timer.
+	attr("MemoryRange", s). // add key-value pairs.  strings, ints, and floats are fine for values.
+	attr("ClockSpeed", mhz). 
+	attr("Method", "function"). // Describing the measurement.
+	go(); // Start measuring
+      random_access(memory, s/sizeof(int), read_ratio, access_count);
+      // Measurements tops when timer goes out of scope.
+    }
   }
-
+  
   if (enable_demo) {
     
     // Using C interface

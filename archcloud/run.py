@@ -48,11 +48,12 @@ def main(argv):
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
-
+        
     if args.run_json:
         submission = Submission._fromdict(json.loads(sys.stdin.read()))
     else:
         submission = build_submission(args.directory, args.options)
+
 
     if args.validate:
         c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
@@ -62,6 +63,16 @@ def main(argv):
             log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
             log.error(stdout.decode("utf-8"))
             sys.exit(1)
+
+    if args.list_options:
+        print("Here are here the available options for this lab:")
+        for o, spec in submission.lab_spec.valid_options.items():
+            print(f"  {o} = ", end="") 
+            if callable(spec):
+                print("<value>")
+            else:
+                print(f"{{{','.join(spec.keys())}}}")
+        sys.exit(0)
 
     if args.clean:
         subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)

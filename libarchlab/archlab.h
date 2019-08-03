@@ -1,6 +1,7 @@
 #ifndef ARCHLAB_H_INCLUDED
 #define ARCHLAB_H_INCLUDED
 #include<stdint.h>
+#define GETTIMEOFDAY
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday
 #else
@@ -42,8 +43,8 @@ extern "C" {
 
   static inline double wall_time ()
   {
+
 #ifdef GETTIMEOFDAY
-#error
     struct timeval t;
     gettimeofday (&t, NULL);
     return 1.0*t.tv_sec + 1.e-6*t.tv_usec;
@@ -107,7 +108,7 @@ extern "C" {
   
   void archlab_parse_cmd_line(int *argc, char *argv[]);
   void archlab_write_stats();
-  extern int cpu_frequencies[];
+  extern int * cpu_frequencies_array;
 
 #ifdef __cplusplus
 } // C linkage

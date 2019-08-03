@@ -7,7 +7,7 @@ using json = nlohmann::json;
   
 class Measurement {
 public:
-  float time;
+  double time;
   virtual void measure() { time = wall_time();}; 
   virtual ~Measurement() {}
 };
