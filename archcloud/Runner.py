@@ -51,8 +51,10 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        t.figures_of_merit = []
-        t.valid_options = dict()
+        # t.figures_of_merit = []
+        t._replace(figures_of_merit=[])
+        # t.valid_options = dict()
+        t._replace(valid_options=dict())
         return t
 
     @classmethod
