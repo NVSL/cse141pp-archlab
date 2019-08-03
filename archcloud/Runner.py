@@ -176,7 +176,7 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, figures_of_merit):
+    def __init__(self, submission, files, status):
         self.submission = submission
         self.files = files
         self.status = status
@@ -184,7 +184,7 @@ class SubmissionResult(object):
         for i in submission.lab_spec.figures_of_merit:
             f = files[i['file']]
             v = extract_from_first_csv_line_by_field(f, i['field'])
-            r.append(dict(name=i['field'], value=v))
+            r.append(dict(name=i['name'], value=v))
         self.figures_of_merit = r
 
     def _asdict(self):
@@ -320,7 +320,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         result_files['STDERR'] = err.getvalue()
         log.debug("STDOUT: {}".format(out.getvalue()))
         log.debug("STDERR: {}".format(err.getvalue()))
-        return SubmissionResult(sub, result_files, status, figures_of_merit=figures_of_merit)
+        return SubmissionResult(sub, result_files, status)
 
 
 def build_submission(directory, options):
