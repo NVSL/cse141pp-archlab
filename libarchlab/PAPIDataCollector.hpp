@@ -19,6 +19,8 @@ class PAPIDataCollector: public DataCollector {
   std::vector<int> rapl_events;
   int event_set;
   int rapl_event_set;
+  int rapl_cid;
+  void init_rapl();
   
 public:
   PAPIDataCollector();

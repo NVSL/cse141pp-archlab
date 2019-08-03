@@ -2,7 +2,7 @@
 #define ARCH_LAB_IMPL_HPP_INCLUDED
 
 #ifdef __cplusplus
-// Some C++ utilities
+
 #include <json.hpp>
 using json = nlohmann::json;
 #include <boost/program_options.hpp>
