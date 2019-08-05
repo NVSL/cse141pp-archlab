@@ -169,6 +169,8 @@ class Submission(object):
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
     d = list(reader)
+    if len(d) == 0:
+        return None
     print(d[0])
     return float(d[0][field])
 
