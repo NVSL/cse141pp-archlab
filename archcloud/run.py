@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Runner import build_submission, run_submission_locally, run_submission_remotely, Submission
+from Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException
 import logging as log
 import json
 import platform
@@ -43,66 +43,91 @@ def main(argv):
     parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
+    parser.add_argument('--log-file', default="run.log", help="Record log of execution")
 
     args = parser.parse_args(argv)
-    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if args.verbose else log.INFO)
 
+    if False: 
+        fh = log.FileHandler(args.log_file)
+        fh.setLevel(log.DEBUG if args.verbose else log.INFO)
+        formatter = log.Formatter("{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",)
+        fh.setFormatter(formatter)
         
-    if args.run_json:
-        submission = Submission._fromdict(json.loads(sys.stdin.read()))
+        ch = log.StreamHandler()
+        ch.setLevel(log.DEBUG if args.verbose else log.WARNING)
+        ch.setFormatter(formatter)
+        log.addHandler(fh)
+        log.addHandler(ch)
+        
+        # create console handler with a higher log level
+        ch = log.StreamHandler()
+        ch.setLevel(log.ERROR)
+        # create formatter and add it to the handlers
+        formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+    
     else:
-        submission = build_submission(args.directory, args.options)
+        log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
+                        level=log.DEBUG if args.verbose else log.INFO)
 
-
-    if args.validate:
-        c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
-        p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
-        stdout, stderr = p.communicate()
-        if p.returncode != 0:
-            log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
-            log.error(stdout.decode("utf-8"))
-            sys.exit(1)
-
-    if args.list_options:
-        print("Here are here the available options for this lab:")
-        for o, spec in submission.lab_spec.valid_options.items():
-            print(f"  {o} = ", end="") 
-            if callable(spec):
-                print("<value>")
-            else:
-                print(f"{{{','.join(spec.keys())}}}")
-        sys.exit(0)
-
-    if args.clean:
-        subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
-
-    if args.json:
-        sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
-
-    log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))
-
-    if not args.nop:
-        if args.local:
-            result = run_submission_locally(submission, root=args.directory, run_in_docker=args.docker, run_pristine=args.pristine, apply_options=args.apply_options)
+    try:
+        if args.run_json:
+            submission = Submission._fromdict(json.loads(sys.stdin.read()))
         else:
-            result = run_submission_remotely(submission, args.remote, "5000")
+            submission = build_submission(args.directory, args.options)
+
+
+        if args.validate:
+            c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
+            p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
+            stdout, stderr = p.communicate()
+            if p.returncode != 0:
+                log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
+                log.error(stdout.decode("utf-8"))
+                sys.exit(1)
+
+        if args.list_options:
+            print("Here are here the available options for this lab:")
+            for o, spec in submission.lab_spec.valid_options.items():
+                print(f"  {o} = ", end="") 
+                if callable(spec):
+                    print("<value>")
+                else:
+                    print(f"{{{','.join(spec.keys())}}}")
+            sys.exit(0)
+
+        if args.clean:
+            subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
 
         if args.json:
-            sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+            sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
-        for i in submission.lab_spec.output_files:
-            if i in result.files:
-                log.debug("========================= {} ===========================".format(i))
-                log.debug(result.files[i])
-                if i == "STDERR":
-                    sys.stderr.write(result.files[i])
-                elif i == "STDOUT":
-                    sys.stdout.write(result.files[i])
-                else:
-                    with open(os.path.join(args.directory, i), "w") as t:
-                        t.write(result.files[i])
+        log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))
 
+        if not args.nop:
+            if args.local:
+                result = run_submission_locally(submission, root=args.directory, run_in_docker=args.docker, run_pristine=args.pristine, apply_options=args.apply_options)
+            else:
+                result = run_submission_remotely(submission, args.remote, "5000")
+
+            if args.json:
+                sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+
+            for i in submission.lab_spec.output_files:
+                if i in result.files:
+                    log.debug("========================= {} ===========================".format(i))
+                    log.debug(result.files[i])
+                    if i == "STDERR":
+                        sys.stderr.write(result.files[i])
+                    elif i == "STDOUT":
+                        sys.stdout.write(result.files[i])
+                    else:
+                        with open(os.path.join(args.directory, i), "w") as t:
+                            t.write(result.files[i])
+    except RunnerException as e: 
+        log.error(e)
+        
     log.info("Finished")
 
 

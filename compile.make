@@ -5,9 +5,9 @@ PAPI_ROOT=/usr/local
 PIN_ROOT=$(ARCHLAB)/pin
 export PIN_ROOT
 C_OPTS ?= -O3
-CFLAGS ?=-Wall -Werror -g $(C_OPTS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I../
+CFLAGS ?=-Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I../
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-LDFLAGS ?= $(USER_LDFLAGS)  -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -pthread -larchlab -static -lPCM -lpapi -lboost_program_options
+LDFLAGS ?= $(USER_LDFLAGS) $(LD_OPTS) -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -pthread -larchlab -static -lPCM -lpapi -lboost_program_options
 ASM_FLAGS=
 CPP_FLAGS=
 .PRECIOUS: %.o %.exe %.s %.i
@@ -65,6 +65,8 @@ RENAME_FLAGS?=
 %-gv.pdf: %.gv
 	dot -Tpdf $< > $@ || rm -rf $@
 
+%.gprof: %.out %.exe gmon.out 
+	gprof $*.exe | c++filt > $@ || rm $@
 
 rename-clean:
 	rm -rf *.gv *-gv.pdf *.csv
@@ -78,6 +80,6 @@ clean: rename-clean
 
 .PHONY: archlab-clean
 archlab-clean:
-	rm -rf *.exe *.o *.i *.s *.out *.d *.gcda *.gcno
+	rm -rf *.exe *.o *.i *.s *.out *.d *.gcda *.gcno *.gprof
 
 clean: archlab-clean

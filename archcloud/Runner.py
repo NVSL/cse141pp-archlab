@@ -14,6 +14,11 @@ import copy
 from contextlib import contextmanager
 import csv
 
+class RunnerException(Exception):
+    pass
+class BadOptionException(RunnerException):
+    pass
+
 @contextmanager
 def environment(**kwds):
     env = copy.deepcopy(os.environ)
@@ -102,11 +107,11 @@ class Submission(object):
 
         for k, v in list(self.options.items()) + list(self.lab_spec.default_options.items()):
             if k not in valid_options:
-                raise Exception(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
+                raise BadOptionException(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
             if callable(valid_options[k]):
                 continue
             if v not in valid_options[k]:
-                raise Exception(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
+                raise BadOptionException(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
             log.debug(f"Adding {valid_options[k][v]} to env")
 
         def update_env(k, v):
@@ -167,7 +172,6 @@ class Submission(object):
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
     d = list(reader)
-    print(d[0])
     return float(d[0][field])
 
 class SubmissionResult(object):
@@ -279,6 +283,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
             sub.parse_options()
+
             if apply_options:
                 sub.apply_options()
 
@@ -309,18 +314,21 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                     result_files[i] = f"<This output file did not exist>"
                     if status == SubmissionResult.SUCCESS:
                         status = SubmissionResult.MISSING_OUTPUT
+    except BadOptionException as e:
+        # if the get this, just fail, rather than exiting cleanly.
+        raise
     except Exception:
         traceback.print_exc(file=err)
         traceback.print_exc()
         err.write("# Execution failed\n")
         out.write("# Execution failed\n")
         status=SubmissionResult.ERROR
-    finally:
-        result_files['STDOUT'] = out.getvalue()
-        result_files['STDERR'] = err.getvalue()
-        log.debug("STDOUT: {}".format(out.getvalue()))
-        log.debug("STDERR: {}".format(err.getvalue()))
-        return SubmissionResult(sub, result_files, status)
+
+    result_files['STDOUT'] = out.getvalue()
+    result_files['STDERR'] = err.getvalue()
+    log.debug("STDOUT: {}".format(out.getvalue()))
+    log.debug("STDERR: {}".format(err.getvalue()))
+    return SubmissionResult(sub, result_files, status)
 
 
 def build_submission(directory, options):

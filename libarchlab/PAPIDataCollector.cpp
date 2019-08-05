@@ -36,6 +36,7 @@ void PAPIDataCollector::init_rapl() {
     fprintf(stderr,"WARNING: No rapl component found\n");
     rapl_cid = -1;
     return;
+    
   }
   rapl_cid = cid;
   
