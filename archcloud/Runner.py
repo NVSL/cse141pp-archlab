@@ -56,8 +56,10 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        t.figures_of_merit = []
-        t.valid_options = dict()
+        # t.figures_of_merit = []
+        t._replace(figures_of_merit=[])
+        # t.valid_options = dict()
+        t._replace(valid_options=dict())
         return t
 
     @classmethod
@@ -172,6 +174,8 @@ class Submission(object):
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
     d = list(reader)
+    if len(d) == 0:
+        return None
     return float(d[0][field])
 
 class SubmissionResult(object):
