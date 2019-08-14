@@ -32,6 +32,8 @@ endif
 	$(CXX) -E -c $(CXXFLAGS) $(CPP_FLAGS) $< -o $@
 %.i : %.c
 	$(CC) -E -c $(CFLAGS) $(CPP_FLAGS) $< -o $@
+%.s : %.asm
+	cp $< $@
 
 %.s : %.cpp
 	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o - |c++filt > $@
@@ -60,10 +62,13 @@ RENAME_FLAGS?=
 .PRECIOUS: %.gv
 
 %.gv %.csv: %.s
-	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $< 
+	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
 
 %-gv.pdf: %.gv
 	dot -Tpdf $< > $@ || rm -rf $@
+
+%-gv.svg: %.gv
+	dot -Tsvg $< > $@ || rm -rf $@
 
 %.gprof: %.out %.exe gmon.out 
 	gprof $*.exe | c++filt > $@ || rm $@

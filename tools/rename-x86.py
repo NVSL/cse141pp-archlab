@@ -26,6 +26,12 @@ parser.add_argument('--dot', nargs=1, help="Output the DFG in dot")
 parser.add_argument('--csv', nargs=1, help="Output the timeline as csv")
 parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
 parser.add_argument('--no-rename', action='store_false', dest="rename", default=True, help="Be verbose")
+parser.add_argument('--font', default="Courier-bold", help="Font to use in graph output")
+parser.add_argument('--font-size', default="16", help="Font size to use in graph output")
+parser.add_argument('--shape', default="record", help="Font size to use in graph output")
+parser.add_argument('--linear', default=False, action='store_true', help="Linearize graph output")
+parser.add_argument('--edge-width', default=2, help="Width of drawn edges")
+
 cmdline = parser.parse_args()
 
 if cmdline.dot:
@@ -93,10 +99,11 @@ def regify(x):
     return "^{}$".format(x.format(reg=x86_any_reg))
 
 class Inst(object):
-    def __init__(self, name, ins, outs, ignore=None):
+    def __init__(self, name, ins, outs, ignore=None, is_branch=False):
         self.name = name
         self.ins = ins
         self.outs = outs
+        self.is_branch = is_branch
         if ignore is None:
             ignore = []
         self.arg_count = len(set(filter(lambda x: isinstance(x, int), ins + outs + ignore)))
@@ -108,6 +115,7 @@ def arith(x, op, set_flags=False):
 x86_instructions = [
     arith("add", "+"),
     arith("xor", "^"),
+    arith("or", "^"),
     arith("imul", "*"),
     arith("sub", "-", set_flags=True),
     arith("and", "&"),
@@ -119,24 +127,28 @@ x86_instructions = [
     Inst("sar", ins=[0], outs=[0]),
     Inst("neg", ins=[0], outs=[0]),
     Inst("imul", ins=[0], outs=["dx", "ax"]),
-    Inst("j", ins=[0], outs=[]),
     Inst("cmp", ins=[0,1], outs=["flags"]),
     Inst("inc", ins=[0], outs=[0]),
     Inst("test", ins=[0,1], outs=["flags"]),
     Inst("lea", ins=[0], outs=[1]),
     Inst("mov", ins=[0], outs=[1]),
-    Inst("jne", ins=[0, "flags"], outs=[]),
-    Inst("jle", ins=[0, "flags"], outs=[]),
-    Inst("je", ins=[0, "flags"], outs=[]),
-    Inst("jae", ins=[0, "flags"], outs=[]),
-    Inst("jg", ins=[0, "flags"], outs=[]),
-    Inst("jge", ins=[0, "flags"], outs=[]),
+    Inst("movslq", ins=[0], outs=[1]),
+    Inst("movsl", ins=[0], outs=[1]),
+    Inst("jne", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jle", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jbe", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jl", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("je", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jae", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jg", ins=[0, "flags"], outs=[], is_branch=True),
+    Inst("jge", ins=[0, "flags"], outs=[], is_branch=True),
     Inst("cmovne", ins=["flags", 0], outs=[1]),
-    Inst("jmp", ins=[0], outs=[]),
+    Inst("jmp", ins=[0], outs=[], is_branch=True),
     Inst("pop", ins=["sp"], outs=[0, "sp"]),
     Inst("push", ins=[0, "sp"], outs=["sp"]),
-    Inst("ret", ins=["ax"], outs=[]),
-    Inst("ret", ins=[0], outs=[]),
+    Inst("ret", ins=["ax"], outs=[], is_branch=True),
+    Inst("ret", ins=[0], outs=[], is_branch=True),
+    Inst("j", ins=[0], outs=[], is_branch=True),
 ]
     
 x86_inst_map = {(x.name, x.arg_count): x for x in x86_instructions}
@@ -154,7 +166,7 @@ dependence_depth = {x:0 for x in map(lambda y:"pr{}".format(y), range(0, len(x86
 inst_depths = {}
 
 if cmdline.dot:
-    dot_file.write("digraph trace {")
+    dot_file.write("digraph trace { pad=0; margin=0; bgcolor=\"#00000000\"")
 
 output = []
 output.append(["line num", "code", "depth", "ins", "outs", "renamed_ins", "renamed_outs"] + x86_registers)
@@ -163,9 +175,16 @@ output.append(["line num", "code", "depth", "ins", "outs", "renamed_ins", "renam
 inst_id = 0 
 inst_count = 0 
 max_depth = 1
+inst_ids = []
+last_branch = 0
+branch_depth = 0
+last_instruction = 0
+
 for l in lines:
     log.debug("Analyzing {}".format(l))
     inst_id += 1
+    inst_ids += [inst_id]
+    
     l = re.sub("\#.*", "", l);
 
 
@@ -175,14 +194,14 @@ for l in lines:
         "unknown",
         "^\s*\.\w+.*",
         "^\s*\w+:.*",
-        "\.",
+        "^\s*\.",
         "\.\.\."]
     skip = False
 
     for p in discard_patterns:
         if re.search(p, l):
             skip = True
-            log.debug("Skipping '{}' because it matches '{}'".format(l, p))
+            log.debug("Skipping '{}' because it matches '{}'".format(l.strip(), p))
             break
     if skip:
         continue
@@ -198,20 +217,21 @@ for l in lines:
         sys.exit(1)
         continue
     inst_count += 1
+    log.debug("Found x86 instructions (line {}): {}\n".format(inst_id, l.strip()))
 
-    args= g.group(2).split(", ");
+    args = g.group(2).split(", ");
     args = [s.strip() for s in args if s.strip() != ""]
     
     assert len(args) <= 4, "Too many argument: {} has {}".format(l, len(args))
     op = g.group(1)
-    if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q']:
+    if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j": #don't cut suffixes off of jumps
         op = op[0:-1]
 
     inst = x86_inst_map.get((op, len(args)))
     if not inst:
         log.error("Unknown instruction: {} ({} args)".format(op, len(args)))
         sys.exit(1)
-        continue;
+
     log.debug("Using {} with {} args".format(inst.name, inst.arg_count))
     inputs = []
     outputs = []
@@ -273,49 +293,88 @@ for l in lines:
 
     log.debug("input depths:  {}".format(["{}:{}".format(x, dependence_depth.get(x,0)) for x in renamed_inputs]));
     log.debug("output depths: {}".format(["{}:{}".format(x, dependence_depth.get(x,0)) for x in renamed_outputs]));
-    inst_depth = max([dependence_depth.get(x,0) for x in renamed_inputs] + 
-                     [dependence_depth.get(x,0) for x in renamed_outputs] + 
-                     [0])
+
+
+    inst_depth_candidates = ([dependence_depth.get(x,0) for x in renamed_inputs] + 
+                             [dependence_depth.get(x,0) for x in renamed_outputs] +
+                             [branch_depth] +
+                             [0])
+    log.debug("Inst depth input candidates are {}".format([dependence_depth.get(x,0) for x in renamed_inputs]))
+    log.debug("Inst depth output candidates are {}".format([dependence_depth.get(x,0) for x in renamed_outputs]))
+    log.debug("Inst depth branch depth candidate is {}".format(branch_depth))
+
+    inst_depth = max(inst_depth_candidates)
+    log.debug("Inst depth is {}".format(inst_depth))
+
+    if inst.is_branch:
+        branch_depth = inst_depth + 1
+        log.debug("Increasing branch depth to {}".format(branch_depth))
+    
+
 
     inst_depths[inst_depth] = inst_depths.get(inst_depth, []) + [inst_id]
-
+    log.debug("Updated inst_depth[{}] = {}".format(inst_depth, inst_depths.get(inst_depth)))
 
     if cmdline.dot:
-        dot_file.write("{} [label=\"{}: {}\"]\n".format(inst_id, inst_id, l.strip()))
+        dot_file.write("{} [label=\"{}: {}\", fontsize=\"{}\", fontname=\"{}\", shape=\"{}\"]\n".format(inst_id,
+                                                                                                                   inst_id,
+                                                                                                                   l.strip(),
+                                                                                                                   cmdline.font_size,
+                                                                                                                   cmdline.font,
+                                                                                                                   cmdline.shape))
                
     for i in zip(inputs, renamed_inputs):
         if last_writer.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{} ({})\"]\n".format(last_writer[i[1]], inst_id,i[1], i[0]))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"black\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_writer[i[1]], inst_id, i[1], " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
             log.debug("{} raw from to {}\n".format(l.strip(), r))
 
     for i in zip(outputs, renamed_outputs):
         if last_writer.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{} ({})\", color=\"red\"]\n".format(last_writer[i[1]], inst_id,i[1], i[0]))
-            log.debug("{} waw from to {}\n".format(l.strip(), r))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"red\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_writer[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                log.debug("{} waw from to {}\n".format(l.strip(), r))
 
     for i in zip(outputs, renamed_outputs):
         if last_reader.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{} ({})\", color=\"blue\"]\n".format(last_reader[i[1]], inst_id,i[1], i[0]))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"blue\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_reader[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
             log.debug("{} war from to {}\n".format(l.strip(), r))
 
+    if inst.is_branch and last_branch != 0:
+        if cmdline.dot:
+            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+
+    if last_branch != 0 and last_branch == last_instruction:
+        if cmdline.dot:
+            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+
+    if inst.is_branch:
+        last_branch = inst_id
+        log.debug("Last branch is now  {}".format(last_branch))
+    
+            
     for i in renamed_inputs:
         last_reader[i] = inst_id
         dependence_depth[i] = inst_depth
-        log.debug("Updated depth of {} to {} beacuse of input".format(i, dependence_depth[i]))
+        log.debug("Updated depth of reg {} to {} beacuse of input".format(i, dependence_depth[i]))
 
     for r in renamed_outputs:
         dependence_depth[r] = inst_depth + 1
-        log.debug("Updated depth of {} to {} beacuse of output".format(r, dependence_depth[r]))
+        log.debug("Updated depth of reg {} to {} beacuse of output".format(r, dependence_depth[r]))
         last_writer[r] = inst_id
         log.debug("{} wrote to {}\n".format(l.strip(), r))
 
 
     output.append([inst_id, l.strip(), inst_depth, " ".join(inputs), " ".join(outputs),  " ".join(renamed_inputs), " ".join(renamed_outputs)] + ["pr{}".format(rat[v]) for v in x86_registers])
+    
+    max_depth_candidates = [max_depth, inst_depth, branch_depth if inst.is_branch else 0]
+    log.debug("Max depth candidates: {}".format(max_depth_candidates))
+    max_depth = max(max_depth_candidates)
+    log.debug("Increasing max depth to {}.".format(max_depth))
 
-    max_depth = max([max_depth, inst_depth])
+    last_instruction = inst_id
+max_depth += 1 # max_depth counts edges.  We actually need instructions.
 
 output.append(["inst count", inst_count])
 output.append(["critical path", max_depth])
@@ -323,11 +382,15 @@ output.append(["avg parallelism", (inst_count+0.0)/(max_depth+0.0)])
 output.append(["physical regs used", next_free_reg])
 
 if cmdline.dot:
-    for k, v in inst_depths.items():
-        dot_file.write("{{rank=same {}}}\n".format(" ".join(map(str,v))))
+    if cmdline.linear:
+        dot_file.write("{} [style=invisible, arrowsize=0]\n".format("->".join(map(str, inst_ids))))
+    else:
+        for k, v in inst_depths.items():
+            dot_file.write("{{rank=same {}}}\n".format(" ".join(map(str,v))))
     dot_file.write("}")
 
 if cmdline.csv:
     csv_file.write("\n".join(map(lambda x: ",".join(map(lambda x: '"{}"'.format(x), x)), output)))
 
 sys.stdout.write(columnize(output, divider="|", headers=True))
+x
