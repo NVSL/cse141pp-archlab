@@ -415,11 +415,6 @@ ArchLabPinTool * pin_get_tool() {
 
 VOID Routine(RTN rtn, VOID *v)
 {
-#define DIRECT_REPLACE(f)			\
-  if (RTN_Name(rtn) == #f) {			\
-    RTN_Replace(rtn, (AFUNPTR)f);		\
-    std::cerr << "Patched " << #f << std::endl;	\
-  }
 
   DIRECT_REPLACE(pin_get_tool);
 

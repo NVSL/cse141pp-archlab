@@ -191,8 +191,15 @@ class SubmissionResult(object):
         r = []
         for i in submission.lab_spec.figures_of_merit:
             f = files[i['file']]
-            v = extract_from_first_csv_line_by_field(f, i['field'])
+            if 'field' in i:
+                v = extract_from_first_csv_line_by_field(f, i['field'])
+            elif 'function' in i:
+                def get_value(s):
+                    return extract_from_first_csv_line_by_field(f, s)
+                v = eval(i['function'])
+                
             r.append(dict(name=i['name'], value=v))
+            
         self.figures_of_merit = r
 
     def _asdict(self):

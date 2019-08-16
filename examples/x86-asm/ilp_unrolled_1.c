@@ -7,3 +7,12 @@ int not_unrolled(long int n, int a,int b) {
       }
       return s;
 }
+
+int go(long int count, long int A, long int B)
+{
+  int r = 0 ;
+  for(int i = 0; i < count; i++) {
+    r = not_unrolled(A, B, B);
+  }
+  return r;
+}

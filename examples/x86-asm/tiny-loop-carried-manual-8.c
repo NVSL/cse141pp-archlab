@@ -21,3 +21,12 @@ long int loop_carried(register long int n) {
   }
   return s;
 }
+
+int go(long int count, long int A, long int B)
+{
+  int r = 0 ;
+  for(int i = 0; i < count; i++) {
+     r = loop_carried(A);
+  }
+  return r;
+}

@@ -34,4 +34,10 @@ public:
     
 };
 
+#define DIRECT_REPLACE(f)			\
+  if (RTN_Name(rtn) == #f) {			\
+    RTN_Replace(rtn, (AFUNPTR)f);		\
+    std::cerr << "Patched " << #f << std::endl;	\
+  }
+
 #endif

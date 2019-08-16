@@ -17,8 +17,6 @@ int main(int argc, char *argv[]) {
   stop_timing();                    // Stop timing.
   printf("Answer: %lu\n", s);
   archlab_write_stats();
-  printf("Now, `cat stats.csv` will show you the results.\n");
-  printf("Try `./hello_world.exe --engine papi --stat PAPI_L2_DCA --stat PAPI_TOT_CYC --stat PAPI_TOT_INS` to gather some actual measurements.\n");
   return 0;
 }
 

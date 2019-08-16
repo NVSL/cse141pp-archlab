@@ -18,7 +18,7 @@ exe: $(EXE)
 keypdfs: $(patsubst %.exe,%-gv.pdf,$(EXE)) $(TRACES)
 	open $^
 
-%.exe : %.o   ilp_driver.o
+%.exe : %.o  driver.o
 	$(CXX) $(filter %.o,$^) $(LDFLAGS) -o $@
 
 ilp_unrolled_gcc0.c: ilp_unrolled_1.c
@@ -109,4 +109,4 @@ tiny-loop-carried-unroll.c: tiny-loop-carried.c
 tiny-loop-carried.s: C_OPTS=-O4
 tiny-loop-carried-unroll.s: C_OPTS=-O4 -funroll-loops
 
-tiny-loop-carried-manual-8.s: C_OPTS=-O0
+tiny-loop-carried-manual-8.s: C_OPTS=-O4 -mno-sse
