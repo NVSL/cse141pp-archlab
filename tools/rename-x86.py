@@ -393,4 +393,3 @@ if cmdline.csv:
     csv_file.write("\n".join(map(lambda x: ",".join(map(lambda x: '"{}"'.format(x), x)), output)))
 
 sys.stdout.write(columnize(output, divider="|", headers=True))
-x
