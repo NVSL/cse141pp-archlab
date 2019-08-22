@@ -110,3 +110,10 @@ tiny-loop-carried.s: C_OPTS=-O4
 tiny-loop-carried-unroll.s: C_OPTS=-O4 -funroll-loops
 
 tiny-loop-carried-manual-8.s: C_OPTS=-O4 -mno-sse
+
+
+dotproduct.pin-trace: TRACE_ARGS=--A 20
+dotproduct.pin-trace: T_OPTS=-O1
+dotproduct.gv: RENAME_FLAGS=--show-latency 
+
+

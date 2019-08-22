@@ -68,7 +68,7 @@ RENAME_FLAGS?=
 #	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
 
 %.gv %.csv: %.pin-trace
-	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
+	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $< 
 
 
 %-gv.pdf: %.gv
