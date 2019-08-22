@@ -10,12 +10,7 @@ using json = nlohmann::json;
 
 extern "C" {
   ArchLabPinTool * pin_get_tool() __attribute__((noinline));
-#define UNPATCHED_PIN_FUNC  std::cerr << "Tried to invoke " << __FUNCTION__ << " on pin tool, but function is not patched." << std::endl
-  ArchLabPinTool * pin_get_tool() 
-  {
-    UNPATCHED_PIN_FUNC;
-    return new DummyPinTool();
-  }
+  ArchLabPinTool * pin_get_tool() ;
 }
 
 void PINDataCollector::init() {
@@ -87,3 +82,12 @@ void PINDataCollector::set_cpu_clock_frequency(int MHz) {
   std::cerr << "CPU Frequency is irrelevant with PIN" << std::endl;
 }
 
+
+#define UNPATCHED_PIN_FUNC  std::cerr << "Tried to invoke " << __FUNCTION__ << " on pin tool, but function is not patched." << std::endl
+extern "C" {
+  ArchLabPinTool * pin_get_tool() 
+  {
+    UNPATCHED_PIN_FUNC;
+    return new DummyPinTool();
+  }
+}

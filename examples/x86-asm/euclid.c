@@ -10,3 +10,8 @@ int gcd(int a, int b)
 	}
 	return a;
 }
+
+int go(long int count, long int A, long int B)
+{
+  return gcd(A, B);
+}

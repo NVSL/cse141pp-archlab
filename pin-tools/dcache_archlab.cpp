@@ -415,9 +415,7 @@ ArchLabPinTool * pin_get_tool() {
 
 VOID Routine(RTN rtn, VOID *v)
 {
-
   DIRECT_REPLACE(pin_get_tool);
-
 }
 
 class DCacheControl : public ArchLabPinTool {

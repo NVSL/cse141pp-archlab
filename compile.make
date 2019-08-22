@@ -40,6 +40,9 @@ endif
 %.s : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
+%.pin-trace: %.exe
+	pin -t $(ARCHLAB)/pin-tools/obj-intel64/trace_archlab.so -o $@ -- $(abspath $<) $(TRACE_ARGS) --engine pin
+
 %.trace.s: %.trace
 	cp $< $@
 
@@ -61,8 +64,12 @@ RENAME_FLAGS?=
 
 .PRECIOUS: %.gv
 
+%.gv %.csv: %.pin-trace
+	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
+
 %.gv %.csv: %.s
 	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
+
 
 %-gv.pdf: %.gv
 	dot -Tpdf $< > $@ || rm -rf $@

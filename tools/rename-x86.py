@@ -31,6 +31,7 @@ parser.add_argument('--font-size', default="16", help="Font size to use in graph
 parser.add_argument('--shape', default="record", help="Font size to use in graph output")
 parser.add_argument('--linear', default=False, action='store_true', help="Linearize graph output")
 parser.add_argument('--edge-width', default=2, help="Width of drawn edges")
+parser.add_argument('--pin-trace', action='store_true', help="Process a pin trace instead of asm")
 
 cmdline = parser.parse_args()
 
@@ -81,36 +82,57 @@ x86_registers = [
     "flags"
 ]
 
-x86_any_reg = "\%((|e|r)({}))d?".format("|".join(x86_registers))
 
 AddrMode = namedtuple("AddrMode", "re ex count")
 
-x86_addressing_modes = [
-    AddrMode("\({reg}\)", "(%rax)", 1),
-    AddrMode("{reg}", "%rax", 1),
-    AddrMode("\$-?\d+", "$12345", 0),
-    AddrMode("-?\d+", "12345", 0),
-    AddrMode("-?\d+\({reg}\)", "12345(%rax)", 1),
-    AddrMode("\({reg},{reg}\)", "(%rax,%rax)", 2),
-    AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
+if cmdline.pin_trace:
+    x86_any_reg = "((|e|r)({}))d?".format("|".join(x86_registers))
+    addr_prefix = "(?:\w+ )?ptr "
+    x86_addressing_modes = [
+        AddrMode("\({reg}\)", "(%rax)", 1),
+        AddrMode("0x[0-9A-F]+", "0x1234F", 0),
+        AddrMode("-?\d+", "12345", 0),
+        AddrMode("\({reg},{reg}\)", "(%rax,%rax)", 2),
+        AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
+
+        AddrMode(addr_prefix + "\[{reg}\+0x[0-9A-F]+\]", "qword ptr [rsp+1234]", 1),
+        AddrMode("{reg}", "rax", 1),
+        AddrMode(addr_prefix + "\[{reg}\+{reg}\*\d+\]", "ptr [rdi+rsi*i]", 2),
+    ]
+else:
+    x86_any_reg = "\%((|e|r)({}))d?".format("|".join(x86_registers))
+    x86_addressing_modes = [
+        AddrMode("\({reg}\)", "(%rax)", 1),
+        AddrMode("{reg}", "%rax", 1),
+        AddrMode("\$-?\d+", "$12345", 0),
+        AddrMode("-?\d+", "12345", 0),
+        AddrMode("-?\d+\({reg}\)", "12345(%rax)", 1),
+        AddrMode("\({reg},{reg}\)", "(%rax,%rax)", 2),
+        AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
     ]
 
-def regify(x):
-    return "^{}$".format(x.format(reg=x86_any_reg))
-
+    
 class Inst(object):
-    def __init__(self, name, ins, outs, ignore=None, is_branch=False):
+    def __init__(self, name, ins, outs, ignore=None, is_branch=False, arg_count=None):
         self.name = name
         self.ins = ins
         self.outs = outs
         self.is_branch = is_branch
         if ignore is None:
             ignore = []
-        self.arg_count = len(set(filter(lambda x: isinstance(x, int), ins + outs + ignore)))
+        if arg_count is None:
+            self.arg_count = len(set(filter(lambda x: isinstance(x, int), ins + outs + ignore)))
+        else:
+            self.arg_count = arg_count
         log.debug("defined inst: {} {} {} {}".format(name, ins, outs, self.arg_count))
+
+    
 
 def arith(x, op, set_flags=False): 
     return Inst(x, ins=[0, 1], outs=[1] + (["flags"] if set_flags else []))
+
+def branch(x):
+    return Inst(x, ins=[0, "flags"], outs=[], is_branch=True)
 
 x86_instructions = [
     arith("add", "+"),
@@ -123,6 +145,8 @@ x86_instructions = [
     arith("sal", "<<"),
     arith("shr", ">>"),
     arith("sar", "<<"),
+    Inst("nop", ins=[], outs=[], arg_count=2),
+    Inst("call", ins=[0], outs=[]),
     Inst("clt", ins=["ax"], outs=["ax"]),
     Inst("sar", ins=[0], outs=[0]),
     Inst("neg", ins=[0], outs=[0]),
@@ -134,14 +158,16 @@ x86_instructions = [
     Inst("mov", ins=[0], outs=[1]),
     Inst("movslq", ins=[0], outs=[1]),
     Inst("movsl", ins=[0], outs=[1]),
-    Inst("jne", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jle", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jbe", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jl", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("je", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jae", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jg", ins=[0, "flags"], outs=[], is_branch=True),
-    Inst("jge", ins=[0, "flags"], outs=[], is_branch=True),
+    branch("jne"),
+    branch("jnz"),
+    branch("jz"),
+    branch("jle"),
+    branch("jbe"),
+    branch("jl"),
+    branch("je"),
+    branch("jae"),
+    branch("jg"),
+    branch("jge"),
     Inst("cmovne", ins=["flags", 0], outs=[1]),
     Inst("jmp", ins=[0], outs=[], is_branch=True),
     Inst("pop", ins=["sp"], outs=[0, "sp"]),
@@ -150,7 +176,11 @@ x86_instructions = [
     Inst("ret", ins=[0], outs=[], is_branch=True),
     Inst("j", ins=[0], outs=[], is_branch=True),
 ]
-    
+
+def regify(x):
+    return "^{}$".format(x.format(reg=x86_any_reg))
+
+
 x86_inst_map = {(x.name, x.arg_count): x for x in x86_instructions}
 
 def get_regs(mode, match):
@@ -185,7 +215,8 @@ for l in lines:
     inst_id += 1
     inst_ids += [inst_id]
     
-    l = re.sub("\#.*", "", l);
+    l = re.sub("\#.*", "", l) # trim comments
+    l = re.sub("^%", "", l) # Trim pin trace lines
 
 
     discard_patterns = [
@@ -208,7 +239,7 @@ for l in lines:
 
     if re.match("^\s*$", l):
         log.debug("Skipping empty line: '{}'".format(l))
-        continue;
+        continue
     
     # match a line of x86 assembly.
     g = re.match("\s*(\w+)(.*)", l)
@@ -224,12 +255,15 @@ for l in lines:
     
     assert len(args) <= 4, "Too many argument: {} has {}".format(l, len(args))
     op = g.group(1)
-    if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j": #don't cut suffixes off of jumps
-        op = op[0:-1]
+
+    if not cmdline.pin_trace:
+        #Trim word size suffixes. don't cut suffixes off of jumps
+        if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j" and op != "call":
+            op = op[0:-1]
 
     inst = x86_inst_map.get((op, len(args)))
     if not inst:
-        log.error("Unknown instruction: {} ({} args)".format(op, len(args)))
+        log.error("Unknown instruction: '{}' ({} args: {}) on line {}".format(op, len(args), args, l))
         sys.exit(1)
 
     log.debug("Using {} with {} args".format(inst.name, inst.arg_count))
@@ -247,6 +281,7 @@ for l in lines:
             a = args[i]
             found = True
             for am in x86_addressing_modes:
+                log.debug("Checking {} againsnt {}\n".format(a, am.re))
                 m = re.match(regify(am.re), a)
                 if m:
                     log.debug("Argument '{}' matched addressing mode {}".format(a, am.re))
@@ -263,7 +298,6 @@ for l in lines:
                     break
                 else:
                     log.debug("Argument '{}' didn't match addressing mode {} ({})".format(a, am.re, regify(am.re)))
-
             if not found:
                 log.error("Unknown addressing mode: {}".format(a))
                 sys.exit(1)
