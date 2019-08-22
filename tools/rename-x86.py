@@ -79,8 +79,8 @@ x86_registers = [
     "si",
     "di",
     "ip",
-    "flags"
-]
+    "flags",
+] + ["xmm{}".format(i) for i in range(8)]
 
 
 AddrMode = namedtuple("AddrMode", "re ex count")
@@ -111,19 +111,31 @@ else:
         AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
     ]
 
-    
+
+def reorder_regs(r, count):
+    if any([x not in [0, 1] and isinstance(x, int) for x in r]):
+        log.error("unexpected input: {}".format(r))
+        assert False
+
+    if cmdline.pin_trace and count > 1:
+        a = [1 if x == 0 else (0 if x == 1 else x)  for x in r]
+        log.debug("rewrote args from {} to {}".format(r, a))
+        return a
+    else:
+        return r
+
 class Inst(object):
     def __init__(self, name, ins, outs, ignore=None, is_branch=False, arg_count=None):
         self.name = name
-        self.ins = ins
-        self.outs = outs
-        self.is_branch = is_branch
         if ignore is None:
             ignore = []
         if arg_count is None:
             self.arg_count = len(set(filter(lambda x: isinstance(x, int), ins + outs + ignore)))
         else:
             self.arg_count = arg_count
+        self.ins = reorder_regs(ins, self.arg_count)
+        self.outs = reorder_regs(outs, self.arg_count)
+        self.is_branch = is_branch
         log.debug("defined inst: {} {} {} {}".format(name, ins, outs, self.arg_count))
 
     
@@ -134,8 +146,12 @@ def arith(x, op, set_flags=False):
 def branch(x):
     return Inst(x, ins=[0, "flags"], outs=[], is_branch=True)
 
+def conv(x):
+    return Inst(x, ins=[0], outs=[1])
+
 x86_instructions = [
     arith("add", "+"),
+    arith("addss", "+"),
     arith("xor", "^"),
     arith("or", "^"),
     arith("imul", "*"),
@@ -145,6 +161,9 @@ x86_instructions = [
     arith("sal", "<<"),
     arith("shr", ">>"),
     arith("sar", "<<"),
+    arith("pxor", "^"),
+    conv("cvtsi2ss"),
+    conv("cvttss2si"),
     Inst("nop", ins=[], outs=[], arg_count=2),
     Inst("call", ins=[0], outs=[]),
     Inst("clt", ins=["ax"], outs=["ax"]),
@@ -258,7 +277,7 @@ for l in lines:
 
     if not cmdline.pin_trace:
         #Trim word size suffixes. don't cut suffixes off of jumps
-        if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j" and op != "call":
+        if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j" and op != "call" and op != "addss":
             op = op[0:-1]
 
     inst = x86_inst_map.get((op, len(args)))
@@ -279,7 +298,7 @@ for l in lines:
                 continue
         
             a = args[i]
-            found = True
+            found = False
             for am in x86_addressing_modes:
                 log.debug("Checking {} againsnt {}\n".format(a, am.re))
                 m = re.match(regify(am.re), a)
@@ -287,9 +306,9 @@ for l in lines:
                     log.debug("Argument '{}' matched addressing mode {}".format(a, am.re))
                     for k in range(0, am.count):
                         whole_reg_name = m.group(3*k + 1)
-                        gp_match = re.match("(r\d\d?).?", whole_reg_name)
+                        gp_match = re.match("(r\d\d?).?|(xmm.*)", whole_reg_name)
                         if gp_match:
-                            base_name = gp_match.group(1)
+                            base_name = gp_match.group(1) or gp_match.group(2)
                         else:
                             base_name = whole_reg_name[-2:]
                         log.debug("Uses register {} base = {}".format(whole_reg_name, base_name))
