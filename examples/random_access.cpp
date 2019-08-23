@@ -1,4 +1,4 @@
-#include "archlab.h"
+#include "archlab.hpp"
 #include <stdlib.h>
 #include <getopt.h>
 #include "microbenchmarks.h"
@@ -17,12 +17,13 @@ int main(int argc, char *argv[]) {
   uint32_t read_ratio;
   uint64_t access_count;
   bool enable_demo;
-  
+  bool disable_prefetcher;
   archlab_add_si_option<uint64_t>("mem-small",  mem_size_small, 4096 ,  "Small memory region size (bytes).");
   archlab_add_si_option<uint64_t>("mem-large",  mem_size_large, 32*MB,  "Large region size (bytes).");
   archlab_add_option<uint32_t>("read-ratio",     read_ratio    , 100  ,  "Read raio (percent).");
   archlab_add_si_option<uint64_t>("count",      access_count  , 1000 ,  "Accesses to perform.");
   archlab_add_flag("enable-demo", enable_demo, false ,  "Run demos.");
+  archlab_add_flag("no-prefetch", disable_prefetcher, false ,  "Disable the HW prefetcher.");
 		     
   archlab_parse_cmd_line(&argc, argv);
 
@@ -39,7 +40,10 @@ int main(int argc, char *argv[]) {
   for(auto mhz: cpu_frequencies) {
     for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
       ArchLabTimer timer; // create it.
-      pristine_machine(); // reset the machine
+      theDataCollector->pristine_machine(); // reset the machine
+      if (disable_prefetcher) {
+	theDataCollector->disable_prefetcher();
+      }
       set_cpu_clock_frequency(mhz);
       timer.
 	attr("MemoryRange", s). // add key-value pairs.  strings, ints, and floats are fine for values.

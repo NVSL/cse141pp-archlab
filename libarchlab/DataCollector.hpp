@@ -56,6 +56,12 @@ protected:
   explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
 public:
 
+  // https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
+  enum {PREFETCH_L2 = 1,
+	PREFETCH_L2_PAIR = 2,
+	PREFETCH_L1_NEXT_LINE = 4,
+	PREFETCH_L1_SEQ_HIST = 8};
+
   DataCollector() : DataCollector("Native") {}
   
   
@@ -63,6 +69,8 @@ public:
   virtual void start_timing(json & kv);
   virtual void stop_timing();
   virtual void pristine_machine();
+  virtual void enable_prefetcher(int flags = 15);  // flags should be some |'d combination of the PREFETCH_* enums above.
+  virtual void disable_prefetcher();
   virtual void flush_caches();
   virtual void set_cpu_clock_frequency(int MHz);
 

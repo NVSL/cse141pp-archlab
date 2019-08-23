@@ -17,7 +17,8 @@
 #include <sys/ioctl.h>
 #include <sched.h>
 #include <sys/types.h>
-#include <sys/wait.h>
+#include <sys/wait.h> 
+#include <sys/sysinfo.h>
 
 
 
@@ -34,8 +35,8 @@ void DataCollector::init()
   cpu_set_t my_set;        /* Define your cpu_set bit mask. */
   CPU_ZERO(&my_set);       /* Initialize it all to 0, i.e. no CPUs selected. */
   CPU_SET(0, &my_set);     /* set the bit that represents core 7. */
-  sched_setaffinity(getpid(), sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to */
-                                                    /* the defined mask, i.e. only 7. */
+  sched_setaffinity(getpid(), sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to the defined mask, i.e. only 7. */
+  
   // Disable turboboost on core 0
   // https://askubuntu.com/questions/619875/disabling-intel-turbo-boost-in-ubuntu
   /*int r = system("/usr/sbin/wrmsr -p0 0x1a0 0x4000850089 >/dev/null");
@@ -227,8 +228,9 @@ void DataCollector::write_csv(std::ostream & out)
 void DataCollector::pristine_machine()
 {
   flush_caches();
- 
+  enable_prefetcher();
   set_cpu_clock_frequency(cpu_frequencies[0]);
+  
 }
 
 void DataCollector::set_cpu_clock_frequency(int MHz) {
@@ -243,6 +245,26 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
     std::cerr << "Couldn't set cpu frequency to " << MHz << "MHz (" << r << ")" << std::endl;
 
   }
+}
+
+void DataCollector::enable_prefetcher(int flags) {
+
+  int cpus = get_nprocs_conf();
+  char buf[1024];
+  for(int i = 0;i < cpus; i++) {
+    //https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
+    sprintf(buf, "wrmsr -p %d 0x1a4 %d", i, ~flags & 15); // in the register, a 1 disables the register.  So invert and mask out the highorder bits.
+
+    //std::cerr << buf << "\n";
+    int r = system(buf);
+    if (r != 0) {
+      std::cerr << "Couldn't set prefetcher flags or core " << i << " to " << flags << "\n";
+    }
+  }
+}
+
+void DataCollector::disable_prefetcher() {
+  enable_prefetcher(0);
 }
 
 void DataCollector::flush_caches() {
