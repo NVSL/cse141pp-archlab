@@ -62,13 +62,13 @@ endif
 
 RENAME_FLAGS?= 
 
-.PRECIOUS: %.gv
+.PRECIOUS: %.gv %.pin-trace 
+
+#%.gv %.csv: %.s
+#	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
 
 %.gv %.csv: %.pin-trace
-	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
-
-%.gv %.csv: %.s
-	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
+	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $< 
 
 
 %-gv.pdf: %.gv
@@ -81,7 +81,7 @@ RENAME_FLAGS?=
 	gprof $*.exe | c++filt > $@ || rm $@
 
 rename-clean:
-	rm -rf *.gv *-gv.pdf *.csv
+	rm -rf *.gv *-gv.pdf *.csv *.pin-trace
 
 clean: rename-clean
 

@@ -20,6 +20,8 @@ import sys
 from collections import namedtuple
 import argparse
 import logging as log
+import tempfile
+import os
 
 parser = argparse.ArgumentParser(description='Rename an x86 instruction trace')
 parser.add_argument('--dot', nargs=1, help="Output the DFG in dot")
@@ -32,13 +34,18 @@ parser.add_argument('--shape', default="record", help="Font size to use in graph
 parser.add_argument('--linear', default=False, action='store_true', help="Linearize graph output")
 parser.add_argument('--edge-width', default=2, help="Width of drawn edges")
 parser.add_argument('--pin-trace', action='store_true', help="Process a pin trace instead of asm")
+parser.add_argument('--node-height', default=16.0/72.0*1.2, help="unit height for instruction nodes in inches.") # defaulte is font size + 20%
+parser.add_argument('--show-latency', action='store_true', help="Draw nodes higher to show their latency.  Implies --track-latency")
+parser.add_argument('--track-latency', action='store_true', help="Use latencies to compute critical path")
 
 cmdline = parser.parse_args()
-
+if cmdline.show_latency:
+    cmdline.track_latency = True
+    
 if cmdline.dot:
-    dot_file = open(cmdline.dot[0], "w")
+    dot_file = tempfile.NamedTemporaryFile(dir=".")
 if cmdline.csv:
-    csv_file = open(cmdline.csv[0], "w")
+    csv_file = tempfile.NamedTemporaryFile(dir=".")
 
 log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
 
@@ -79,28 +86,30 @@ x86_registers = [
     "si",
     "di",
     "ip",
-    "flags"
-]
+    "flags",
+] + ["xmm{}".format(i) for i in range(8)]
 
 
 AddrMode = namedtuple("AddrMode", "re ex count")
 
+reg_name="((|e|r)({}))(?:d|l)?"
 if cmdline.pin_trace:
-    x86_any_reg = "((|e|r)({}))d?".format("|".join(x86_registers))
+    x86_any_reg = reg_name.format("|".join(x86_registers))
     addr_prefix = "(?:\w+ )?ptr "
     x86_addressing_modes = [
         AddrMode("\({reg}\)", "(%rax)", 1),
-        AddrMode("0x[0-9A-F]+", "0x1234F", 0),
+        AddrMode("0x[0-9A-Fa-f]+", "0x1234f", 0),
         AddrMode("-?\d+", "12345", 0),
         AddrMode("\({reg},{reg}\)", "(%rax,%rax)", 2),
         AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
 
-        AddrMode(addr_prefix + "\[{reg}\+0x[0-9A-F]+\]", "qword ptr [rsp+1234]", 1),
+        AddrMode(addr_prefix + "\[{reg}(?:\+|\-)0x[0-9a-fA-F]+\]", "qword ptr [rsp+1234]", 1),
         AddrMode("{reg}", "rax", 1),
         AddrMode(addr_prefix + "\[{reg}\+{reg}\*\d+\]", "ptr [rdi+rsi*i]", 2),
+        AddrMode(addr_prefix + "\[{reg}\*\d+(?:-|\+)0x[0-9a-fA-F]+\]", "ptr [rdi+rsi*i]", 1),
     ]
 else:
-    x86_any_reg = "\%((|e|r)({}))d?".format("|".join(x86_registers))
+    x86_any_reg = ("\%"+reg_name).format("|".join(x86_registers))
     x86_addressing_modes = [
         AddrMode("\({reg}\)", "(%rax)", 1),
         AddrMode("{reg}", "%rax", 1),
@@ -111,42 +120,68 @@ else:
         AddrMode("{reg}:\({reg},{reg}\)", "%fs:(%rax,%rax)", 3),
     ]
 
-    
+
+def reorder_regs(r, count):
+    if any([x not in [0, 1] and isinstance(x, int) for x in r]):
+        log.error("unexpected input: {}".format(r))
+        assert False
+
+    if cmdline.pin_trace and count > 1:
+        a = [1 if x == 0 else (0 if x == 1 else x)  for x in r]
+        log.debug("rewrote args from {} to {}".format(r, a))
+        return a
+    else:
+        return r
+
 class Inst(object):
-    def __init__(self, name, ins, outs, ignore=None, is_branch=False, arg_count=None):
+    def __init__(self, name, ins, outs, ignore=None, is_branch=False, arg_count=None, latency=1):
         self.name = name
-        self.ins = ins
-        self.outs = outs
-        self.is_branch = is_branch
+        self.latency = latency
         if ignore is None:
             ignore = []
         if arg_count is None:
             self.arg_count = len(set(filter(lambda x: isinstance(x, int), ins + outs + ignore)))
         else:
             self.arg_count = arg_count
+        self.ins = reorder_regs(ins, self.arg_count)
+        self.outs = reorder_regs(outs, self.arg_count)
+        self.is_branch = is_branch
         log.debug("defined inst: {} {} {} {}".format(name, ins, outs, self.arg_count))
 
     
 
-def arith(x, op, set_flags=False): 
-    return Inst(x, ins=[0, 1], outs=[1] + (["flags"] if set_flags else []))
+def arith(x, op, set_flags=False, latency=1): 
+    return Inst(x, ins=[0, 1], outs=[1] + (["flags"] if set_flags else []), latency=latency)
 
 def branch(x):
     return Inst(x, ins=[0, "flags"], outs=[], is_branch=True)
 
+def conv(x, arg_count=None):
+    return Inst(x, ins=[0], outs=[1], arg_count=arg_count)
+
 x86_instructions = [
     arith("add", "+"),
+    arith("addss", "+", latency=3),
     arith("xor", "^"),
     arith("or", "^"),
-    arith("imul", "*"),
+    arith("imul", "*", latency=4),
+    arith("mulss", "*", latency=4),
+    arith("mulps", "*", latency=4),
     arith("sub", "-", set_flags=True),
     arith("and", "&"),
     arith("shl", "<<"),
     arith("sal", "<<"),
     arith("shr", ">>"),
     arith("sar", "<<"),
+    arith("pxor", "^"),
+    conv("shufps", arg_count=3),
+    conv("unpckhps"),
+    conv("cvtsi2ss"),
+    conv("cvttss2si"),
+    conv("movsxd"),
+    conv("movsx"),
     Inst("nop", ins=[], outs=[], arg_count=2),
-    Inst("call", ins=[0], outs=[]),
+    Inst("call", ins=[0], outs=[], is_branch=True),
     Inst("clt", ins=["ax"], outs=["ax"]),
     Inst("sar", ins=[0], outs=[0]),
     Inst("neg", ins=[0], outs=[0]),
@@ -156,8 +191,10 @@ x86_instructions = [
     Inst("test", ins=[0,1], outs=["flags"]),
     Inst("lea", ins=[0], outs=[1]),
     Inst("mov", ins=[0], outs=[1]),
+    Inst("movaps", ins=[0], outs=[1]),
     Inst("movslq", ins=[0], outs=[1]),
     Inst("movsl", ins=[0], outs=[1]),
+    Inst("movss", ins=[0], outs=[1]),
     branch("jne"),
     branch("jnz"),
     branch("jz"),
@@ -170,9 +207,9 @@ x86_instructions = [
     branch("jge"),
     Inst("cmovne", ins=["flags", 0], outs=[1]),
     Inst("jmp", ins=[0], outs=[], is_branch=True),
-    Inst("pop", ins=["sp"], outs=[0, "sp"]),
-    Inst("push", ins=[0, "sp"], outs=["sp"]),
-    Inst("ret", ins=["ax"], outs=[], is_branch=True),
+    Inst("pop", ins=["sp"], outs=[0, "sp"], latency=2),
+    Inst("push", ins=[0, "sp"], outs=["sp"], latency=2),
+    Inst("ret", ins=["ax"], outs=[], is_branch=True, latency=2),
     Inst("ret", ins=[0], outs=[], is_branch=True),
     Inst("j", ins=[0], outs=[], is_branch=True),
 ]
@@ -258,7 +295,7 @@ for l in lines:
 
     if not cmdline.pin_trace:
         #Trim word size suffixes. don't cut suffixes off of jumps
-        if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j" and op != "call":
+        if op[-1:] in ['b', 's', 'w', 'l', 'd', 'q'] and op[0:1] != "j" and op != "call" and op != "addss":
             op = op[0:-1]
 
     inst = x86_inst_map.get((op, len(args)))
@@ -279,7 +316,7 @@ for l in lines:
                 continue
         
             a = args[i]
-            found = True
+            found = False
             for am in x86_addressing_modes:
                 log.debug("Checking {} againsnt {}\n".format(a, am.re))
                 m = re.match(regify(am.re), a)
@@ -287,9 +324,9 @@ for l in lines:
                     log.debug("Argument '{}' matched addressing mode {}".format(a, am.re))
                     for k in range(0, am.count):
                         whole_reg_name = m.group(3*k + 1)
-                        gp_match = re.match("(r\d\d?).?", whole_reg_name)
+                        gp_match = re.match("(r\d\d?).?|(xmm.*)", whole_reg_name)
                         if gp_match:
-                            base_name = gp_match.group(1)
+                            base_name = gp_match.group(1) or gp_match.group(2)
                         else:
                             base_name = whole_reg_name[-2:]
                         log.debug("Uses register {} base = {}".format(whole_reg_name, base_name))
@@ -350,9 +387,10 @@ for l in lines:
     log.debug("Updated inst_depth[{}] = {}".format(inst_depth, inst_depths.get(inst_depth)))
 
     if cmdline.dot:
-        dot_file.write("{} [label=\"{}: {}\", fontsize=\"{}\", fontname=\"{}\", shape=\"{}\"]\n".format(inst_id,
+        dot_file.write("{} [label=\"{}: {}\", height={}, fontsize=\"{}\", fontname=\"{}\", shape=\"{}\"]\n".format(inst_id,
                                                                                                                    inst_id,
                                                                                                                    l.strip(),
+                                                                                                                   inst.latency * cmdline.node_height if cmdline.show_latency else 0,
                                                                                                                    cmdline.font_size,
                                                                                                                    cmdline.font,
                                                                                                                    cmdline.shape))
@@ -360,28 +398,28 @@ for l in lines:
     for i in zip(inputs, renamed_inputs):
         if last_writer.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{}{}\", color=\"black\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_writer[i[1]], inst_id, i[1], " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"black\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_writer[i[1]], inst_id, i[1], " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
             log.debug("{} raw from to {}\n".format(l.strip(), r))
 
     for i in zip(outputs, renamed_outputs):
         if last_writer.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{}{}\", color=\"red\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_writer[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"red\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_writer[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
                 log.debug("{} waw from to {}\n".format(l.strip(), r))
 
     for i in zip(outputs, renamed_outputs):
         if last_reader.get(i[1]) is not None:
             if cmdline.dot:
-                dot_file.write("{} -> {} [label=\"{}{}\", color=\"blue\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_reader[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                dot_file.write("{} -> {} [label=\"{}{}\", color=\"blue\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_reader[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
             log.debug("{} war from to {}\n".format(l.strip(), r))
 
     if inst.is_branch and last_branch != 0:
         if cmdline.dot:
-            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
 
     if last_branch != 0 and last_branch == last_instruction:
         if cmdline.dot:
-            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}]\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
 
     if inst.is_branch:
         last_branch = inst_id
@@ -394,7 +432,7 @@ for l in lines:
         log.debug("Updated depth of reg {} to {} beacuse of input".format(i, dependence_depth[i]))
 
     for r in renamed_outputs:
-        dependence_depth[r] = inst_depth + 1
+        dependence_depth[r] = inst_depth + (1 if not cmdline.track_latency else inst.latency)
         log.debug("Updated depth of reg {} to {} beacuse of output".format(r, dependence_depth[r]))
         last_writer[r] = inst_id
         log.debug("{} wrote to {}\n".format(l.strip(), r))
@@ -417,7 +455,7 @@ output.append(["physical regs used", next_free_reg])
 
 if cmdline.dot:
     if cmdline.linear:
-        dot_file.write("{} [style=invisible, arrowsize=0]\n".format("->".join(map(str, inst_ids))))
+        dot_file.write("{} [style=invisible, arrowsize=0];\n".format("->".join(map(str, inst_ids))))
     else:
         for k, v in inst_depths.items():
             dot_file.write("{{rank=same {}}}\n".format(" ".join(map(str,v))))
@@ -425,5 +463,9 @@ if cmdline.dot:
 
 if cmdline.csv:
     csv_file.write("\n".join(map(lambda x: ",".join(map(lambda x: '"{}"'.format(x), x)), output)))
+
+
+os.rename(csv_file.name, cmdline.csv[0])
+os.rename(dot_file.name, cmdline.dot[0])
 
 sys.stdout.write(columnize(output, divider="|", headers=True))
