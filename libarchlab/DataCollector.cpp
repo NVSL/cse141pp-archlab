@@ -31,10 +31,10 @@ void DataCollector::init()
   pristine_machine();
   srand(time(0));
   // Bind the current process to core 0.
-  cpu_set_t my_set;        /* Define your cpu_set bit mask. */
-  CPU_ZERO(&my_set);       /* Initialize it all to 0, i.e. no CPUs selected. */
-  CPU_SET(0, &my_set);     /* set the bit that represents core 7. */
-  sched_setaffinity(getpid(), sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to */
+  //cpu_set_t my_set;        /* Define your cpu_set bit mask. */
+  //CPU_ZERO(&my_set);       /* Initialize it all to 0, i.e. no CPUs selected. */
+  //CPU_SET(0, &my_set);     /* set the bit that represents core 7. */
+  //sched_setaffinity(getpid(), sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to */
                                                     /* the defined mask, i.e. only 7. */
   // Disable turboboost on core 0
   // https://askubuntu.com/questions/619875/disabling-intel-turbo-boost-in-ubuntu
@@ -44,6 +44,14 @@ void DataCollector::init()
     exit(1);
     }*/
 }
+
+
+void DataCollector::init_all_cores() 
+{
+  pristine_machine();
+  srand(time(0));
+}
+
 
 int DataCollector::run_child(char *exec, char *argv[])
 {

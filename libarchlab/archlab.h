@@ -23,7 +23,7 @@
 #define ARCHLAB_COLLECTOR_PAPI 1
 #define ARCHLAB_COLLECTOR_PIN 2
 #define ARCHLAB_COLLECTOR_NONE 3
-
+#define ARCHLAB_COLLECTOR_ALLCORE 4
 
 #ifdef __cplusplus
 extern "C" {

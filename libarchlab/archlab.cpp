@@ -58,6 +58,8 @@ extern "C" {
       archlab_init(ARCHLAB_COLLECTOR_NONE); 
     } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
       archlab_init(ARCHLAB_COLLECTOR_PCM); 
+    } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "ALL-CORE") {
+      archlab_init(ARCHLAB_COLLECTOR_ALLCORE);
     } else {
       std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
       abort();
