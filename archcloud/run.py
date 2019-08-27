@@ -49,7 +49,7 @@ def main(argv):
     parser.add_argument('--json', action='store_true', default=False, help="Dump json version of submission and response.")
     parser.add_argument('--directory', default=".", help="Directory to submit")
     parser.add_argument('--run-json', action='store_true', default=False, help="Read json submission spec from stdin")
-    parser.add_argument('--docker-image', default="cse141pp/submission-runner:0.10", help="Docker image to use")
+    parser.add_argument('--docker-image', default="devonmerrill/cse141l-development-environment", help="Docker image to use")
     parser.add_argument('--options', default=[], nargs="*", help="Options to control compilation and execution (e.g., 'CC=gcc-8' or 'OPT=-O4'")
     parser.add_argument('--list-options', action='store_true', default=False, help="List Available Options")
     parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
