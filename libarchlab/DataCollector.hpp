@@ -60,7 +60,7 @@ public:
   
   
   virtual void init();
-  virtual void init_all_cores();
+  virtual void init(bool do_cpu_affinity);
   virtual void start_timing(json & kv);
   virtual void stop_timing();
   virtual void pristine_machine();
