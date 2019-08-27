@@ -9,6 +9,18 @@ import sys
 import os
 import subprocess
 
+def columnize(data, divider="", headers=None):
+    r = ""
+    column_count = max(map(len, data))
+    rows = [x + ([""] * (column_count - len(x))) for x in data]
+    widths = [max(list(map(lambda x:len(str(x)), col))) for col in zip(*rows)]
+    div = " {} ".format(divider)
+    for i, row in enumerate(rows):
+        if headers is not None and headers == i:
+            r += "-" * (sum(widths) + len(rows[0]) * len(div))  + "\n"
+        r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
+    return r
+
 def main(argv):
     """
     This is the command line driver for Runner.py.  It should demonstrate everything you'll need to do with the library.
@@ -111,9 +123,6 @@ def main(argv):
             else:
                 result = run_submission_remotely(submission, args.remote, "5000")
 
-            if args.json:
-                sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
-
             for i in submission.lab_spec.output_files:
                 if i in result.files:
                     log.debug("========================= {} ===========================".format(i))
@@ -125,6 +134,17 @@ def main(argv):
                     else:
                         with open(os.path.join(args.directory, i), "w") as t:
                             t.write(result.files[i])
+            if args.json:
+                sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+            else:
+                sys.stdout.write("Figures of merit:\n")
+                foms = [["FOM", "value"]]
+                for fom in result.figures_of_merit:
+                    foms.append([fom['name'],fom['value']])
+
+                sys.stdout.write(columnize(foms, headers=True, divider='|'))
+            
+
     except RunnerException as e: 
         log.error(e)
         

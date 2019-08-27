@@ -32,11 +32,16 @@ endif
 	$(CXX) -E -c $(CXXFLAGS) $(CPP_FLAGS) $< -o $@
 %.i : %.c
 	$(CC) -E -c $(CFLAGS) $(CPP_FLAGS) $< -o $@
+%.s : %.asm
+	cp $< $@
 
 %.s : %.cpp
 	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o - |c++filt > $@
 %.s : %.c
 	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+
+%.pin-trace: %.exe
+	pin -t $(ARCHLAB)/pin-tools/obj-intel64/trace_archlab.so -o $@ -- $(abspath $<) $(TRACE_ARGS) --engine pin
 
 %.trace.s: %.trace
 	cp $< $@
@@ -57,19 +62,26 @@ endif
 
 RENAME_FLAGS?= 
 
-.PRECIOUS: %.gv
+.PRECIOUS: %.gv %.pin-trace 
 
-%.gv %.csv: %.s
-	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $< 
+#%.gv %.csv: %.s
+#	rename-x86.py --dot $*.gv --csv $*.csv $(RENAME_FLAGS) < $<  || rm -rf $*.gv $*.csv 
+
+%.gv %.csv: %.pin-trace
+	rename-x86.py --dot $*.gv --pin-trace --csv $*.csv $(RENAME_FLAGS) < $< 
+
 
 %-gv.pdf: %.gv
 	dot -Tpdf $< > $@ || rm -rf $@
+
+%-gv.svg: %.gv
+	dot -Tsvg $< > $@ || rm -rf $@
 
 %.gprof: %.out %.exe gmon.out 
 	gprof $*.exe | c++filt > $@ || rm $@
 
 rename-clean:
-	rm -rf *.gv *-gv.pdf *.csv
+	rm -rf *.gv *-gv.pdf *.csv *.pin-trace
 
 clean: rename-clean
 

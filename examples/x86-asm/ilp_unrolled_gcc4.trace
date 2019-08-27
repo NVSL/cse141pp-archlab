@@ -18,6 +18,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -26,6 +27,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -34,6 +36,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -42,6 +45,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -50,6 +54,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -58,6 +63,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -66,6 +72,7 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	movl	%esi, %r8d
 	movl	%edx, %r9d
 	andl	%ecx, %r8d
@@ -74,11 +81,9 @@ L3:
 	xorl	%r9d, %r8d
 	addl	%r8d, %eax
 	cmpq	%rdi, %rcx
+	jne	.L3
 	ret
 	.align 4,0x90
-L4:
-	xorl	%eax, %eax
-	ret
 LFE0:
 	.section __TEXT,__eh_frame,coalesced,no_toc+strip_static_syms+live_support
 EH_frame1:

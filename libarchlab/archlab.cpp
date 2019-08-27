@@ -238,6 +238,13 @@ extern "C" {
     
   }
 
+  void archlab_start_quick() {
+    asm("");
+  }
+  void archlab_stop_quick() {
+    asm("");
+  }
+  
 }
 
 

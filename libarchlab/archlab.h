@@ -108,8 +108,16 @@ extern "C" {
   
   void archlab_parse_cmd_line(int *argc, char *argv[]);
   void archlab_write_stats();
+
   extern int * cpu_frequencies_array;
 
+  // These are fo signaling to pin tools to start and stop tracking
+  // stats at a very fine grain.
+  void archlab_start_quick() __attribute__((noinline));
+  void archlab_start_quick();
+  void archlab_stop_quick() __attribute__((noinline));
+  void archlab_stop_quick();
+  
 #ifdef __cplusplus
 } // C linkage
 #endif
