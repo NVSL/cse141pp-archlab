@@ -14,6 +14,7 @@ pthread_barrier_t done_barrier;
 
 int threads;
 volatile bool finished;
+uint64_t iter;
 
 void *low_ilp(void*_a) {
   long int core = (long int)_a;
@@ -24,11 +25,12 @@ void *low_ilp(void*_a) {
   
   volatile int sum;
   int i = 0;
-  while(!finished) {
+  archlab_start_quick();
+  while(!finished && (iter-- != 0)) {
     sum+=i;
     i++;
   }
-  
+  archlab_stop_quick();
   if (threads > 0) {
     pthread_barrier_wait(&done_barrier);
   }
@@ -44,11 +46,12 @@ void *high_ilp(void*_a) {
   
   volatile int sum;
   int i = 0;
-  while(!finished) {
+  archlab_start_quick();
+  while(!finished && (iter-- != 0)) {
     sum+=(i*3 + (i << 4) + (i >> 7) + i/13 + (i%9));
     i++;
   }
-  
+  archlab_stop_quick();
   if (threads > 0) {
     pthread_barrier_wait(&done_barrier);
   }
@@ -64,6 +67,7 @@ int main(int argc, char *argv[]) {
   archlab_add_option<int>("seconds", seconds, 1, "How many seconds to run for");
   archlab_add_option<std::string>("t0ilp", t0mode, "low", "Which function to run in t0");
   archlab_add_option<std::string>("t1ilp", t1mode, "low", "Which function to run in t1");
+  archlab_add_option<uint64_t>("iter", iter, ~(uint64_t)0, "How many iterations to run.  default is ");
   
   archlab_parse_cmd_line(&argc, argv);
   pthread_t t0, t1;

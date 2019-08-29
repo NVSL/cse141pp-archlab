@@ -37,6 +37,8 @@ parser.add_argument('--pin-trace', action='store_true', help="Process a pin trac
 parser.add_argument('--node-height', default=16.0/72.0*1.2, help="unit height for instruction nodes in inches.") # defaulte is font size + 20%
 parser.add_argument('--show-latency', action='store_true', help="Draw nodes higher to show their latency.  Implies --track-latency")
 parser.add_argument('--track-latency', action='store_true', help="Use latencies to compute critical path")
+parser.add_argument('--hide-insts', action='store_true', help="don't show instructions in graphs")
+parser.add_argument('--omit-control-edges', action='store_true', help="don't add control dependences")
 
 cmdline = parser.parse_args()
 if cmdline.show_latency:
@@ -107,6 +109,7 @@ if cmdline.pin_trace:
         AddrMode("{reg}", "rax", 1),
         AddrMode(addr_prefix + "\[{reg}\+{reg}\*\d+\]", "ptr [rdi+rsi*i]", 2),
         AddrMode(addr_prefix + "\[{reg}\*\d+(?:-|\+)0x[0-9a-fA-F]+\]", "ptr [rdi+rsi*i]", 1),
+        AddrMode(addr_prefix + "\[{reg}\*\d+\]", "ptr [rdi+rsi*i]", 1),
     ]
 else:
     x86_any_reg = ("\%"+reg_name).format("|".join(x86_registers))
@@ -147,7 +150,6 @@ class Inst(object):
         self.outs = reorder_regs(outs, self.arg_count)
         self.is_branch = is_branch
         log.debug("defined inst: {} {} {} {}".format(name, ins, outs, self.arg_count))
-
     
 
 def arith(x, op, set_flags=False, latency=1): 
@@ -388,8 +390,8 @@ for l in lines:
 
     if cmdline.dot:
         dot_file.write("{} [label=\"{}: {}\", height={}, fontsize=\"{}\", fontname=\"{}\", shape=\"{}\"]\n".format(inst_id,
-                                                                                                                   inst_id,
-                                                                                                                   l.strip(),
+                                                                                                                   inst_id if not cmdline.hide_insts else "",
+                                                                                                                   l.strip() if not cmdline.hide_insts else "",
                                                                                                                    inst.latency * cmdline.node_height if cmdline.show_latency else 0,
                                                                                                                    cmdline.font_size,
                                                                                                                    cmdline.font,
@@ -413,14 +415,15 @@ for l in lines:
                 dot_file.write("{} -> {} [label=\"{}{}\", color=\"blue\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_reader[i[1]], inst_id,i[1],  " ({})".format(i[0]) if i[0] != i[1] else "", cmdline.font_size, cmdline.font, cmdline.edge_width))
             log.debug("{} war from to {}\n".format(l.strip(), r))
 
-    if inst.is_branch and last_branch != 0:
-        if cmdline.dot:
-            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
-
-    if last_branch != 0 and last_branch == last_instruction:
-        if cmdline.dot:
-            dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
-
+    if not cmdline.omit_control_edges:
+        if inst.is_branch and last_branch != 0:
+            if cmdline.dot:
+                dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                
+        if last_branch != 0 and last_branch == last_instruction:
+            if cmdline.dot:
+                dot_file.write("{} -> {} [label=\"{}\", color=\"gray\", fontsize=\"{}\", fontname=\"{}\",penwidth={}];\n".format(last_branch, inst_id, "PC", cmdline.font_size, cmdline.font, cmdline.edge_width))
+                        
     if inst.is_branch:
         last_branch = inst_id
         log.debug("Last branch is now  {}".format(last_branch))
