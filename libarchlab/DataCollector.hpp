@@ -69,8 +69,7 @@ public:
   DataCollector() : DataCollector("Native") {}
   
   
-  virtual void init();
-  virtual void init(bool do_cpu_affinity);
+  virtual void init(bool do_cpu_affinity=true);
   virtual void start_timing(json & kv);
   virtual void stop_timing();
   virtual void pristine_machine();

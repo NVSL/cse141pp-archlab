@@ -52,10 +52,10 @@ PAPIDataCollector::PAPIDataCollector() : DataCollector("PAPI"), event_set(PAPI_N
       std::cerr << "PAPI version mismatch." << std::endl;
     }
 
-    int retval = PAPI_thread_init( pthread_self);
-    if ( retval != PAPI_VER_CURRENT ) {
-      std::cerr << "PAPI version mismatch." << std::endl;
-    }
+    // int retval = PAPI_thread_init( pthread_self);
+    // if ( retval != PAPI_VER_CURRENT ) {
+    //   std::cerr << "PAPI version mismatch." << std::endl;
+    // }
 
     init_rapl();
 
