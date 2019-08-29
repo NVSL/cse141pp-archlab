@@ -3,6 +3,7 @@
 #include <cstring>
 #include <stdlib.h>
 #include <json.hpp>
+#include<pthread.h>
 
 using json = nlohmann::json;
 
@@ -47,6 +48,11 @@ PAPIDataCollector::PAPIDataCollector() : DataCollector("PAPI"), event_set(PAPI_N
 
 
     int retval = PAPI_library_init( PAPI_VER_CURRENT );
+    if ( retval != PAPI_VER_CURRENT ) {
+      std::cerr << "PAPI version mismatch." << std::endl;
+    }
+
+    int retval = PAPI_thread_init( pthread_self);
     if ( retval != PAPI_VER_CURRENT ) {
       std::cerr << "PAPI version mismatch." << std::endl;
     }
@@ -98,13 +104,16 @@ void PAPIDataCollector::track_stat(const std::string  & stat)
     std::cerr << "Tracking " << stat << std::endl;
 
     if( (r = PAPI_add_named_event(event_set, stat.c_str())) != PAPI_OK ) {
+      // If that failed, either it's a rapl event, or it's actually an error.  Try to add rapl.
       if( rapl_cid == -1 ||  (r = PAPI_add_named_event(rapl_event_set, stat.c_str())) != PAPI_OK ) {
 	std::cerr << "Problem adding " << stat << ": " << PAPI_strerror(r) << "\n";
 	exit(1);                                                             
       } else {
+	//	std::cerr << "Added rapl event\n";
 	rapl_events.push_back(event);
       }
     } else {
+      //std::cerr << "Addedevent\n";
       events.push_back(event);
     }
   } else {

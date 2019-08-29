@@ -44,18 +44,22 @@ public:
 
 };
 
+
 class DataCollector {
   std::vector<MeasurementInterval* > stored_intervals;
   std::string stats_filname;
   const std::string collector_name;
   MeasurementInterval * current_interval;
-	json default_kv;
-
+  json default_kv;
+  std::map<pthread_t*, pthread_t*> threads;
+  
 protected:
   virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
   explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
 public:
 
+  typedef pthread_t *Thread;
+  
   // https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
   enum {PREFETCH_L2 = 1,
 	PREFETCH_L2_PAIR = 2,
@@ -78,6 +82,9 @@ public:
   virtual void clear_tracked_stats();
   virtual void get_usage(std::ostream & f);
   virtual int  run_child(char *exec, char *argv[]);
+
+  Thread run_thread(void *(*start_routine) (void *), void *arg);
+  virtual void bind_this_thread_to_core(int c);
   
   void set_stats_filename(const std::string &s) {stats_filname = s;}
   void enqueue_interval(MeasurementInterval *mi) {

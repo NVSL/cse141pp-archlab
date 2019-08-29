@@ -11,12 +11,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fstream>
-#include <sys/types.h>
+#include<pthread.h>
+
 #include <sys/stat.h>
 #include <cache_control/cache_control.h>
 #include <sys/ioctl.h>
 #include <sched.h>
-#include <sys/types.h>
 #include <sys/wait.h> 
 #include <sys/sysinfo.h>
 
@@ -26,25 +26,33 @@
 using json = nlohmann::json;
 
 
-
 void DataCollector::init()
 {
   pristine_machine();
   srand(time(0));
-  // Bind the current process to core 0.
+  bind_this_thread_to_core(0);
+}
+
+void DataCollector::bind_this_thread_to_core(int c)
+{
   cpu_set_t my_set;        /* Define your cpu_set bit mask. */
   CPU_ZERO(&my_set);       /* Initialize it all to 0, i.e. no CPUs selected. */
-  CPU_SET(0, &my_set);     /* set the bit that represents core 7. */
-  sched_setaffinity(getpid(), sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to the defined mask, i.e. only 7. */
-  
-  // Disable turboboost on core 0
-  // https://askubuntu.com/questions/619875/disabling-intel-turbo-boost-in-ubuntu
-  /*int r = system("/usr/sbin/wrmsr -p0 0x1a0 0x4000850089 >/dev/null");
-  if (r != 0) {
-    std::cerr << "Couldn't disable turbo boost." << std::endl;
-    exit(1);
-    }*/
+  CPU_SET(c, &my_set);     /* set the bit that represents core 7. */
+  sched_setaffinity(0, sizeof(cpu_set_t), &my_set); /* Set affinity of tihs process to the defined mask, i.e. only 7. */
 }
+
+DataCollector::Thread run_thread(void *(*start_routine) (void *), void *arg)
+{
+  pthread_t * n = new pthread_t;
+  int r = pthread_create(n, NULL, start_routine, arg);
+  if (r != 0) {
+    std::cerr<< "Couldn't Start thread: " << strerror(errno) <<"\n";
+    exit(1);
+  }
+  //threads[n] = n;
+  return n;
+}
+
 
 int DataCollector::run_child(char *exec, char *argv[])
 {
