@@ -26,11 +26,13 @@
 using json = nlohmann::json;
 
 
-void DataCollector::init()
+void DataCollector::init(bool do_cpu_affinity) 
 {
   pristine_machine();
   srand(time(0));
-  bind_this_thread_to_core(0);
+  if (do_cpu_affinity) {
+    bind_this_thread_to_core(0);
+  }
 }
 
 void DataCollector::bind_this_thread_to_core(int c)
@@ -52,6 +54,7 @@ DataCollector::Thread run_thread(void *(*start_routine) (void *), void *arg)
   //threads[n] = n;
   return n;
 }
+
 
 
 int DataCollector::run_child(char *exec, char *argv[])

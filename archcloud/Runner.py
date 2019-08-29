@@ -307,7 +307,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                         of.write(sub.files[f])
 
             if run_in_docker:
-                image = "cse141pp/submission-runner:0.10"
+                image = "devonmerrill/cse141l-development-environment"
                 status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"] + (['-v'] if (log.getLogger().getEffectiveLevel() <= log.INFO) else []), timeout=spec.time_limit)
             else:
                 with environment(**sub.env):
