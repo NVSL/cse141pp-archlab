@@ -5,7 +5,7 @@ PAPI_ROOT=/usr/local
 PIN_ROOT=$(ARCHLAB)/pin
 export PIN_ROOT
 C_OPTS ?= -O3
-CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I../ #-fopenmp
+CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
 LDFLAGS ?= $(USER_LDFLAGS) $(LD_OPTS) -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -pthread -larchlab -static -lPCM -lpapi -lboost_program_options #-fopenmp
 ASM_FLAGS=
