@@ -4,11 +4,34 @@ PCM_ROOT=$(ARCHLAB)/pcm
 PAPI_ROOT=/usr/local
 PIN_ROOT=$(ARCHLAB)/pin
 export PIN_ROOT
-C_OPTS ?= -O3
-CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
+
+GPROF?=no
+ifeq ($(GPROF),no)
+else
+PROFILE_FLAGS+=-pg
+DEBUG?=no
+endif
+
+GCOV?=no
+ifeq ($(GCOV),no)
+else
+PROFILE_FLAGS+= -fprofile-arcs -ftest-coverage
+DEBUG?=yes
+endif
+
+DEBUG?=yes
+ifeq ($(DEBUG),yes)
+DEBUG_FLAGS=-DDEBUG
+else
+C_OPTS ?= -O3 
+endif
+
+CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LIBS=-L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -pthread -larchlab -static -lPCM -lpapi -lboost_program_options  #-fopenmp
-LDFLAGS ?= $(USER_LDFLAGS) $(LD_OPTS) $(ARCHLAB_LIBS)
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -static -lPCM -lpapi -lboost_program_options
+GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
+LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
+
 ASM_FLAGS=
 CPP_FLAGS=
 .PRECIOUS: %.o %.exe %.s %.i
@@ -16,8 +39,10 @@ CPP_FLAGS=
 
 default:
 
-ifeq ($(shell uname -s),Darwin) 
+ifeq ($(shell uname -s),Darwin)
+ifeq ($(FORCE),) 
 $(error You cannot compile code with archlab on an Mac.  Instead, develop inside the course docker container)
+endif
 endif
 
 %.o : %.s
@@ -94,6 +119,16 @@ clean: rename-clean
 
 .PHONY: archlab-clean
 archlab-clean:
-	rm -rf *.exe *.o *.i *.s *.out *.d *.gcda *.gcno *.gprof
+	rm -rf *.exe *.o *.i *.s *.out *.d *.gcda *.gcno *.gprof *.gcov
 
 clean: archlab-clean
+
+.PHONY: help
+
+help:
+	@echo 'make clean     : cleanup'
+	@echo 'make DEBUG=no  : Disable debugging mode (currently=$(DEBUG))'
+	@echo 'make GPROF=yes : Enable gprof.  Implies DEBUG=no. (currently=$(GPROF))'
+	@echo 'make GCOV=yes  : Enable gcov. (currently=$(GCOV))'
+
+
