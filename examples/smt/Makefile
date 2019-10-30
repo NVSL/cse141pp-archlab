@@ -22,5 +22,5 @@ smt: smt-low-gv.pdf smt-high-gv.pdf smt.exe
 smt%.cpp: smt.cpp
 	cp $< $@
 
-smt-low.pin-trace: TRACE_ARGS=--threads 0 --t0ilp low
-smt-high.pin-trace: TRACE_ARGS=--threads 0 --t0ilp high
+smt-low.pin-trace: TRACE_ARGS=--threads 0 --t0ilp low --iters 5
+smt-high.pin-trace: TRACE_ARGS=--threads 0 --t0ilp high --iters 5

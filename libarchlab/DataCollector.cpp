@@ -26,13 +26,10 @@
 using json = nlohmann::json;
 
 
-void DataCollector::init(bool do_cpu_affinity) 
+void DataCollector::init() 
 {
   pristine_machine();
   srand(time(0));
-  if (do_cpu_affinity) {
-    bind_this_thread_to_core(0);
-  }
 }
 
 void DataCollector::bind_this_thread_to_core(int c)

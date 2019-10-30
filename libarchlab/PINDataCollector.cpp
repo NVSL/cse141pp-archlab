@@ -15,6 +15,10 @@ extern "C" {
 
 void PINDataCollector::init() {
   tool = pin_get_tool();
+  if (tool == NULL) {
+    std::cerr << "Pin data collector failed to connect to pin tool.\n";
+    exit(1);
+  }
   DataCollector::init();
 }
 

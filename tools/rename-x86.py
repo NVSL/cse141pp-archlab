@@ -70,10 +70,10 @@ op_hist = dict()
 arg_hist = dict()
 
 x86_registers = [
-    "ax",
-    "bx",
-    "cx",
-    "dx",
+    "a",
+    "b",
+    "c",
+    "d",
     "sp",
     "si",
     "bp",
@@ -94,7 +94,8 @@ x86_registers = [
 
 AddrMode = namedtuple("AddrMode", "re ex count")
 
-reg_name="((|e|r)({}))(?:d|l)?"
+reg_name="((|e|r)({}))[xhld]*"
+
 if cmdline.pin_trace:
     x86_any_reg = reg_name.format("|".join(x86_registers))
     addr_prefix = "(?:\w+ )?ptr "
@@ -125,12 +126,11 @@ else:
 
 
 def reorder_regs(r, count):
-    if any([x not in [0, 1] and isinstance(x, int) for x in r]):
-        log.error("unexpected input: {}".format(r))
-        assert False
 
+    reorder_map = {before: after for before, after in zip(range(0,count), reversed(range(0,count)))}
+    
     if cmdline.pin_trace and count > 1:
-        a = [1 if x == 0 else (0 if x == 1 else x)  for x in r]
+        a = [reorder_map[x] if isinstance(x, int) else x for x in r]
         log.debug("rewrote args from {} to {}".format(r, a))
         return a
     else:
@@ -152,8 +152,8 @@ class Inst(object):
         log.debug("defined inst: {} {} {} {}".format(name, ins, outs, self.arg_count))
     
 
-def arith(x, op, set_flags=False, latency=1): 
-    return Inst(x, ins=[0, 1], outs=[1] + (["flags"] if set_flags else []), latency=latency)
+def arith(x, op, set_flags=False, latency=1, ignore=None): 
+    return Inst(x, ins=[0, 1], outs=[1] + (["flags"] if set_flags else []), latency=latency, ignore=ignore)
 
 def branch(x):
     return Inst(x, ins=[0, "flags"], outs=[], is_branch=True)
@@ -176,12 +176,14 @@ x86_instructions = [
     arith("shr", ">>"),
     arith("sar", "<<"),
     arith("pxor", "^"),
+    Inst("imul", latency=4, ignore=[0], ins=[1,2], outs=[2]),
     conv("shufps", arg_count=3),
     conv("unpckhps"),
     conv("cvtsi2ss"),
     conv("cvttss2si"),
     conv("movsxd"),
     conv("movsx"),
+    conv("movzx"),
     Inst("nop", ins=[], outs=[], arg_count=2),
     Inst("call", ins=[0], outs=[], is_branch=True),
     Inst("clt", ins=["ax"], outs=["ax"]),
@@ -330,7 +332,8 @@ for l in lines:
                         if gp_match:
                             base_name = gp_match.group(1) or gp_match.group(2)
                         else:
-                            base_name = whole_reg_name[-2:]
+                            match = re.match("[er]?(\w+)[hl]?", whole_reg_name)
+                            base_name = match.group(1)
                         log.debug("Uses register {} base = {}".format(whole_reg_name, base_name))
                         r.append(base_name)
                     found = True
@@ -338,7 +341,7 @@ for l in lines:
                 else:
                     log.debug("Argument '{}' didn't match addressing mode {} ({})".format(a, am.re, regify(am.re)))
             if not found:
-                log.error("Unknown addressing mode: {}".format(a))
+                log.error("Unknown addressing mode: {} in {}".format(a, l))
                 sys.exit(1)
         return r
 

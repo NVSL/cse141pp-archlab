@@ -148,11 +148,7 @@ extern "C" {
       std::cerr << "Unknown data collector: " << collector << std::endl;
       exit(0);
     }
-    if (collector == ARCHLAB_COLLECTOR_ALLCORE) {
-      theDataCollector->init(false);
-    } else {
-      theDataCollector->init();
-    }
+    theDataCollector->init();
   }
 
     
