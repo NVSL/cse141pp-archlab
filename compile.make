@@ -41,7 +41,7 @@ default:
 
 ifeq ($(shell uname -s),Darwin)
 ifeq ($(FORCE),) 
-$(error You cannot compile code with archlab on an Mac.  Instead, develop inside the course docker container)
+$(error You cannot compile code with archlab on an Mac.  Instead, develop inside the course docker container (FORCE=yes to override))
 endif
 endif
 

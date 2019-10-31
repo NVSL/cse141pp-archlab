@@ -8,6 +8,11 @@ import os
 import csv
 import math
 
+import unittest
+
+class CalcException(Exception):
+    pass
+        
 class Field(object):
     def __init__(self, name, expression=None):
         self.name = name
@@ -29,19 +34,7 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
-        
-def main():
-    parser = argparse.ArgumentParser(description='Perform calculation on CSV files')
-    parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
-    parser.add_argument('--out', default="-", dest="output",help="output file")
-    parser.add_argument('--in', default="-", dest="input", help="input file")
-    cmdline = parser.parse_args()
-    log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
-    
-    infile = open(cmdline.input) if cmdline.input != "-" else sys.stdin
-
-    inreader = csv.DictReader(infile)
-
+def do_calc(inreader):
     log.info(f"Input fields : {','.join(inreader.fieldnames)}")
     Field(*inreader.fieldnames[1].split("=", 2))
     fieldnames = [s.split("=", 2)[0] for s in inreader.fieldnames]
@@ -73,22 +66,56 @@ def main():
                         r[k] = eval(fields[k].expression, {"__builtins__":None}, cleaned)
                     except Exception as e:
                         if i == len(fieldnames): # it's the last time through the loop, then we really have an error.
-                            raise Exception(f"Expression '{fields[k].expression}' in column '{k}' is invalid: {e}") from e
+                            raise CalcException(f"Expression '{fields[k].expression}' in column '{k}' is invalid: {e}") from e
                         retry = True
             if not retry:
                 break
             log.info(f"evaluated: {r}")
         out.append(r)
-        
-    outfile = open(cmdline.output) if cmdline.output != "-" else sys.stdout;
-    outwriter = csv.DictWriter(outfile, fieldnames=fieldnames)
-    outwriter.writeheader()
+
     rows = [fieldnames]
     for o in out:
-        outwriter.writerow(o)
         rows.append(list(o.values()))
-    
+    log.info(f"Result: \n{repr(rows)}")
     log.info(f"Result: \n{columnize(rows)}")
+    return rows
+    
+        
+def main():
+    parser = argparse.ArgumentParser(description='Perform calculation on CSV files')
+    parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
+    parser.add_argument('--out', default="-", dest="output",help="output file")
+    parser.add_argument('--in', default="-", dest="input", help="input file")
+    cmdline = parser.parse_args()
+    log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
+    
+    infile = open(cmdline.input) if cmdline.input != "-" else sys.stdin
+    inreader = csv.DictReader(infile)
 
+    output = do_calc(inreader)
+        
+    outfile = open(cmdline.output) if cmdline.output != "-" else sys.stdout;
+    outwriter = csv.writer(outfile)
+    for o in output:
+        outwriter.writerow(o)
+    
 if __name__== "__main__":
     main()
+
+class Tests(unittest.TestCase):
+    def test(self):
+        with open("test_inputs/test.csv") as infile:
+            inreader = csv.DictReader(infile)
+            output = do_calc(inreader)
+            
+            self.assertEqual(output, [
+                ['e', 'c', 'b', 'a', 'd', 'f'],
+                [2.25, 1, 9, 4, 2.25, 1.5],
+                [3.0, 2, 6, 2, 3.0, 1.7320508075688772]])
+
+        with open("test_inputs/fail.csv") as infile:
+            inreader = csv.DictReader(infile)
+            with self.assertRaises(CalcException):
+                do_calc(inreader)
+
+

@@ -13,3 +13,6 @@ archlab_run: archlab_run.exe
 %.exe : %.o  ../libarchlab/libarchlab.a
 	$(CXX) $(filter %o,$^) $(LDFLAGS) -o $@
 
+.PHONY:  test
+test: test_inputs/test.csv test_inputs/fail.csv
+	python -m unittest calc.py
