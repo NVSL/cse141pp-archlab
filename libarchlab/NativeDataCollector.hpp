@@ -1,5 +1,5 @@
-#ifndef Native_DATA_COLLECTOR_INCLUDED
-#define Native_DATA_COLLECTOR_INCLUDED
+#ifndef NATIVE_DATA_COLLECTOR_INCLUDED
+#define NATIVE_DATA_COLLECTOR_INCLUDED
 
 #include"DataCollector.hpp"
 #include <cpucounters.h>
