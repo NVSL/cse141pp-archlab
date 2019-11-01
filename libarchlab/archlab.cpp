@@ -30,6 +30,11 @@ DataCollector *theDataCollector = NULL;
 
 std::vector<int> cpu_frequencies;
 extern "C" {
+	inline bool file_exists (const std::string& name) {
+		std::ifstream f(name.c_str());
+		return f.good();
+	}
+
 	int *cpu_frequencies_array = NULL;
   
 
@@ -41,11 +46,15 @@ extern "C" {
 			("help"      , "produce help message")
 			("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
 			("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-			("stat"      , po::value<std::vector<std::string> >()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect")      ("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement");
+			("stat"      , po::value<std::vector<std::string> >()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect.  Aliases are allowed (e.g., foo=ARCHLAB_WALL_TIME)")
+			("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement in the form '<tag_name>=<value>'.  The tag will appear in the output stats.")
+			("stat-set"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.");
     
 		po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
 		po::store(parsed, archlab_parsed_options);
+
 		po::notify(archlab_parsed_options);
+
 
 		for(auto i: options) {
 			i->assign(archlab_parsed_options);
@@ -81,7 +90,35 @@ extern "C" {
 			if (theDataCollector) {
 				theDataCollector->get_usage(std::cerr);
 			}
+			exit(0);
 		}
+		
+		for(auto s: archlab_parsed_options["stat-set"].as<std::vector<std::string > >()) {
+			std::stringstream f;
+			char * prefix = std::getenv("ARCHLAB_ROOT");
+			std::vector<std::string> paths;
+
+			paths.push_back(std::string("./") + s);
+				
+			if (prefix)  {
+				f << prefix << "/stat-sets/" << s;
+				paths.push_back(f.str().c_str());
+			}
+
+			bool found = false;
+			for(auto & p: paths) {
+				if (file_exists(p)) {
+					po::store(po::parse_config_file<char>(p.c_str(), archlab_cmd_line_options), archlab_parsed_options);
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				std::cerr << "Couldn't open config file '" << s << "'\n";
+				exit(1);
+			}
+		}
+		po::notify(archlab_parsed_options);
 		auto & stats = archlab_parsed_options["stat"].as<std::vector<std::string > >();
     
 		for(auto s: stats) {
