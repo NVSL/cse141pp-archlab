@@ -82,7 +82,7 @@ def do_calc(inreader):
     
         
 def main():
-    parser = argparse.ArgumentParser(description='Perform calculation on CSV files')
+    parser = argparse.ArgumentParser(description='Perform calculation on CSV files.')
     parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
     parser.add_argument('--out', default="-", dest="output",help="output file")
     parser.add_argument('--in', default="-", dest="input", help="input file")
