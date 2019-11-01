@@ -47,8 +47,9 @@ extern "C" {
 			("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
 			("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
 			("stat"      , po::value<std::vector<std::string> >()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect.  Aliases are allowed (e.g., foo=ARCHLAB_WALL_TIME)")
-			("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement in the form '<tag_name>=<value>'.  The tag will appear in the output stats.")
-			("stat-set"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.");
+			("tag"       , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Extra attribute attached to each measurement in the form '<tag_name>=<value>'.  The tag will appear in the output stats.")
+			("stat-set"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.")
+			("calc"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Calculate a derived stat. Format is '--calc <name>=<python expression>'.  ex: --calc IPC=instructions/cycles");
     
 		po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
 		po::store(parsed, archlab_parsed_options);
@@ -118,9 +119,11 @@ extern "C" {
 				exit(1);
 			}
 		}
+		
 		po::notify(archlab_parsed_options);
 		auto & stats = archlab_parsed_options["stat"].as<std::vector<std::string > >();
-    
+
+
 		for(auto s: stats) {
 			uint l = s.find("=");
 			if (l == std::string::npos) {
@@ -134,15 +137,17 @@ extern "C" {
 
 		}
 
-		if (archlab_parsed_options.find("tag") != archlab_parsed_options.end()) {
-			for(auto s: archlab_parsed_options["tag"].as<std::vector<std::string > >() ) {
-				int l = s.find("=");
-				std::string key = s.substr(0, l);
-				std::string value = s.substr(l + 1, s.size());
-				theDataCollector->add_default_kv(key, value);
-			}
+		for(auto s: archlab_parsed_options["tag"].as<std::vector<std::string > >() ) {
+			int l = s.find("=");
+			std::string key = s.substr(0, l);
+			std::string value = s.substr(l + 1, s.size());
+			theDataCollector->add_default_kv(key, value);
 		}
       
+		for(auto s: archlab_parsed_options["calc"].as<std::vector<std::string > >()) {
+			theDataCollector->add_default_kv(s, "");
+		}
+
 		theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
 
 		*argc = to_pass_further.size() + 1;
