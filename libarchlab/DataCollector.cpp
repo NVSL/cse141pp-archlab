@@ -28,7 +28,6 @@ using json = nlohmann::json;
 
 void DataCollector::init() 
 {
-  pristine_machine();
   srand(time(0));
 }
 
@@ -129,7 +128,7 @@ void DataCollector::stop_timing()
 
 json MeasurementInterval::build_json()
 {
-  kv["WallTime"] = _end->time - _start->time;
+  kv["ARCHLAB_WALL_TIME"] = _end->time - _start->time;
   return kv;
 }
 
@@ -153,13 +152,13 @@ void MeasurementInterval::stop()
   _end->measure();
 }
 
-std::string MeasurementInterval::build_csv()
+std::string DataCollector::build_csv_row(MeasurementInterval * mi)
 {
-  json j = build_json();
+  json j = mi->build_json();
 
   std::stringstream out;
 
-  for (auto& el : kv.items()) {
+  for (auto& el : mi->kv.items()) {
     out << el.value() << ",";
   }
 
@@ -167,29 +166,45 @@ std::string MeasurementInterval::build_csv()
   return out.str();
 }
 
-std::string MeasurementInterval::build_csv_header()
+std::string DataCollector::build_csv_header(MeasurementInterval * mi)
 {
-  json j = build_json();
+	json j = mi->build_json();
 
-  std::stringstream out;
+	std::stringstream out;
 
-  for (auto& el : kv.items()) {
-    out << el.key() << ",";
-  }
+	for (auto& el : mi->kv.items()) {
+		out << rename_stat(el.key()) << ",";
+	}
 
-  out << "\n";
-  return out.str();
+	out << "\n";
+	return out.str();
+}
+
+void DataCollector::set_stat_output_name(const std::string & original_name, const std::string & output_name) {
+	output_aliases[original_name] = output_name;
+}
+
+std::string DataCollector::rename_stat(const std::string & s) {
+	if (output_aliases.find(s) == output_aliases.end()) {
+		return s;
+	} else {
+		return output_aliases[s];
+	}
 }
 
 json DataCollector::build_json() {
-  json j;
-
-  for(auto i = stored_intervals.begin();
-      i != stored_intervals.end();
-      i++) {
-    j.push_back((*i)->kv);
-  }
-  return j;
+	json j;
+	
+	for(auto i = stored_intervals.begin();
+	    i != stored_intervals.end();
+	    i++) {
+		json k;
+		for (auto& el : (*i)->kv.items()) {
+			k[rename_stat(el.key())] = el.value();
+		}
+		j.push_back(k);
+	}
+	return j;
 }
 
 void DataCollector::write_json(std::ostream & out)
@@ -226,9 +241,9 @@ void DataCollector::write_csv(const char * filename)
 void DataCollector::write_csv(std::ostream & out)
 {
   if (stored_intervals.size()) {
-    out << stored_intervals[0]->build_csv_header();
+	  out << build_csv_header(stored_intervals[0]);
     for(auto i = stored_intervals.begin(); i != stored_intervals.end(); i++) {
-      out << (*i)->build_csv();
+	    out << build_csv_row(*i);
     }
   }
 }

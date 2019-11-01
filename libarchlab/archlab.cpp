@@ -14,6 +14,7 @@
 #include "PCMDataCollector.hpp"
 #include "PAPIDataCollector.hpp"
 #include "PINDataCollector.hpp"
+#include "NativeDataCollector.hpp"
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -34,11 +35,13 @@ extern "C" {
 
   void archlab_parse_cmd_line(int *argc, char *argv[])
   {
+	  std::vector<std::string> default_stats;
+	  default_stats.push_back("WallTime=ARCHLAB_WALL_TIME");
     archlab_cmd_line_options.add_options()
       ("help"      , "produce help message")
       ("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
       ("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-      ("stat"      , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), "ARCHLAB_WALL_TIME"), "Which stats to collect")      ("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement");
+	    ("stat"      , po::value<std::vector<std::string> >()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect")      ("tag"       , po::value<std::vector<std::string> >(), "Extra attribute attached to each measurement");
     
     po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
     po::store(parsed, archlab_parsed_options);
@@ -52,14 +55,19 @@ extern "C" {
 
     if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PAPI") {
       archlab_init(ARCHLAB_COLLECTOR_PAPI);
+      
     } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PIN") {
-      archlab_init(ARCHLAB_COLLECTOR_PIN); 
+      archlab_init(ARCHLAB_COLLECTOR_PIN);
+      
     } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "NATIVE") {
-      archlab_init(ARCHLAB_COLLECTOR_NONE); 
+      archlab_init(ARCHLAB_COLLECTOR_NONE);
+      
     } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
-      archlab_init(ARCHLAB_COLLECTOR_PCM); 
+      archlab_init(ARCHLAB_COLLECTOR_PCM);
+      
     } else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "ALL-CORE") {
       archlab_init(ARCHLAB_COLLECTOR_ALLCORE);
+      
     } else {
       std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
       abort();
@@ -74,14 +82,24 @@ extern "C" {
 	theDataCollector->get_usage(std::cerr);
       }
     }
-  
-    for(auto i: archlab_parsed_options["stat"].as<std::vector<std::string > >() ) {
-      theDataCollector->track_stat(i);
+    auto & stats = archlab_parsed_options["stat"].as<std::vector<std::string > >();
+    
+    for(auto s: stats) {
+	    uint l = s.find("=");
+	    if (l == std::string::npos) {
+		    theDataCollector->track_stat(s);
+	    } else {
+		    std::string key = s.substr(0, l);
+		    std::string value = s.substr(l + 1, s.size());
+		    theDataCollector->track_stat(value);
+		    theDataCollector->set_stat_output_name(value, key);
+	    }
+
     }
 
     if (archlab_parsed_options.find("tag") != archlab_parsed_options.end()) {
       for(auto s: archlab_parsed_options["tag"].as<std::vector<std::string > >() ) {
-	int l = s.find(":");
+	int l = s.find("=");
 	std::string key = s.substr(0, l);
 	std::string value = s.substr(l + 1, s.size());
 	theDataCollector->add_default_kv(key, value);
@@ -141,7 +159,7 @@ extern "C" {
     } else if (collector == ARCHLAB_COLLECTOR_PIN) {
       theDataCollector = new PINDataCollector();
     } else if (collector == ARCHLAB_COLLECTOR_NONE) {
-      theDataCollector = new DataCollector();
+      theDataCollector = new NativeDataCollector();
     } else if (collector == ARCHLAB_COLLECTOR_ALLCORE) {
       theDataCollector = new DataCollector();
     } else {

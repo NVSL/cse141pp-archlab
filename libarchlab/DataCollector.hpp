@@ -39,9 +39,6 @@ public:
   virtual void start();
   virtual void stop();
   virtual json build_json();
-  std::string build_csv();
-  std::string build_csv_header();
-
 };
 
 
@@ -52,7 +49,7 @@ class DataCollector {
   MeasurementInterval * current_interval;
   json default_kv;
   std::map<pthread_t*, pthread_t*> threads;
-  
+	std::map<std::string, std::string> output_aliases;
 protected:
   virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
   explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
@@ -83,6 +80,7 @@ public:
   virtual void get_usage(std::ostream & f);
   virtual int  run_child(char *exec, char *argv[]);
 
+	void set_stat_output_name(const std::string & original_name, const std::string & output_name);
   Thread run_thread(void *(*start_routine) (void *), void *arg);
   virtual void bind_this_thread_to_core(int c);
   
@@ -92,6 +90,10 @@ public:
     current_interval = mi;
   }
 
+	std::string build_csv_row(MeasurementInterval * mi);
+	std::string build_csv_header(MeasurementInterval * mi);
+
+	std::string rename_stat(const std::string & s);
   json build_json();
   void write_json(const char * filename);
   void write_json(std::ostream & out);
