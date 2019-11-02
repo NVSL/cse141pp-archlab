@@ -92,7 +92,22 @@ void DataCollector::track_stat(const std::string  & stat)
 	}
 }
 
+
 void DataCollector::clear_tracked_stats() {
+}
+
+void DataCollector::register_calc(const std::string & exp) {
+	add_default_kv(exp,"");
+	calcs.push_back(exp);
+}
+
+void DataCollector::register_stat(const std::string & stat) {
+	stats.push_back(stat);
+}
+
+void DataCollector::register_tag(const std::string & key, const std::string & value) {
+	add_default_kv(key,value);
+	tags.push_back(key);
 }
 
 void DataCollector::add_default_kv(const std::string & key, const std::string & value)
@@ -152,14 +167,43 @@ void MeasurementInterval::stop()
 	_end->measure();
 }
 
+std::vector<std::string> DataCollector::get_ordered_column_names()
+{
+	std::vector<std::string> l;
+	l.insert(l.end(), tags.begin(), tags.end());
+	l.insert(l.end(), stats.begin(), stats.end());
+	l.insert(l.end(), calcs.begin(), calcs.end());
+
+#if(0)
+	std::cerr << "tags\n";
+	for(auto & i: tags) std::cerr << i << ", ";
+	std::cerr << "\n";
+	std::cerr << "stats\n";
+	for(auto & i: stats) std::cerr << i << ", ";
+	std::cerr << "\n";
+	std::cerr << "calcs\n";
+	for(auto & i: calcs) std::cerr << i << ", ";
+	std::cerr << "\n";
+
+	std::cerr << "all\n";
+	for(auto & i: l) std::cerr << i << ", ";
+	std::cerr << "\n";
+#endif
+	return l;
+}
+
 std::string DataCollector::build_csv_row(MeasurementInterval * mi)
 {
 	json j = mi->build_json();
 
 	std::stringstream out;
 
-	for (auto& el : mi->kv.items()) {
-		out << el.value() << ",";
+	for (auto& n : get_ordered_column_names()) {
+		if (mi->kv.find(n) != mi->kv.end()) {
+			out << mi->kv[n] << ",";
+		} else {
+			out << ",";
+		}
 	}
 
 	out << "\n";
@@ -172,11 +216,12 @@ std::string DataCollector::build_csv_header(MeasurementInterval * mi)
 
 	std::stringstream out;
 
-	for (auto& el : mi->kv.items()) {
-		out << rename_stat(el.key()) << ",";
+	for (auto& n : get_ordered_column_names()) {
+		out << rename_stat(n) << ",";
 	}
 
 	out << "\n";
+	std::cerr << out.str() << "\n";
 	return out.str();
 }
 

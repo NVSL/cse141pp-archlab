@@ -50,6 +50,11 @@ class DataCollector {
 	json default_kv;
 	std::map<pthread_t*, pthread_t*> threads;
 	std::map<std::string, std::string> output_aliases;
+
+
+	std::vector<std::string> tags;
+	std::vector<std::string> stats;
+	std::vector<std::string> calcs;
 protected:
 	virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
 	explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
@@ -100,8 +105,14 @@ public:
 	void write_csv(const char * filename);
 	void write_csv(std::ostream & out);
 	void write_stats() {write_csv(stats_filname.c_str());}
-	void add_default_kv(const std::string & key, const std::string & value);
+	void register_stat(const std::string & stat);
+	void register_calc(const std::string & exp);
+	void register_tag(const std::string & key, const std::string & value);
 
+private:
+	std::vector<std::string> get_ordered_column_names();
+	void add_default_kv(const std::string & key, const std::string & value);
+public:
 	const std::string & get_name() const {return collector_name;} 
 	void unknown_stat(const std::string & s);
 };

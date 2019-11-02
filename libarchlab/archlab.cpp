@@ -134,6 +134,7 @@ extern "C" {
 				theDataCollector->track_stat(value);
 				theDataCollector->set_stat_output_name(value, key);
 			}
+			theDataCollector->register_stat(s);
 
 		}
 
@@ -141,11 +142,11 @@ extern "C" {
 			int l = s.find("=");
 			std::string key = s.substr(0, l);
 			std::string value = s.substr(l + 1, s.size());
-			theDataCollector->add_default_kv(key, value);
+			theDataCollector->register_tag(key, value);
 		}
       
 		for(auto s: archlab_parsed_options["calc"].as<std::vector<std::string > >()) {
-			theDataCollector->add_default_kv(s, "");
+			theDataCollector->register_calc(s);
 		}
 
 		theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
