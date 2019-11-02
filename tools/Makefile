@@ -15,4 +15,4 @@ archlab_run: archlab_run.exe
 
 .PHONY:  test
 test: test_inputs/test.csv test_inputs/fail.csv
-	python -m unittest calc.py
+	python3 -m unittest calc.py

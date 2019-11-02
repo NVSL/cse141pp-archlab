@@ -7,7 +7,7 @@ import logging as log
 import os
 import csv
 import math
-
+import ast
 import unittest
 
 class CalcException(Exception):
@@ -34,6 +34,12 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
+def ns(d):
+    r = []
+    for k,v in d.items():
+        r.append([k,v])
+    return columnize(r, headers=0)
+
 def do_calc(inreader):
     log.info(f"Input fields : {','.join(inreader.fieldnames)}")
     Field(*inreader.fieldnames[1].split("=", 2))
@@ -49,24 +55,33 @@ def do_calc(inreader):
     inreader.fieldnames = fieldnames
     for r in inreader:
         log.info(f"Parsing {r}")
+
+        # Convert row values into arithmetic values if possible
         for k,v in list(r.items()):
-            if fields[k].expression == None:
-                t = eval(r[k],{}, {})
+            if fields[k].expression == None and (v is None or v.strip() != ""):
+                log.info(f"Parsing '{v}'")
+                try:
+                    t = ast.literal_eval(v)
+                except ValueError:
+                    t = v
                 log.info(f"Parsed '{r[k]}' into {repr(t)}")
                 r[k] = t
         log.info(f"parsed literals: {r}")
 
         for i in range(0, len(fieldnames) + 1): # the longest possible dependence chain is len(fieldnames)
+            log.info(f"Pass {i}")
             retry = False
             for k,v in r.items():
                 if fields[k].expression != None:
-                    cleaned = {k:v for k,v in r.items() if v is not None}
+                    cleaned = {k:v for k,v in r.items()}# if v is not None}
                     cleaned.update(dict(math=math))
+                    log.info(f"Evaling '{k} = {fields[k].expression}'")
+                    log.info(f"Under {ns(cleaned)}")
                     try:
                         r[k] = eval(fields[k].expression, {"__builtins__":None}, cleaned)
                     except Exception as e:
                         if i == len(fieldnames): # it's the last time through the loop, then we really have an error.
-                            raise CalcException(f"Expression '{fields[k].expression}' in column '{k}' is invalid: {e}") from e
+                            raise CalcException(f"Expression '{fields[k].expression}' in column '{k}' is invalid: {e}\n{ns(r)}") from e
                         retry = True
             if not retry:
                 break
@@ -103,16 +118,18 @@ if __name__== "__main__":
     main()
 
 class Tests(unittest.TestCase):
-    def test(self):
+    def test_good(self):
         with open("test_inputs/test.csv") as infile:
             inreader = csv.DictReader(infile)
             output = do_calc(inreader)
             
             self.assertEqual(output, [
-                ['e', 'c', 'b', 'a', 'd', 'f'],
-                [2.25, 1, 9, 4, 2.25, 1.5],
-                [3.0, 2, 6, 2, 3.0, 1.7320508075688772]])
+                ['M', 'e', 'c', 'b', 'a', 'd', 'f'],
+                ['f', None, 1, 9, 4, 2.25, 1.5],
+                ['f', None, 2, 6, 2, 3.0, 1.7320508075688772]])
 
+
+    def test_err(self):
         with open("test_inputs/fail.csv") as infile:
             inreader = csv.DictReader(infile)
             with self.assertRaises(CalcException):
