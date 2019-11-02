@@ -109,7 +109,7 @@ def main():
 
     output = do_calc(inreader)
         
-    outfile = open(cmdline.output) if cmdline.output != "-" else sys.stdout;
+    outfile = open(cmdline.output, "w") if cmdline.output != "-" else sys.stdout;
     outwriter = csv.writer(outfile)
     for o in output:
         outwriter.writerow(o)

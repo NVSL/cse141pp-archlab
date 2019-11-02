@@ -44,7 +44,7 @@ public:
 
 class DataCollector {
 	std::vector<MeasurementInterval* > stored_intervals;
-	std::string stats_filname;
+	std::string stats_filename;
 	const std::string collector_name;
 	MeasurementInterval * current_interval;
 	json default_kv;
@@ -89,7 +89,7 @@ public:
 	Thread run_thread(void *(*start_routine) (void *), void *arg);
 	virtual void bind_this_thread_to_core(int c);
   
-	void set_stats_filename(const std::string &s) {stats_filname = s;}
+	void set_stats_filename(const std::string &s) {stats_filename = s;}
 	void enqueue_interval(MeasurementInterval *mi) {
 		stored_intervals.push_back(mi);
 		current_interval = mi;
@@ -104,7 +104,7 @@ public:
 	void write_json(std::ostream & out);
 	void write_csv(const char * filename);
 	void write_csv(std::ostream & out);
-	void write_stats() {write_csv(stats_filname.c_str());}
+	void write_stats();
 	void register_stat(const std::string & stat);
 	void register_calc(const std::string & exp);
 	void register_tag(const std::string & key, const std::string & value);

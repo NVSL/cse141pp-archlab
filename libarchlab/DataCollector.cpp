@@ -359,3 +359,11 @@ void DataCollector::flush_caches() {
 void DataCollector::unknown_stat(const std::string & s) {
 	std::cerr << collector_name << " engine cannot record '" << s << "'. Ignoring." << std::endl;
 }
+
+void DataCollector::write_stats() {
+	std::string t = stats_filename + ".raw";
+	write_csv(t.c_str());
+	std::string cmd = (std::string("calc.py --in ") + t  + " --out " + stats_filename).c_str();
+	std::cerr << "calc cmd: " << cmd << "\n";
+	system(cmd.c_str());
+}
