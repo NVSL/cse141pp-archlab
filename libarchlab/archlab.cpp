@@ -34,7 +34,7 @@ extern "C" {
 		std::ifstream f(name.c_str());
 		return f.good();
 	}
-
+	
 	int *cpu_frequencies_array = NULL;
   
 
@@ -62,28 +62,6 @@ extern "C" {
 		}
 
 		std::vector<std::string> to_pass_further = po::collect_unrecognized(parsed.options, po::include_positional);
-
-		if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PAPI") {
-			archlab_init(ARCHLAB_COLLECTOR_PAPI);
-      
-		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PIN") {
-			archlab_init(ARCHLAB_COLLECTOR_PIN);
-      
-		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "NATIVE") {
-			archlab_init(ARCHLAB_COLLECTOR_NONE);
-      
-		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
-			archlab_init(ARCHLAB_COLLECTOR_PCM);
-      
-		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "ALL-CORE") {
-			archlab_init(ARCHLAB_COLLECTOR_ALLCORE);
-      
-		} else {
-			std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
-			abort();
-		}
-
-		std::cerr << "Loading " << theDataCollector->get_name() << " engine." << std::endl;
     
 		if (archlab_parsed_options.count("help")) {
 			std::cout << archlab_cmd_line_options << std::endl;
@@ -119,7 +97,30 @@ extern "C" {
 				exit(1);
 			}
 		}
+
 		
+		if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PAPI") {
+			archlab_init(ARCHLAB_COLLECTOR_PAPI);
+      
+		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PIN") {
+			archlab_init(ARCHLAB_COLLECTOR_PIN);
+      
+		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "NATIVE") {
+			archlab_init(ARCHLAB_COLLECTOR_NONE);
+      
+		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
+			archlab_init(ARCHLAB_COLLECTOR_PCM);
+      
+		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "ALL-CORE") {
+			archlab_init(ARCHLAB_COLLECTOR_ALLCORE);
+      
+		} else {
+			std::cerr << "Unknown engine: '" << archlab_parsed_options["engine"].as<std::string>() << "'.   Options are: papi, pin, native, pcm." << std::endl;
+			exit(1);
+		}
+
+		std::cerr << "Loading " << theDataCollector->get_name() << " engine." << std::endl;
+
 		po::notify(archlab_parsed_options);
 		auto & stats = archlab_parsed_options["stat"].as<std::vector<std::string > >();
 
@@ -128,13 +129,14 @@ extern "C" {
 			uint l = s.find("=");
 			if (l == std::string::npos) {
 				theDataCollector->track_stat(s);
+				theDataCollector->register_stat(s);
 			} else {
 				std::string key = s.substr(0, l);
 				std::string value = s.substr(l + 1, s.size());
 				theDataCollector->track_stat(value);
 				theDataCollector->set_stat_output_name(value, key);
+				theDataCollector->register_stat(value);
 			}
-			theDataCollector->register_stat(s);
 
 		}
 
@@ -149,6 +151,9 @@ extern "C" {
 			theDataCollector->register_calc(s);
 		}
 
+		//for(auto & a: theDataCollector->get_ordered_column_names()) {
+		//	std::cerr << a << "\n";
+		//}
 		theDataCollector->set_stats_filename(archlab_parsed_options["stats-file"].as<std::string>());
 
 		*argc = to_pass_further.size() + 1;
