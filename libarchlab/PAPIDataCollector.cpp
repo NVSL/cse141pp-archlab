@@ -117,7 +117,7 @@ void PAPIDataCollector::track_stat(const std::string  & stat)
 			events.push_back(event);
 		}
 	} else {
-		unknown_stat(stat);
+		DataCollector::track_stat(stat);
 	}
 }
 

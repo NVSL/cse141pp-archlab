@@ -37,7 +37,7 @@ def columnize(data, divider="|", headers=1):
 def ns(d):
     r = []
     for k,v in d.items():
-        r.append([k,v])
+        r.append([k,repr(v)])
     return columnize(r, headers=0)
 
 def do_calc(inreader):

@@ -43,6 +43,7 @@ public:
 
 
 class DataCollector {
+	friend MeasurementInterval;
 	std::vector<MeasurementInterval* > stored_intervals;
 	std::string stats_filename;
 	const std::string collector_name;
@@ -51,13 +52,16 @@ class DataCollector {
 	std::map<pthread_t*, pthread_t*> threads;
 	std::map<std::string, std::string> output_aliases;
 
-
+	std::vector<std::string> my_stats;
+	
 	std::vector<std::string> tags;
 	std::vector<std::string> stats;
 	std::vector<std::string> calcs;
+	int current_nominal_mhz;
+	
 protected:
 	virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
-	explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL) {}
+	explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL), current_nominal_mhz(1000)  {}
 public:
 
 	typedef pthread_t *Thread;
@@ -68,7 +72,7 @@ public:
 	      PREFETCH_L1_NEXT_LINE = 4,
 	      PREFETCH_L1_SEQ_HIST = 8};
 
-	DataCollector() : DataCollector("Native") {}
+	DataCollector() : DataCollector("Native"){}
   
   
 	virtual void init();
@@ -84,7 +88,7 @@ public:
 	virtual void clear_tracked_stats();
 	virtual void get_usage(std::ostream & f);
 	virtual int  run_child(char *exec, char *argv[]);
-
+	
 	void set_stat_output_name(const std::string & original_name, const std::string & output_name);
 	Thread run_thread(void *(*start_routine) (void *), void *arg);
 	virtual void bind_this_thread_to_core(int c);
@@ -107,7 +111,8 @@ public:
 	void write_stats();
 	void register_stat(const std::string & stat);
 	void register_calc(const std::string & exp);
-	void register_tag(const std::string & key, const std::string & value);
+	void register_tag(const std::string & key, const std::string & value, bool one_off=false);
+
 
 private:
 	std::vector<std::string> get_ordered_column_names();

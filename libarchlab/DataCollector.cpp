@@ -87,7 +87,10 @@ void DataCollector::get_usage(std::ostream & f) {
 
 void DataCollector::track_stat(const std::string  & stat)
 {
-	if (stat != "ARCHLAB_WALL_TIME") {
+	if (stat == "ARCHLAB_WALL_TIME" ||
+	    stat == "ARCHLAB_CLOCK_SPEED_MHZ") {
+		theDataCollector->my_stats.push_back(stat);
+	} else {
 		unknown_stat(stat);
 	}
 }
@@ -105,8 +108,13 @@ void DataCollector::register_stat(const std::string & stat) {
 	stats.push_back(stat);
 }
 
-void DataCollector::register_tag(const std::string & key, const std::string & value) {
-	add_default_kv(key,value);
+void DataCollector::register_tag(const std::string & key, const std::string & value, bool one_off) {
+	if (!one_off) 
+		add_default_kv(key,value);
+	
+	for(auto t: tags) {
+		if (t == key) return;
+	}
 	tags.push_back(key);
 }
 
@@ -120,6 +128,11 @@ void DataCollector::start_timing(json & kv)
 	MeasurementInterval *n = newMeasurementInterval();
 	n->kv = default_kv;
 	n->kv.merge_patch(kv);
+	//std::cerr << kv.dump() << "\n";
+	for(auto & k: kv.items()) {
+		register_tag(k.key(), "", true);
+	}
+	
 	if (current_interval) {
 		std::cerr << "You are already timing something.  You can't time something else." << std::endl;
 		exit(1);
@@ -143,7 +156,14 @@ void DataCollector::stop_timing()
 
 json MeasurementInterval::build_json()
 {
-	kv["ARCHLAB_WALL_TIME"] = _end->time - _start->time;
+	for(auto &s: theDataCollector->my_stats) {
+		if (s == "ARCHLAB_WALL_TIME") 
+			kv["ARCHLAB_WALL_TIME"] = _end->time - _start->time;
+		else if (s == "ARCHLAB_CLOCK_SPEED_MHZ")
+			kv["ARCHLAB_CLOCK_SPEED_MHZ"] = theDataCollector->current_nominal_mhz;
+		else
+			assert(0);
+	}
 	return kv;
 }
 
@@ -305,7 +325,8 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
 	if (MHz == -1) {
 		return;
 	}
-  
+
+	current_nominal_mhz = MHz;
 	char buf[1024];
 	sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz > /dev/null", MHz);
 	int r = system(buf);
@@ -357,7 +378,8 @@ void DataCollector::flush_caches() {
 
 
 void DataCollector::unknown_stat(const std::string & s) {
-	std::cerr << collector_name << " engine cannot record '" << s << "'. Ignoring." << std::endl;
+	std::cerr << collector_name << " engine cannot record '" << s << "'." << std::endl;
+	abort();
 }
 
 void DataCollector::write_stats() {
