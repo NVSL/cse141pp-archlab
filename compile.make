@@ -114,8 +114,11 @@ clean: rename-clean
 
 
 .PHONY: %.out
-%.out : %.exe %.i %.s
-	./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) 2>&1  | tee $@
+%.out : %.exe %.i %.s 
+	(./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) 2>&1; csv-pretty.py < $*-stats.csv)  | tee $@
+ifeq ($(GPROF),yes)
+	gprof ./$< > $*.gprof
+endif
 
 .PHONY: archlab-clean
 archlab-clean:
