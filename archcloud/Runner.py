@@ -29,36 +29,106 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
-class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_files run_cmd clean_cmd env lab_name valid_options default_options reference_tag time_limit figures_of_merit")):
+class LabSpec(object):
 
-    Field = collections.namedtuple("Field", "required default")
-    fields = dict(
-        output_files=Field(True, None),
-        input_files=Field(True, None),
-        run_cmd=Field(True, None),
-        clean_cmd=Field(False, ['true']),
-        env=Field(False, []),
-        repo=Field(True, None),
-        lab_name=Field(False, "<unnamed>"),
-        valid_options=Field(False, {}),
-        default_options = Field(False, {}),
-        reference_tag = Field(True, None),
-        time_limit = Field(False, 30),
-        figures_of_merit = Field(False, [])
-    )
+    required_fields = ["output_files",
+                       "input_files",
+                       "run_cmd",
+                       "repo",
+                       "reference_tag"]
 
+    optional_fields = ["clean_cmd",
+                       "env",
+                       "lab_name",
+                       "valid_options",
+                       "default_options",
+                       "time_limit",
+                       "figures_of_merit"]
+    
+    def __init__(self,
+                 output_files= None,
+                 input_files=None,
+                 run_cmd= None,
+                 repo= None,
+                 reference_tag = None,
+                 valid_options={},
+                 default_options = {},
+                 time_limit = 30,
+                 figures_of_merit = [],
+                 clean_cmd=['true'],
+                 env=[],
+                 lab_name="<unnamed>"):
+    
+        for i in LabSpec.required_fields:
+            if locals()[i] is None:
+                raise Exception(f"lab.py must set ThisLab.{i}")
+            else:
+                setattr(self, i, locals()[i])
+                
+        for i in LabSpec.optional_fields:
+            setattr(self, i, locals()[i])
+                
     def _asdict(self):
-        t = super(LabSpec, self)._asdict()
+        t = {f:getattr(self, f) for f in LabSpec.required_fields + LabSpec.optional_fields}
         t['valid_options'] = {}
         t['figures_of_merit'] = {}
-        return super(LabSpec, LabSpec(**t))._asdict()
+        return t;
+
+    def csv_extract_by_line(self, file_contents, field, line=0):
+        reader = csv.DictReader(StringIO(file_contents))
+        d = list(reader)
+        if len(d) < line + 1:
+            return None
+        return float(d[line][field])
+
+    def csv_extract_by_lookup(self, file_contents, field, tag, value):
+        reader = csv.DictReader(StringIO(file_contents))
+        d = list(reader)
+        r = None
+        for l in d:
+            if l[tag] == value:
+                if r == None:
+                    r = float(l[field])
+                else:
+                    raise Exception(f"Multiple lines in output have {tag}=={value}")
+        return r
+    
+    def extract_figures_of_merit(self, result):
+        return dict()
+
+    def parse_options(self, submission):
+        log.debug(f"Parsing options {submission.options}")
+        log.debug(f"Using option spec {self.valid_options}")
+        valid_options = self.valid_options
+
+        for k, v in list(submission.options.items()) + list(self.default_options.items()):
+            if k not in valid_options:
+                raise BadOptionException(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
+            if callable(valid_options[k]):
+                continue
+            if v not in valid_options[k]:
+                raise BadOptionException(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
+            log.debug(f"Adding {valid_options[k][v]} to env")
+
+        def update_env(k, v):
+            if callable(valid_options[k]):
+                submission.env.update(valid_options[k](v))
+            else:
+                submission.env.update(valid_options[k][v])
+
+        for k, v in submission.options.items():
+            update_env(k, v)
+
+        for k, v in self.default_options.items():
+            if k not in submission.options:
+                update_env(k, v)
+
+        log.debug(f"New environment {submission.env}.")
 
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        # t.figures_of_merit = []
         t._replace(figures_of_merit=[])
-        # t.valid_options = dict()
         t._replace(valid_options=dict())
         return t
 
@@ -69,17 +139,7 @@ class LabSpec(collections.namedtuple("LabSpecBase", "repo output_files input_fil
         lab_info = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(lab_info)
 
-        args = dict()
-        for i in LabSpec.fields:
-            try:
-                args[i] = getattr(lab_info, i)
-            except AttributeError as e:
-                if LabSpec.fields[i].required:
-                    raise Exception(f"Your lab spec is missing '{i}'")
-                else:
-                    args[i] = copy.deepcopy(LabSpec.fields[i].default)
-
-        return cls(**args)
+        return lab_info.ThisLab()
 
 class Submission(object):
 
@@ -102,34 +162,6 @@ class Submission(object):
                    env=j['env'],
                    options=j['options'])
 
-    def parse_options(self):
-        log.debug(f"Parsing options {self.options}")
-        log.debug(f"Using option spec {self.lab_spec.valid_options}")
-        valid_options = self.lab_spec.valid_options
-
-        for k, v in list(self.options.items()) + list(self.lab_spec.default_options.items()):
-            if k not in valid_options:
-                raise BadOptionException(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
-            if callable(valid_options[k]):
-                continue
-            if v not in valid_options[k]:
-                raise BadOptionException(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
-            log.debug(f"Adding {valid_options[k][v]} to env")
-
-        def update_env(k, v):
-            if callable(valid_options[k]):
-                self.env.update(valid_options[k](v))
-            else:
-                self.env.update(valid_options[k][v])
-
-        for k, v in self.options.items():
-            update_env(k, v)
-
-        for k, v in self.lab_spec.default_options.items():
-            if k not in self.options:
-                update_env(k, v)
-
-        log.debug(f"New environment {self.env}.")
 
     def apply_options(self):
         if subprocess.call(['which', 'cpupower']) != 0:
@@ -189,18 +221,7 @@ class SubmissionResult(object):
         self.files = files
         self.status = status
         r = []
-        for i in submission.lab_spec.figures_of_merit:
-            f = files[i['file']]
-            if 'field' in i:
-                v = extract_from_first_csv_line_by_field(f, i['field'])
-            elif 'function' in i:
-                def get_value(s):
-                    return extract_from_first_csv_line_by_field(f, s)
-                v = eval(i['function'])
-                
-            r.append(dict(name=i['name'], value=v))
-            
-        self.figures_of_merit = r
+        self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
@@ -230,10 +251,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     result_files = {}
 
     def log_run(cmd, *args, timeout=None, **kwargs):
-        m = "# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', "."))
-        #out.write(m)
-        #err.write(m)
-        log.debug(m)
+        log.debug("# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', ".")))
 
         r = SubmissionResult.SUCCESS
 
@@ -293,7 +311,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
 
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
-            sub.parse_options()
+            sub.lab_spec.parse_options(sub)
 
             if apply_options:
                 sub.apply_options()

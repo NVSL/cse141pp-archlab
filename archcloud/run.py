@@ -47,7 +47,7 @@ def main(argv):
     parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
     parser.add_argument('--nop', action='store_true', default=False, help="Don't actually running anything.")
     parser.add_argument('--json', action='store_true', default=False, help="Dump json version of submission and response.")
-    parser.add_argument('--directory', default=".", help="Directory to submit")
+    parser.add_argument('--directory', default=".", help="Lab root")
     parser.add_argument('--run-json', action='store_true', default=False, help="Read json submission spec from stdin")
     parser.add_argument('--docker-image', default="devonmerrill/cse141l-development-environment", help="Docker image to use")
     parser.add_argument('--options', default=[], nargs="*", help="Options to control compilation and execution (e.g., 'CC=gcc-8' or 'OPT=-O4'")
@@ -59,36 +59,14 @@ def main(argv):
 
     args = parser.parse_args(argv)
 
-    if False: 
-        fh = log.FileHandler(args.log_file)
-        fh.setLevel(log.DEBUG if args.verbose else log.INFO)
-        formatter = log.Formatter("{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",)
-        fh.setFormatter(formatter)
-        
-        ch = log.StreamHandler()
-        ch.setLevel(log.DEBUG if args.verbose else log.WARNING)
-        ch.setFormatter(formatter)
-        log.addHandler(fh)
-        log.addHandler(ch)
-        
-        # create console handler with a higher log level
-        ch = log.StreamHandler()
-        ch.setLevel(log.ERROR)
-        # create formatter and add it to the handlers
-        formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-    
-    else:
-        log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                        level=log.DEBUG if args.verbose else log.INFO)
+    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
+                    level=log.DEBUG if args.verbose else log.INFO)
 
     try:
         if args.run_json:
             submission = Submission._fromdict(json.loads(sys.stdin.read()))
         else:
             submission = build_submission(args.directory, args.options)
-
 
         if args.validate:
             c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
@@ -138,13 +116,13 @@ def main(argv):
                 sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
             else:
                 sys.stdout.write("Figures of merit:\n")
+
                 foms = [["FOM", "value"]]
                 for fom in result.figures_of_merit:
                     foms.append([fom['name'],fom['value']])
 
                 sys.stdout.write(columnize(foms, headers=True, divider='|'))
             
-
     except RunnerException as e: 
         log.error(e)
         
