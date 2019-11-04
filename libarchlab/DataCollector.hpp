@@ -111,12 +111,25 @@ public:
 	void write_stats();
 	void register_stat(const std::string & stat);
 	void register_calc(const std::string & exp);
-	void register_tag(const std::string & key, const std::string & value, bool one_off=false);
+	template<class T>
+	void register_tag(const std::string & key, const T & value, bool one_off=false) {
+		if (!one_off) 
+			add_default_kv(key,value);
+		
+		for(auto t: tags) {
+			if (t == key) return;
+		}
+		tags.push_back(key);
+	}
 
 
 private:
 	std::vector<std::string> get_ordered_column_names();
-	void add_default_kv(const std::string & key, const std::string & value);
+	template<class T>
+	void add_default_kv(const std::string & key, const T & value) {
+		default_kv[key] = value;
+	}
+	
 public:
 	const std::string & get_name() const {return collector_name;} 
 	void unknown_stat(const std::string & s);

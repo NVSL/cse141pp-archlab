@@ -108,20 +108,6 @@ void DataCollector::register_stat(const std::string & stat) {
 	stats.push_back(stat);
 }
 
-void DataCollector::register_tag(const std::string & key, const std::string & value, bool one_off) {
-	if (!one_off) 
-		add_default_kv(key,value);
-	
-	for(auto t: tags) {
-		if (t == key) return;
-	}
-	tags.push_back(key);
-}
-
-void DataCollector::add_default_kv(const std::string & key, const std::string & value)
-{
-	default_kv[key] = value;
-}
 
 void DataCollector::start_timing(json & kv)
 {
