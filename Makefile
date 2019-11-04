@@ -22,6 +22,7 @@ install-prereqs: create-venv install-papi install-pin install-pcm
 
 create-venv:
 	virtualenv archcloud/venv
+	(. archcloud/venv/bin/activate; pip install -r py_requirements.txt)
 
 install-pcm:
 	(git clone https://github.com/opcm/pcm.git; cd pcm; make)
