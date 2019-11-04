@@ -46,10 +46,10 @@ extern "C" {
 			("help"      , "produce help message")
 			("stats-file", po::value<std::string>()->default_value(std::string("stats.csv")), "Stats output file")
 			("engine"    , po::value<std::string>()->default_value(std::string("native")), "Which data collector to use")
-			("stat"      , po::value<std::vector<std::string> >()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect.  Aliases are allowed (e.g., foo=ARCHLAB_WALL_TIME)")
-			("tag"       , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Extra attribute attached to each measurement in the form '<tag_name>=<value>'.  The tag will appear in the output stats.")
-			("stat-set"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.")
-			("calc"  , po::value<std::vector<std::string> >()->default_value(std::vector<std::string>(), ""), "Calculate a derived stat. Format is '--calc <name>=<python expression>'.  ex: --calc IPC=instructions/cycles");
+			("stat"      , po::value<std::vector<std::string> >()->composing()->default_value(default_stats, "WallTime=ARCHLAB_WALL_TIME"), "Which stats to collect.  Aliases are allowed (e.g., foo=ARCHLAB_WALL_TIME)")
+			("tag"       , po::value<std::vector<std::string> >()->composing()->default_value(std::vector<std::string>(), ""), "Extra attribute attached to each measurement in the form '<tag_name>=<value>'.  The tag will appear in the output stats.")
+			("stat-set"  , po::value<std::vector<std::string> >()->composing()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.")
+			("calc"  , po::value<std::vector<std::string> >()->composing()->default_value(std::vector<std::string>(), ""), "Calculate a derived stat. Format is '--calc <name>=<python expression>'.  ex: --calc IPC=instructions/cycles");
     
 		po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
 		po::store(parsed, archlab_parsed_options);
