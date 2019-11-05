@@ -1,20 +1,10 @@
-default: submission/code.out
+include $(ARCHLAB_ROOT)/compile.make
+.PHONY: remove-solution
+remove-solution:
+	rm -rf $(SOLUTION_FILES)
 
-include archlab/compile.make
+.PHONY: lab-help
+help: lab-help
 
-%.exe : %.o lab_files/main.o  archlab
-	$(CXX) $(filter %o,$^) $(LDFLAGS) -o $@
-
-.PHONY: archlab
-archlab:
-	$(MAKE) -C archlab
-
-.PHONY: %.out
-%.out : %.exe %.i %.S
-	./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) 2>&1  | tee $@
-
-.PHONY: clean
-clean: archlab-clean
-	rm -rf lab_files/*.o
-	rm -rf submission/*.exe  submission/*.o submission/code.out
-
+lab-help:
+	@echo "make remove-solution : Remove solution files."

@@ -13,6 +13,7 @@ import json
 import copy
 from contextlib import contextmanager
 import csv
+from pathlib import Path
 
 class RunnerException(Exception):
     pass
@@ -38,12 +39,13 @@ class LabSpec(object):
                        "reference_tag"]
 
     optional_fields = ["clean_cmd",
-                       "env",
+                       "allowed_env",
                        "lab_name",
+                       "solution",
                        "valid_options",
                        "default_options",
                        "time_limit",
-                       "figures_of_merit"]
+                       "lab_env"]
     
     def __init__(self,
                  output_files= None,
@@ -54,9 +56,11 @@ class LabSpec(object):
                  valid_options={},
                  default_options = {},
                  time_limit = 30,
+                 solution=".",
                  figures_of_merit = [],
                  clean_cmd=['true'],
-                 env=[],
+                 allowed_env=[],
+                 lab_env={},
                  lab_name="<unnamed>"):
     
         for i in LabSpec.required_fields:
@@ -71,7 +75,6 @@ class LabSpec(object):
     def _asdict(self):
         t = {f:getattr(self, f) for f in LabSpec.required_fields + LabSpec.optional_fields}
         t['valid_options'] = {}
-        t['figures_of_merit'] = {}
         return t;
 
     def csv_extract_by_line(self, file_contents, field, line=0):
@@ -96,32 +99,25 @@ class LabSpec(object):
     def extract_figures_of_merit(self, result):
         return dict()
 
+    def parse_one_option(self, option, value):
+        if option not in self.valid_options:
+            return False, False, "", {}
+        if value not in self.valid_options[option]:
+            return True, False, ", ".join(self.valid_options[k].keys()), {}
+        return True, True,  ", ".join(self.valid_options[option].keys()), self.valid_options[option][value]
+
     def parse_options(self, submission):
         log.debug(f"Parsing options {submission.options}")
         log.debug(f"Using option spec {self.valid_options}")
         valid_options = self.valid_options
 
         for k, v in list(submission.options.items()) + list(self.default_options.items()):
-            if k not in valid_options:
-                raise BadOptionException(f"Illegal user option '{k}'. Valid options are {list(valid_options.keys())}")
-            if callable(valid_options[k]):
-                continue
-            if v not in valid_options[k]:
-                raise BadOptionException(f"Illegal value '{v}' for user options '{k}'. Valid values are {list(valid_options[k].keys())}")
-            log.debug(f"Adding {valid_options[k][v]} to env")
-
-        def update_env(k, v):
-            if callable(valid_options[k]):
-                submission.env.update(valid_options[k](v))
-            else:
-                submission.env.update(valid_options[k][v])
-
-        for k, v in submission.options.items():
-            update_env(k, v)
-
-        for k, v in self.default_options.items():
-            if k not in submission.options:
-                update_env(k, v)
+            valid_option_name, valid_value, valid_option_values, env = self.parse_one_option(k, v)
+            if not valid_option_name:
+                raise Exception(f"Illegal config file option '{k}'")
+            if not valid_value:
+                raise Exception(f"Illegal config file value '{v}' for option '{k}'")
+            submission.env.update(env)
 
         log.debug(f"New environment {submission.env}.")
 
@@ -143,25 +139,30 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, options):
+    def __init__(self, lab_spec, files, env, options, local_clone):
         self.lab_spec = lab_spec
         self.files = files
-        self.env = env
+        self.local_env = env
         self.options = options
-
+        self.env = {}
+        self.local_clone = local_clone
+        
     def _asdict(self):
         return dict(lab_spec=self.lab_spec._asdict(),
                     files=self.files,
                     env=self.env,
-                    options=self.options)
+                    local_env=self.local_env,
+                    options=self.options,
+                    local_clone=self.local_clone)
 
     @classmethod
     def _fromdict(cls, j):
-        return cls(files=j['files'],
-                   lab_spec=LabSpec._fromdict(j['lab_spec']),
-                   env=j['env'],
-                   options=j['options'])
-
+        t = cls(files=j['files'],
+                lab_spec=LabSpec._fromdict(j['lab_spec']),
+                env=j['env'],
+                options=j['options'],
+                local_clone=j['local_clone'])
+        t['local_env'] = j['local_env']
 
     def apply_options(self):
         if subprocess.call(['which', 'cpupower']) != 0:
@@ -260,6 +261,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
 
         output, errout = b"", b""
 
+        log.debug(f"Timeout is {timeout}")
         try:
             output, errout = p.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
@@ -307,12 +309,17 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     try:
         with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
-                log_run(cmd=['git', 'clone', sub.lab_spec.repo, dirname])
+                log_run(cmd=['git', 'clone',
+                             "." if sub.local_clone else sub.lab_spec.repo,
+                             dirname])
 
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
-            sub.lab_spec.parse_options(sub)
-
+            sub.env = {} # distrust incoming environment, and recompue
+            sub.env.update(sub.lab_spec.lab_env) # lab spec environment
+            sub.lab_spec.parse_options(sub)  # config file
+            sub.env.update(sub.local_env)    # local environment variables (filtered)
+            
             if apply_options:
                 sub.apply_options()
 
@@ -360,11 +367,13 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     return SubmissionResult(sub, result_files, status)
 
 
-def build_submission(directory, options):
+def build_submission(directory, options, run_solution, local_clone):
     spec = LabSpec.load(directory)
     files = {}
     for f in spec.input_files:
-        full_path = os.path.join(directory, f)
+        full_path = os.path.join(directory,
+                                 spec.solution if run_solution else ".",
+                                 f)
         try:
             with open(full_path, "r") as o:
                 log.debug(f"Reading input file '{full_path}'")
@@ -373,7 +382,7 @@ def build_submission(directory, options):
             log.error(f"Failed to open {full_path}")
             sys.exit(1)
     env = {}
-    for e in spec.env:
+    for e in spec.allowed_env:
         if e in os.environ:
             v = os.environ[e]
             safe_env = "[a-zA-Z0-9_\-\. ]"
@@ -382,8 +391,11 @@ def build_submission(directory, options):
             env[e] = os.environ[e]
 
     options_dict = {}
+    
 
-    with open("config") as config:
+    with open(os.path.join(directory,
+                           spec.solution if run_solution else ".",
+                           "config")) as config:
         for l in config.readlines():
             l = re.sub("#.*", "", l)
             l = l.strip()
@@ -391,11 +403,14 @@ def build_submission(directory, options):
                 log.debug(f"parsing option {o} from config file")
                 k,v = l.split("=", maxsplit=1)
                 options_dict[k] = v
+
+    if options: # THis is a hack to force make to rerun rules that depend on changes to the config file.
+        Path("config").touch()
             
     for o in options:
         log.debug(f"parsing option {o} from command line")
         k,v = o.split("=", maxsplit=1)
         options_dict[k] = v
 
-    s = Submission(spec, files, env, options_dict)
+    s = Submission(spec, files, env, options_dict, local_clone)
     return s
