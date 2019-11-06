@@ -1,6 +1,4 @@
-
 subdirs=libarchlab cache_control pin-tools examples tools
-
 
 .PHONY: $(subdirs)
 all: $(subdirs) $(EXAMPLES)

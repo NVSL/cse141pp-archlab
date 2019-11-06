@@ -43,17 +43,18 @@ def main(argv):
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
     parser.add_argument('--remote', default="http://localhost:5000", help="Run remotely on this host")
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
+    parser.add_argument('--docker-image', default="devonmerrill/cse141l-development-environment", help="Docker image to use")
     parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
     parser.add_argument('--nop', action='store_true', default=False, help="Don't actually running anything.")
     parser.add_argument('--json', action='store_true', default=False, help="Dump json version of submission and response.")
     parser.add_argument('--directory', default=".", help="Lab root")
     parser.add_argument('--run-json', action='store_true', default=False, help="Read json submission spec from stdin")
-    parser.add_argument('--docker-image', default="devonmerrill/cse141l-development-environment", help="Docker image to use")
     parser.add_argument('--config', default=[], nargs="*", help="Pass configuration option.  These override values in the config file")
+    parser.add_argument('--config-file', default="config", help="Which configuration file to load")
     parser.add_argument('--list-options', action='store_true', default=False, help="List options available for inclusion in the config file")
     parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
-    parser.add_argument('--devel', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
+    parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
     parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--run-solution', default=False, action='store_true', help="Use the input files in the LabSpec.solution sub directory")
@@ -64,12 +65,18 @@ def main(argv):
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
+    if args.devel:
+        log.debug("Entering devel mode")
+        args.validate = False
+        os.environ['DEVEL_MODE'] = 'yes'
+        
     try:
         if args.run_json:
             submission = Submission._fromdict(json.loads(sys.stdin.read()))
         else:
-            submission = build_submission(args.directory, args.config, args.run_solution, args.local_clone)
-
+            submission = build_submission(args.directory,
+                                          args.config,
+                                          args.config_file)
         if args.validate:
             c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
             p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)

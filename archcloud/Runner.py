@@ -84,22 +84,45 @@ class LabSpec(object):
             return None
         return float(d[line][field])
 
-    def csv_extract_by_lookup(self, file_contents, field, tag, value):
+    def csv_extract_by_lookup(self, file_contents, field, column, value):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         r = None
         for l in d:
-            if l[tag] == value:
+            if l[column] == value:
                 if r == None:
                     r = float(l[field])
                 else:
-                    raise Exception(f"Multiple lines in output have {tag}=={value}")
+                    raise Exception(f"Multiple lines in output have {column}=={value}")
         return r
     
     def extract_figures_of_merit(self, result):
         return dict()
 
     def parse_one_option(self, option, value):
+        if option == "cmd_line":
+            value = value.strip()
+            if re.match("[\w\.\s]*", value):
+                return True, True, "simple text", dict(USER_CMD_LINE=value)
+            else:
+                return self.parse_one_dict_option(option, value)
+        elif option == "MHz":
+            return True, True, "integer multiples of 100", dict(MHZ=str(int(value)))
+        elif option == "optimize":
+            value = value.strip();
+            if not re.match("[\s\w\-]*", value):
+                return True, False, "Compiler optimization flags", {}
+            else:
+                return True, True, "Compiler optimization flags", dict(C_OPTS=value)
+        elif option == "profiler":
+            if value == 'gprof':
+                return True, True, "gprof", dict(GPROF="yes")
+            else:
+                return True, False, "gprof", {}
+        else:
+            return self.parse_one_dict_option(option, value)
+
+    def parse_one_dict_option(self, option, value):
         if option not in self.valid_options:
             return False, False, "", {}
         if value not in self.valid_options[option]:
@@ -117,6 +140,7 @@ class LabSpec(object):
                 raise Exception(f"Illegal config file option '{k}'")
             if not valid_value:
                 raise Exception(f"Illegal config file value '{v}' for option '{k}'")
+            log.debug(f"Parsed option {k}={v} and added {env} into environment")
             submission.env.update(env)
 
         log.debug(f"New environment {submission.env}.")
@@ -139,29 +163,26 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, options, local_clone):
+    def __init__(self, lab_spec, files, env, options):
         self.lab_spec = lab_spec
         self.files = files
         self.local_env = env
         self.options = options
         self.env = {}
-        self.local_clone = local_clone
         
     def _asdict(self):
         return dict(lab_spec=self.lab_spec._asdict(),
                     files=self.files,
                     env=self.env,
                     local_env=self.local_env,
-                    options=self.options,
-                    local_clone=self.local_clone)
+                    options=self.options)
 
     @classmethod
     def _fromdict(cls, j):
         t = cls(files=j['files'],
                 lab_spec=LabSpec._fromdict(j['lab_spec']),
                 env=j['env'],
-                options=j['options'],
-                local_clone=j['local_clone'])
+                options=j['options'])
         t['local_env'] = j['local_env']
 
     def apply_options(self):
@@ -176,6 +197,7 @@ class Submission(object):
 
         if "analyzing CPU" not in o[0]:
             raise Exception("Error running cpu power to extract available frequencies")
+
         fields = o[1].split(", ")
         frequencies = []
         for f in fields:
@@ -310,7 +332,6 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
                 log_run(cmd=['git', 'clone',
-                             "." if sub.local_clone else sub.lab_spec.repo,
                              dirname])
 
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
@@ -323,7 +344,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
             if apply_options:
                 sub.apply_options()
 
-            log.debug(f"Executing submission {sub._asdict()}")
+            log.debug(f"Executing submission {json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
             if run_pristine:
                 for f in spec.input_files:
                     path = os.path.join(dirname, f)
@@ -367,12 +388,11 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     return SubmissionResult(sub, result_files, status)
 
 
-def build_submission(directory, options, run_solution, local_clone):
+def build_submission(directory, options, config_file):
     spec = LabSpec.load(directory)
     files = {}
     for f in spec.input_files:
         full_path = os.path.join(directory,
-                                 spec.solution if run_solution else ".",
                                  f)
         try:
             with open(full_path, "r") as o:
@@ -392,25 +412,23 @@ def build_submission(directory, options, run_solution, local_clone):
 
     options_dict = {}
     
-
     with open(os.path.join(directory,
-                           spec.solution if run_solution else ".",
-                           "config")) as config:
+                           config_file)) as config:
         for l in config.readlines():
             l = re.sub("#.*", "", l)
             l = l.strip()
             if l:
-                log.debug(f"parsing option {o} from config file")
+                log.debug(f"parsing option {l} from config file")
                 k,v = l.split("=", maxsplit=1)
                 options_dict[k] = v
 
     if options: # THis is a hack to force make to rerun rules that depend on changes to the config file.
-        Path("config").touch()
+        Path(config_file).touch()
             
     for o in options:
         log.debug(f"parsing option {o} from command line")
         k,v = o.split("=", maxsplit=1)
         options_dict[k] = v
 
-    s = Submission(spec, files, env, options_dict, local_clone)
+    s = Submission(spec, files, env, options_dict)
     return s
