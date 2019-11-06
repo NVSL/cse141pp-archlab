@@ -99,6 +99,13 @@ void archlab_add_option(const std::string & name, STORED & dest, const STORED& d
   options.push_back(new OptionSpec<STORED, STORED>(name, dest));
 }
 
+template<class STORED>
+void archlab_add_option(const std::string & name, STORED & dest, const STORED& def, const std::string & default_string, const std::string & desc) {
+  archlab_cmd_line_options.add_options()
+	  (name.c_str(), po::value<STORED >()->default_value(def, default_string), desc.c_str());
+  options.push_back(new OptionSpec<STORED, STORED>(name, dest));
+}
+
 void archlab_add_flag(const std::string & name, bool & dest, const bool& def, const std::string & desc);
 
 template<class STORED>
