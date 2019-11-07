@@ -113,8 +113,11 @@ void DataCollector::start_timing(json & kv)
 {
 	MeasurementInterval *n = newMeasurementInterval();
 	n->kv = default_kv;
-	n->kv.merge_patch(kv);
-	//std::cerr << kv.dump() << "\n";
+	if (!kv.is_null())
+		n->kv.merge_patch(kv);
+	//std::cerr << default_kv.dump() << " c\n";
+	//std::cerr << kv.dump() << " a\n";
+	//std::cerr << n->kv.dump() << " b\n";
 	for(auto & k: kv.items()) {
 		register_tag(k.key(), "", true);
 	}
