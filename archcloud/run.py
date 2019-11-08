@@ -53,12 +53,14 @@ def main(argv):
     parser.add_argument('--config-file', default="config", help="Which configuration file to load")
     parser.add_argument('--list-options', action='store_true', default=False, help="List options available for inclusion in the config file")
     parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
+    parser.add_argument('--test', action='store_true', default=False, help="Run regression tests")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
     parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--run-solution', default=False, action='store_true', help="Use the input files in the LabSpec.solution sub directory")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
+#    parser.add_argument('--timeout', default=None, help="Limit running time.  This only applies to local runs.  For local runs, the default is whatever is in lab.py")
     
     args = parser.parse_args(argv)
     
@@ -77,6 +79,10 @@ def main(argv):
             submission = build_submission(args.directory,
                                           args.config,
                                           args.config_file)
+        # if args.timeout:
+        #     log.debug(f"Overriding timeout of {submission.lab_spec.time_limit}; setting to {args.timeout}");
+        #     submission.lab_spec.time_limit = args.timeout
+        
         if args.validate:
             c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
             p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
@@ -98,6 +104,9 @@ def main(argv):
 
         if args.clean:
             subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
+
+        if args.test:
+            subprocess.run(submission.lab_spec.test_cmd, cwd=args.directory)
 
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")

@@ -35,6 +35,7 @@ class LabSpec(object):
     required_fields = ["output_files",
                        "input_files",
                        "run_cmd",
+                       "test_cmd",
                        "repo",
                        "reference_tag"]
 
@@ -51,6 +52,7 @@ class LabSpec(object):
                  output_files= None,
                  input_files=None,
                  run_cmd= None,
+                 test_cmd= None,
                  repo= None,
                  reference_tag = None,
                  valid_options={},
@@ -287,7 +289,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         try:
             output, errout = p.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            log.error(f"Execution timed out.")
+            log.error(f"Execution timed out after {timeout} seconds.")
             p.kill()
             output, errout = p.communicate()
             r = SubmissionResult.TIMEOUT
