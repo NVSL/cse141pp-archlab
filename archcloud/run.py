@@ -58,9 +58,8 @@ def main(argv):
     parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
     parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
-    parser.add_argument('--run-solution', default=False, action='store_true', help="Use the input files in the LabSpec.solution sub directory")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
-    parser.add_argument('--solution', default=".", help="Subdirectory to fetch inputs from")
+    parser.add_argument('--solution', default="solution" if os.path.isdir("solution") else ".", help="Subdirectory to fetch inputs from")
     
     args = parser.parse_args(argv)
     
