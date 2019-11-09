@@ -59,6 +59,10 @@ def main(argv):
     parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
+
+    # We default to 'solution' so the autograder will run the solution when we
+    # test it with maste repo. Since we delete 'solution' in the starter repo,
+    # it will use '.' for the students.
     parser.add_argument('--solution', default="solution" if os.path.isdir("solution") else ".", help="Subdirectory to fetch inputs from")
     
     args = parser.parse_args(argv)
