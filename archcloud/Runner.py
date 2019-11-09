@@ -35,13 +35,13 @@ class LabSpec(object):
     required_fields = ["output_files",
                        "input_files",
                        "run_cmd",
-                       "test_cmd",
                        "repo",
                        "reference_tag"]
 
     optional_fields = ["clean_cmd",
                        "allowed_env",
                        "lab_name",
+                       "test_cmd",
                        "solution",
                        "valid_options",
                        "default_options",
@@ -270,7 +270,7 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False):
+def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False, docker_image=None):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -333,8 +333,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     try:
         with directory(root if not run_pristine else None) as dirname:
             if run_pristine:
-                log_run(cmd=['git', 'clone',
-                             dirname])
+                log_run(cmd=['git', 'clone', ".", dirname])
 
             spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
             sub.lab_spec = spec
@@ -355,8 +354,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
                         of.write(sub.files[f])
 
             if run_in_docker:
-                image = "devonmerrill/cse141l-development-environment"
-                status = log_run(cmd=["docker", "run",  "-it", "--privileged", "-v", f"{dirname}:/runner", image, "run.py", "--local", "--no-validate", "--apply-options"] + (['-v'] if (log.getLogger().getEffectiveLevel() <= log.INFO) else []), timeout=spec.time_limit)
+                status = log_run(cmd=["docker", "run", "--privileged", "-v", f"{dirname}:/runner", docker_image, "run.py", "--local", "--no-validate", "--apply-options"] + (['-v'] if (log.getLogger().getEffectiveLevel() <= log.INFO) else []), timeout=spec.time_limit)
             else:
                 with environment(**sub.env):
                     status = log_run(spec.run_cmd, cwd=dirname, timeout=spec.time_limit)
@@ -390,12 +388,11 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     return SubmissionResult(sub, result_files, status)
 
 
-def build_submission(directory, options, config_file):
+def build_submission(directory, input_dir, options, config_file):
     spec = LabSpec.load(directory)
     files = {}
     for f in spec.input_files:
-        full_path = os.path.join(directory,
-                                 f)
+        full_path = os.path.join(directory, input_dir, f)
         try:
             with open(full_path, "r") as o:
                 log.debug(f"Reading input file '{full_path}'")
@@ -414,7 +411,7 @@ def build_submission(directory, options, config_file):
 
     options_dict = {}
     
-    with open(os.path.join(directory,
+    with open(os.path.join(directory, input_dir,
                            config_file)) as config:
         for l in config.readlines():
             l = re.sub("#.*", "", l)

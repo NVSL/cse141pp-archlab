@@ -43,7 +43,7 @@ def main(argv):
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
     parser.add_argument('--remote', default="http://localhost:5000", help="Run remotely on this host")
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
-    parser.add_argument('--docker-image', default="devonmerrill/cse141l-development-environment", help="Docker image to use")
+    parser.add_argument('--docker-image', default="stevenjswanson/cse141pp:latest", help="Docker image to use")
     parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
     parser.add_argument('--nop', action='store_true', default=False, help="Don't actually running anything.")
     parser.add_argument('--json', action='store_true', default=False, help="Dump json version of submission and response.")
@@ -60,7 +60,7 @@ def main(argv):
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--run-solution', default=False, action='store_true', help="Use the input files in the LabSpec.solution sub directory")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
-#    parser.add_argument('--timeout', default=None, help="Limit running time.  This only applies to local runs.  For local runs, the default is whatever is in lab.py")
+    parser.add_argument('--solution', default=".", help="Subdirectory to fetch inputs from")
     
     args = parser.parse_args(argv)
     
@@ -71,12 +71,16 @@ def main(argv):
         log.debug("Entering devel mode")
         args.validate = False
         os.environ['DEVEL_MODE'] = 'yes'
-        
+
+    input_path = os.path.join(".", args.solution)
+    os.environ['LAB_SUBMISSION_DIR'] = input_path
+    
     try:
         if args.run_json:
             submission = Submission._fromdict(json.loads(sys.stdin.read()))
         else:
             submission = build_submission(args.directory,
+                                          input_path,
                                           args.config,
                                           args.config_file)
         # if args.timeout:
@@ -119,7 +123,8 @@ def main(argv):
                                                 root=args.directory,
                                                 run_in_docker=args.docker,
                                                 run_pristine=args.pristine,
-                                                apply_options=args.apply_options)
+                                                apply_options=args.apply_options,
+                                                docker_image=args.docker_image)
             else:
                 result = run_submission_remotely(submission, args.remote, "5000")
 
