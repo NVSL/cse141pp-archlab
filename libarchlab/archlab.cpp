@@ -51,7 +51,7 @@ extern "C" {
 			("stat-set"  , po::value<std::vector<std::string> >()->composing()->default_value(std::vector<std::string>(), ""), "Config file to load.  Contents should be command line options, one-per line, without the '--'.")
 			("calc"  , po::value<std::vector<std::string> >()->composing()->default_value(std::vector<std::string>(), ""), "Calculate a derived stat. Format is '--calc <name>=<python expression>'.  ex: --calc IPC=instructions/cycles");
     
-		po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).allow_unregistered().run();
+		po::parsed_options parsed = po::command_line_parser(*argc, argv).options(archlab_cmd_line_options).run();
 		po::store(parsed, archlab_parsed_options);
 
 		po::notify(archlab_parsed_options);
