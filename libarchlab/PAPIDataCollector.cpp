@@ -107,7 +107,7 @@ void PAPIDataCollector::track_stat(const std::string  & stat)
 			// If that failed, either it's a rapl event, or it's actually an error.  Try to add rapl.
 			if( rapl_cid == -1 ||  (r = PAPI_add_named_event(rapl_event_set, stat.c_str())) != PAPI_OK ) {
 				std::cerr << "Problem adding " << stat << ": " << PAPI_strerror(r) << "\n";
-				exit(1);                                                             
+				exit(1);
 			} else {
 				//	std::cerr << "Added rapl event\n";
 				rapl_events.push_back(event);

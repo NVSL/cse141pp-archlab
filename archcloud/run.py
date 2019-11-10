@@ -135,7 +135,6 @@ def main(argv):
 
         if not args.nop:
             if args.local:
-
                 result = run_submission_locally(submission,
                                                 root=args.directory,
                                                 run_in_docker=args.docker,
@@ -149,14 +148,18 @@ def main(argv):
             for i in submission.lab_spec.output_files:
                 if i in result.files:
                     log.debug("========================= {} ===========================".format(i))
-                    log.debug(result.files[i])
+                    log.debug(result.files[i][:1000])
+                    if len(result.files[i]) > 1000:
+                        log.debug("< more output >")
+                        
                     if i == "STDERR":
-                        sys.stderr.write(result.files[i])
+                        sys.stdout.write(result.files[i])
                     elif i == "STDOUT":
                         sys.stdout.write(result.files[i])
-                    else:
-                        with open(os.path.join(args.directory, i), "w") as t:
-                            t.write(result.files[i])
+                        
+                    with open(os.path.join(args.directory, i), "w") as t:
+                        t.write(result.files[i])
+                        
             if args.json:
                 sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
             else:
@@ -170,8 +173,11 @@ def main(argv):
             
     except RunnerException as e: 
         log.error(e)
+        status = "Unknown failure: {e}"
+    else:
+        status = result.status
         
-    log.info("Finished")
+    log.info(f"Finished.  Final status: {status}")
 
 
 if __name__ == '__main__':

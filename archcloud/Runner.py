@@ -82,6 +82,8 @@ class LabSpec(object):
         t['valid_options'] = {}
         return t;
 
+    # there no reason for these to be methods of this class
+    
     def csv_extract_by_line(self, file_contents, field, line=0):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
@@ -100,6 +102,10 @@ class LabSpec(object):
                 else:
                     raise Exception(f"Multiple lines in output have {column}=={value}")
         return r
+    
+    def csv_column_values(self, file_contents, field):
+        reader = csv.DictReader(StringIO(file_contents))
+        return map(lambda x: x[field], reader)
     
     def extract_figures_of_merit(self, result):
         return dict()
@@ -252,9 +258,9 @@ class SubmissionResult(object):
         if status == SubmissionResult.SUCCESS:
             try:
                 self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
-            except KeyError:
+            except KeyError as e:
                 self.figures_of_merit={}
-                log.warn("Couldn't extract figures of merit.")
+                log.warn(f"Couldn't extract figures of merit: {e}")
                 
         else:
             self.figures_of_merit ={}
@@ -305,13 +311,20 @@ def run_submission_locally(sub, root=".",
         log.debug(f"Timeout is {timeout}")
         try:
             output, errout = p.communicate(timeout=timeout)
+            log.info(f"Execution completed with result: {p.returncode}")
+            if p.returncode != 0:
+                r = SubmissionResult.ERROR
+                
         except subprocess.TimeoutExpired:
             log.error(f"Execution timed out after {timeout} seconds.")
+
+            # clean up: https://docs.python.org/3/library/subprocess.html
             p.kill()
             output, errout = p.communicate()
+            
             r = SubmissionResult.TIMEOUT
             try:
-                subprocess.run(['stty', 'sane']) # Timeouts often leaves the terminal in a bad state.  Restore it.
+                subprocess.run(['stty', 'sane']) # Timeouts can leave the terminal in a bad state.  Restore it.
             except:
                 pass  # if it doesn't work, it's not a big deal
 
@@ -400,10 +413,10 @@ def run_submission_locally(sub, root=".",
                     with open(path, "r") as r:
                         log.debug("Reading output file (storing as '{}') {}.".format(i, path))
                         result_files[i] = r.read()
-                else:
-                    result_files[i] = f"<This output file did not exist>"
-                    if status == SubmissionResult.SUCCESS:
-                        status = SubmissionResult.MISSING_OUTPUT
+                # else:
+                #     result_files[i] = f"<This output file did not exist>"
+                #     if status == SubmissionResult.SUCCESS:
+                #         status = SubmissionResult.MISSING_OUTPUT
     except BadOptionException as e:
         # if the get this, just fail, rather than exiting cleanly.
         raise
