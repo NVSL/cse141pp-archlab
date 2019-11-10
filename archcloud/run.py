@@ -46,9 +46,9 @@ def main(argv):
     parser.add_argument('--docker-image', default="stevenjswanson/cse141pp:latest", help="Docker image to use")
     parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
     parser.add_argument('--nop', action='store_true', default=False, help="Don't actually running anything.")
-    parser.add_argument('--json', action='store_true', default=False, help="Dump json version of submission and response.")
+    parser.add_argument('--json', default=False, action='store_true', help="Dump json version of submission and response.")
     parser.add_argument('--directory', default=".", help="Lab root")
-    parser.add_argument('--run-json', action='store_true', default=False, help="Read json submission spec from stdin")
+    parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
     parser.add_argument('--config', default=[], nargs="*", help="Pass configuration option.  These override values in the config file")
     parser.add_argument('--config-file', default="config", help="Which configuration file to load")
     parser.add_argument('--list-options', action='store_true', default=False, help="List options available for inclusion in the config file")
@@ -60,10 +60,9 @@ def main(argv):
     parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
 
-    # We default to 'solution' so the autograder will run the solution when we
-    # test it with maste repo. Since we delete 'solution' in the starter repo,
-    # it will use '.' for the students.
-    parser.add_argument('--solution', default="solution" if os.path.isdir("solution") else ".", help="Subdirectory to fetch inputs from")
+    parser.add_argument('--new', default=False, action='store_true', help="Use new runner.")
+
+    parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
     
     args = parser.parse_args(argv)
     
@@ -75,29 +74,43 @@ def main(argv):
         args.validate = False
         os.environ['DEVEL_MODE'] = 'yes'
 
-    input_path = os.path.join(".", args.solution)
-    os.environ['LAB_SUBMISSION_DIR'] = input_path
+
+    # We default to 'solution' so the autograder will run the solution when we
+    # test it with maste repo. Since we delete 'solution' in the starter repo,
+    # it will use '.' for the students.
+    if args.solution is None:
+        solution = "solution" if os.path.isdir("solution") else "."
+    else:
+        solution = args.solution
+
+    # Make sure it's relative.
+    input_dir=os.path.join(".", solution)
+    log.debug(f"Fetching inputs from '{input_dir}'")
+    os.environ['LAB_SUBMISSION_DIR'] = input_dir
+        
     
     try:
-        if args.run_json:
-            submission = Submission._fromdict(json.loads(sys.stdin.read()))
+        if args.run_json is not None:
+            if args.run_json == []:
+                submission = Submission._fromdict(json.loads(sys.stdin.read()))
+            else:
+                submission = Submission._fromdict(json.loads(open(args.run_json[0]).read()))
+            log.debug(f"loaded this submission from json:\n" + json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n')
         else:
             submission = build_submission(args.directory,
-                                          input_path,
+                                          input_dir,
                                           args.config,
                                           args.config_file)
-        # if args.timeout:
-        #     log.debug(f"Overriding timeout of {submission.lab_spec.time_limit}; setting to {args.timeout}");
-        #     submission.lab_spec.time_limit = args.timeout
-        
-        if args.validate:
-            c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
-            p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
-            stdout, stderr = p.communicate()
-            if p.returncode != 0:
-                log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
-                log.error(stdout.decode("utf-8"))
-                sys.exit(1)
+
+
+            if args.validate:
+                c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
+                p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
+                stdout, stderr = p.communicate()
+                if p.returncode != 0:
+                    log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
+                    log.error(stdout.decode("utf-8"))
+                    sys.exit(1)
 
         if args.list_options:
             print("Here are here the available options for this lab:")
@@ -118,10 +131,11 @@ def main(argv):
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
-        log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))
+        log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))        
 
         if not args.nop:
             if args.local:
+
                 result = run_submission_locally(submission,
                                                 root=args.directory,
                                                 run_in_docker=args.docker,
@@ -131,6 +145,7 @@ def main(argv):
             else:
                 result = run_submission_remotely(submission, args.remote, "5000")
 
+            
             for i in submission.lab_spec.output_files:
                 if i in result.files:
                     log.debug("========================= {} ===========================".format(i))

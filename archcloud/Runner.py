@@ -14,6 +14,7 @@ import copy
 from contextlib import contextmanager
 import csv
 from pathlib import Path
+import functools
 
 class RunnerException(Exception):
     pass
@@ -46,7 +47,9 @@ class LabSpec(object):
                        "valid_options",
                        "default_options",
                        "time_limit",
-                       "lab_env"]
+                       "lab_env",
+                       #"turnin_files"
+    ]
     
     def __init__(self,
                  output_files= None,
@@ -150,8 +153,8 @@ class LabSpec(object):
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        t._replace(figures_of_merit=[])
-        t._replace(valid_options=dict())
+        t.figures_of_merit=[]
+        t.valid_options=dict()
         return t
 
     @classmethod
@@ -185,7 +188,8 @@ class Submission(object):
                 lab_spec=LabSpec._fromdict(j['lab_spec']),
                 env=j['env'],
                 options=j['options'])
-        t['local_env'] = j['local_env']
+        t.local_env = j['local_env']
+        return t
 
     def apply_options(self):
         if subprocess.call(['which', 'cpupower']) != 0:
@@ -209,7 +213,6 @@ class Submission(object):
             f = int(int(m.group(1))/1000)
             if f % 10 == 0: # Sometimes the list includes things like 2001Mhz, but they don't seem to actually valid values, so trim them.
                 frequencies.append(f)
-
             
         self.env["ARCHLAB_AVAILABLE_CPU_FREQUENCIES"] = " ".join(map(str, frequencies))
 
@@ -246,7 +249,15 @@ class SubmissionResult(object):
         self.files = files
         self.status = status
         r = []
-        self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
+        if status == SubmissionResult.SUCCESS:
+            try:
+                self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
+            except KeyError:
+                self.figures_of_merit={}
+                log.warn("Couldn't extract figures of merit.")
+                
+        else:
+            self.figures_of_merit ={}
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
@@ -270,7 +281,13 @@ def run_submission_remotely(sub, host, port):
     return SubmissionResult._fromdict(r.json())
 
 
-def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=False, nop=False, timeout=None, apply_options=False, docker_image=None):
+def run_submission_locally(sub, root=".",
+                           run_in_docker=False,
+                           run_pristine=False,
+                           nop=False,
+                           timeout=None,
+                           apply_options=False,
+                           docker_image=None):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -306,7 +323,7 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
         return r
 
     @contextmanager
-    def directory(d=None):
+    def directory_or_tmp(d=None):
         if d is not None:
             try:
                 yield os.path.abspath(d)
@@ -331,35 +348,51 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     figures_of_merit = []
 
     try:
-        with directory(root if not run_pristine else None) as dirname:
+        with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
                 log_run(cmd=['git', 'clone', ".", dirname])
 
-            spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
-            sub.lab_spec = spec
-            sub.env = {} # distrust incoming environment, and recompue
-            sub.env.update(sub.lab_spec.lab_env) # lab spec environment
-            sub.lab_spec.parse_options(sub)  # config file
-            sub.env.update(sub.local_env)    # local environment variables (filtered)
-            
-            if apply_options:
-                sub.apply_options()
+            sub.lab_spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
 
-            log.debug(f"Executing submission {json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
-            if run_pristine:
-                for f in spec.input_files:
-                    path = os.path.join(dirname, f)
-                    with open(path, "w") as of:
-                        log.debug("Writing input file {}".format(path))
-                        of.write(sub.files[f])
-
+            # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                status = log_run(cmd=["docker", "run", "--privileged", "-v", f"{dirname}:/runner", docker_image, "run.py", "--local", "--no-validate", "--apply-options"] + (['-v'] if (log.getLogger().getEffectiveLevel() <= log.INFO) else []), timeout=spec.time_limit)
+                log.debug(f"Executing submission in docker\n{json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
+                with open(os.path.join(dirname, "job.json"), "w") as job:
+                    json.dump(sub._asdict(), job, sort_keys=True, indent=4)
+                status = log_run(cmd=
+                                 ["docker", "run",
+                                  "--hostname", "runner",
+                                  "--privileged",
+                                  "-v", f"{dirname}:/runner"] +
+                                 # Convenience avoid having to rebuild the docker container
+                                 (["-v", f"{os.environ['ARCHLAB_ROOT']}:/cse141pp-archlab"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
+                                 [docker_image] +
+                                 ["run.py", "--run-json", "job.json", "--apply-options"] +
+                                 (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
+                                 timeout=sub.lab_spec.time_limit)
             else:
-                with environment(**sub.env):
-                    status = log_run(spec.run_cmd, cwd=dirname, timeout=spec.time_limit)
+                
+                if run_pristine:
+                    for f in sub.lab_spec.input_files:
+                        path = os.path.join(dirname, f)
+                        with open(path, "w") as of:
+                            log.debug("Writing input file {}".format(path))
+                            of.write(sub.files[f])
 
-            for i in spec.output_files:
+                log.debug(f"Executing submission\n{json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
+                sub.env = {}                         # distrust incoming environment, and recompue
+                sub.env.update(sub.lab_spec.lab_env) # lab spec environment
+                sub.lab_spec.parse_options(sub)      # config file
+                # In theory this was already filtered, but don't trust it.  Filter again.
+                sub.env.update(filter_env(sub.lab_spec, sub.local_env))        
+
+                if apply_options:
+                    sub.apply_options()
+
+                with environment(**sub.env):
+                    status = log_run(sub.lab_spec.run_cmd, cwd=dirname, timeout=sub.lab_spec.time_limit)
+
+            for i in sub.lab_spec.output_files:
                 if i in ['STDERR', 'STDOUT']:
                     continue
                 path = os.path.join(dirname, i)
@@ -388,9 +421,26 @@ def run_submission_locally(sub, root=".", run_in_docker=False, run_pristine=Fals
     return SubmissionResult(sub, result_files, status)
 
 
+def remove_outputs(dirname, submission):
+    for i in submission.lab_spec.output_files:
+        if os.path.exists(path) and os.path.isfile(path):
+            os.remove(path)
+
+def filter_env(spec, env):
+    out = {}
+    for e in spec.allowed_env:
+        if e in env:
+            v = env[e]
+            safe_env = "[a-zA-Z0-9_\-\. ]"
+            if not re.match(f"^{safe_env}*$", v):
+                raise Exception(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
+            out[e] = env[e]
+    return out
+
 def build_submission(directory, input_dir, options, config_file):
     spec = LabSpec.load(directory)
     files = {}
+
     for f in spec.input_files:
         full_path = os.path.join(directory, input_dir, f)
         try:
@@ -400,18 +450,13 @@ def build_submission(directory, input_dir, options, config_file):
         except Exception:
             log.error(f"Failed to open {full_path}")
             sys.exit(1)
-    env = {}
-    for e in spec.allowed_env:
-        if e in os.environ:
-            v = os.environ[e]
-            safe_env = "[a-zA-Z0-9_\-\. ]"
-            if not re.match(f"^{safe_env}*$", v):
-                raise Exception(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
-            env[e] = os.environ[e]
+
+    env = filter_env(spec, os.environ)
 
     options_dict = {}
     
-    with open(os.path.join(directory, input_dir,
+    with open(os.path.join(directory,
+                           input_dir,
                            config_file)) as config:
         for l in config.readlines():
             l = re.sub("#.*", "", l)
@@ -419,15 +464,16 @@ def build_submission(directory, input_dir, options, config_file):
             if l:
                 log.debug(f"parsing option {l} from config file")
                 k,v = l.split("=", maxsplit=1)
-                options_dict[k] = v
+                options_dict[k.strip()] = v.strip()
 
     if options: # THis is a hack to force make to rerun rules that depend on changes to the config file.
         Path(config_file).touch()
-            
+
+    log.debug(f"--config options are: {options}")
     for o in options:
         log.debug(f"parsing option {o} from command line")
         k,v = o.split("=", maxsplit=1)
-        options_dict[k] = v
+        options_dict[k.strip()] = v.strip()
 
     s = Submission(spec, files, env, options_dict)
     return s
