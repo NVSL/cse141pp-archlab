@@ -5,17 +5,28 @@ import logging as log
 import os
 import csv
 
+
 def columnize(data, divider="|", headers=1):
     r = ""
     column_count = max(map(len, data))
     rows = [x + ([""] * (column_count - len(x))) for x in data]
     widths = [max(list(map(lambda x:len(str(x)), col))) for col in zip(*rows)]
-    div = " {} ".format(divider)
+    div = "{}".format(divider)
     for i, row in enumerate(rows):
         if headers is not None and headers == i:
-            r += "-" * (sum(widths) + len(rows[0]) * len(div))  + "\n"
+            r += divider.join(map(lambda x: "-" * (x), widths )) + "\n"
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
+
+def fmt(x):
+    try:
+        x = float(x)
+    except:
+        return x
+    else:
+        return f"{x:.2}"
+    
+        
         
 def main():
     parser = argparse.ArgumentParser(description='Perform calculation on CSV files.')
@@ -30,10 +41,10 @@ def main():
 
     r = []
     for l in inreader:
-        r.append(l)
+        r.append(list(map(fmt,l)))
     
     outfile = open(cmdline.output, "w") if cmdline.output != "-" else sys.stdout;
-    outfile.write(columnize(r))
+    outfile.write(columnize(r, headers=True, divider='|'))
     
 if __name__== "__main__":
     main()

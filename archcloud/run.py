@@ -9,16 +9,15 @@ import sys
 import os
 import subprocess
 
-
-def columnize(data, divider="", headers=None):
+def columnize(data, divider="|", headers=1):
     r = ""
     column_count = max(map(len, data))
     rows = [x + ([""] * (column_count - len(x))) for x in data]
     widths = [max(list(map(lambda x:len(str(x)), col))) for col in zip(*rows)]
-    div = " {} ".format(divider)
+    div = "{}".format(divider)
     for i, row in enumerate(rows):
         if headers is not None and headers == i:
-            r += "-" * (sum(widths) + len(rows[0]) * len(div))  + "\n"
+            r += divider.join(map(lambda x: "-" * (x), widths )) + "\n"
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
@@ -63,7 +62,7 @@ def main(argv):
     parser.add_argument('--new', default=False, action='store_true', help="Use new runner.")
 
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
-    
+
     args = parser.parse_args(argv)
     
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
@@ -169,7 +168,8 @@ def main(argv):
                 for fom in result.figures_of_merit:
                     foms.append([fom['name'],fom['value']])
 
-                sys.stdout.write(columnize(foms, headers=True, divider='|'))
+                sys.stdout.write(columnize(foms))
+                
             
     except RunnerException as e: 
         log.error(e)

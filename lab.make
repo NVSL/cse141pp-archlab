@@ -15,6 +15,9 @@ $(BUILD)/config: $(LAB_SUBMISSION_DIR)/config
 	mkdir -p $(BUILD)
 	cp $< $@
 
+$(BUILD)/config.mk: $(BUILD)/config
+	cp $< $@
+
 clean:lab-clean
 .PHONY: lab-clean
 lab-clean:

@@ -439,13 +439,19 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
 
+def safe_env_value(v):
+    safe_env = "[a-zA-Z0-9_\-\. ]"
+    if not re.match(f"^{safe_env}*$", v):
+        return False
+    else:
+        return True
+    
 def filter_env(spec, env):
     out = {}
     for e in spec.allowed_env:
         if e in env:
             v = env[e]
-            safe_env = "[a-zA-Z0-9_\-\. ]"
-            if not re.match(f"^{safe_env}*$", v):
+            if not safe_env_value(v):
                 raise Exception(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
             out[e] = env[e]
     return out
@@ -479,6 +485,7 @@ def build_submission(directory, input_dir, options, config_file):
                 k,v = l.split("=", maxsplit=1)
                 options_dict[k.strip()] = v.strip()
 
+                
     if options: # THis is a hack to force make to rerun rules that depend on changes to the config file.
         Path(config_file).touch()
 
