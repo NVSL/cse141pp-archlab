@@ -24,3 +24,6 @@ class ThisLab(LabSpec):
                 "COMPILER": ""
             }
         )
+        
+    def filter_command(self, command):
+        return True, "", command
