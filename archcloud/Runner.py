@@ -40,6 +40,14 @@ def environment(**kwds):
         os.environ.clear()
         os.environ.update(env)
 
+@contextmanager
+def collect_fields_of(obj):
+    before = list(obj.__dict__.keys())
+    try:
+        yield None
+    finally:
+        obj._fields =  list(set(obj.__dict__.keys()) - set(before))
+    
 class LabSpec(object):
 
     def __init__(self,
@@ -55,24 +63,19 @@ class LabSpec(object):
                  time_limit = 30,
                  solution="."):
 
-        before =  list(self.__dict__.keys())
-        
-        self.lab_name = lab_name
-        self.output_files = output_files
-        self.input_files = input_files
-        self.repo = repo
-        self.reference_tag = reference_tag
-        self.default_cmd = default_cmd
-        self.clean_cmd = clean_cmd
-        self.valid_options = valid_options
-        self.time_limit = time_limit
-        self.solution = solution
-        self.config_file = config_file
-        
-        after = self.__dict__.keys()
-
-        self._fields = list(set(after) - set(before))
-
+        with collect_fields_of(self):
+            self.lab_name = lab_name
+            self.output_files = output_files
+            self.input_files = input_files
+            self.repo = repo
+            self.reference_tag = reference_tag
+            self.default_cmd = default_cmd
+            self.clean_cmd = clean_cmd
+            self.valid_options = valid_options
+            self.time_limit = time_limit
+            self.solution = solution
+            self.config_file = config_file
+            
         if self.default_cmd is None:
             self.default_cmd = ['make']
         if self.clean_cmd is None:
@@ -108,8 +111,8 @@ class LabSpec(object):
         reader = csv.DictReader(StringIO(file_contents))
         return map(lambda x: x[field], reader)
     
-    def extract_figures_of_merit(self, result):
-        return dict()
+    def post_run(self, result):
+        return result
 
     def parse_one_option(self, option, value):
         if option == "cmd_line":
@@ -196,7 +199,22 @@ class LabSpec(object):
                     out[e] = env[e]
         return out
 
+    def filter_command(self, command):
+        if command == self.default_cmd:
+            return True, "", self.default_cmd
+        else:
+            return False, f"This lab only runs the default command: {self.default_cmd}", command
 
+    def make_target_filter(self, command):
+        if command[0] != "make":
+            return False, "You can only run make in this lab", command
+
+        # just allow simple strings and filenames
+        if any(map(lambda x: not re.match(r"^[a-zA-Z0-9_\-\.]+$", x), command)):
+            return False, f"One of these doesn't look like a make target: {command[1:]}", command
+
+        return True, "", command
+        
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
@@ -284,28 +302,20 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, figures_of_merit=None):
+    def __init__(self, submission, files, status, results=None):
         self.submission = submission
         self.files = files
         self.status = status
-        r = []
-        if figures_of_merit is not None:
-            self.figures_of_merit = figures_of_merit
+        if results is None:
+            self.results = {}
         else:
-            if status == SubmissionResult.SUCCESS:
-                try:
-                    self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
-                except KeyError as e:
-                    self.figures_of_merit={}
-                    log.warn(f"Couldn't extract figures of merit: {e}")
-            else:
-                self.figures_of_merit ={}
-
+            self.results = results
+            
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
                     status=self.status,
-                    figures_of_merit=self.figures_of_merit)
+                    results=self.results)
 
     @classmethod
     def _fromdict(cls, j):
@@ -422,6 +432,10 @@ def run_submission_locally(sub, root=".",
                 # filter the environment with the clean lab_spec
                 log.debug(f"Incomming env: {sub.env}")
                 sub.env = sub.lab_spec.filter_env(sub.env)
+                good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
+                if not good_command:
+                    raise Exception(f"Disallowed command ({error}): {sub.command}")
+                
                 if run_pristine:
                     # we just dumped the files in '.' so, look for them there.
                     sub.env['LAB_SUBMISSION_DIR'] = "." 
@@ -451,7 +465,9 @@ def run_submission_locally(sub, root=".",
     result_files['STDERR'] = err.getvalue()
     log.debug("STDOUT: {}".format(out.getvalue()))
     log.debug("STDERR: {}".format(err.getvalue()))
-    return SubmissionResult(sub, result_files, status)
+    result = SubmissionResult(sub, result_files, status)
+    return sub.lab_spec.post_run(result)
+    
 
 
 def remove_outputs(dirname, submission):
@@ -464,9 +480,15 @@ def build_submission(directory, input_dir, command, config_file=None):
     files = {}
     if config_file is None:
         config_file = spec.config_file
-    if command is None:
-        command = spec.default_cmd
 
+    if not command:
+        command = spec.default_cmd
+    # check if the command is ok.  We don't recorded the filtered version
+    # because the filtered result might not, itself, pass through the filter.
+    good_command, error, _ = spec.filter_command(command)
+    if not good_command:
+        raise Exception(f"This command is not allowed ({error}): {command}")
+        
     for f in spec.input_files:
         full_path = os.path.join(directory, input_dir)
         for filename in Path(full_path).glob(f):
@@ -529,7 +551,7 @@ def test_run():
 
     assert result.files == n.files
     assert result.status == n.status
-    assert result.figures_of_merit == n.figures_of_merit
+    assert result.results == n.results
 
     
 def test_lab_spec():

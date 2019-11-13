@@ -28,7 +28,7 @@ def main(argv):
     The assumption is that the local directory has a clone of a lab repo.  Lab repos have `lab.py` in them.  The possible fields in a `lab.py` are described in `Runner.LabSpec`
 
     You can then do:
-    1. `./run.py` To run the lab in the local directory.
+    1. `./run.py` To run the lab in the loecal directory.
     2. `./run.py --pristine` To run the lab in a fresh clone of the lab's repo with the local input files (specified in lab.py) copied in.
     3. `./run.py --pristine --docker` to run the lab in docker container.
     4. `./run.py --json` to dump the json version of the lab submission and response to stdout.
@@ -49,9 +49,10 @@ def main(argv):
     parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
 
+    parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
+
     args = parser.parse_args(argv)
 
-    
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
@@ -64,6 +65,14 @@ def main(argv):
         args.validate = False
         os.environ['DEVEL_MODE'] = 'yes'
 
+    if args.command and len(args.command) > 0:
+        log.debug(f"Got command arguments: {args.command}")
+        assert args.command[0] == "--", f"Unknown arguments: {args.command}"
+        args.command = args.command[1:]
+        log.debug(f"Using command: {args.command}")
+    else:
+        args.command = None
+        
     # We default to 'solution' so the autograder will run the solution when we
     # test it with maste repo. Since we delete 'solution' in the starter repo,
     # it will use '.' for the students.
@@ -87,7 +96,7 @@ def main(argv):
         else:
             submission = build_submission(args.directory,
                                           input_dir,
-                                          None)
+                                          args.command)
             
             if args.validate:
                 c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
@@ -101,9 +110,7 @@ def main(argv):
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
-            #log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))
         log.debug("Submission: {}".format(submission._asdict()))
-
 
         result = None
         if not args.nop:
@@ -127,7 +134,11 @@ def main(argv):
                     
                 with open(os.path.join(args.directory, i), "w") as t:
                     t.write(result.files[i])
-            
+
+            with open(os.path.join(args.directory, "results.json"), "w") as t:
+                t.write(json.dumps(result.results, sort_keys=True, indent=4))
+                sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
+                
     except RunnerException as e: 
         log.error(e)
         status = "Unknown failure: {e}"
