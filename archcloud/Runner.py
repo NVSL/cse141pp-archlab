@@ -17,6 +17,10 @@ from pathlib import Path
 import functools
 import unittest
 from pathlib import Path
+import io
+import platform
+import pytest
+
 
 class RunnerException(Exception):
     pass
@@ -473,25 +477,29 @@ def build_submission(directory, input_dir, command, config_file=None):
                     key = filename.relative_to(full_path)
                     log.debug(f"Storing as '{str(key)}'")
                     files[str(key)] = o.read()
+                    log.info(f"Found input file '{filename}'")
             except Exception:
                 raise Exception(f"Couldn't open input file '{filename}'.")
 
-    env = spec.filter_env(os.environ)
-
+    from_env = spec.filter_env(os.environ)
+    for i in from_env:
+        log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
+        
     if config_file:
-        with open(os.path.join(directory,
-                               input_dir,
-                               config_file)) as config:
-            env.update(spec.parse_config(config))
-            
+        path = os.path.join(directory,
+                            input_dir,
+                            config_file)
+        with open(path) as config:
+            from_config = spec.parse_config(config)
+            for i in from_config:
+                log.info(f"From '{Path(path).relative_to('.')}', loading environment variable '{i}={from_config[i]}'")
 
-    s = Submission(spec, files, env, command)
+
+    from_env.update(from_config)
+
+    s = Submission(spec, files, from_env, command)
     return s
 
-
-import io
-import platform
-import pytest
 
 def test_run():
     sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
@@ -588,7 +596,6 @@ def test_configs_validation():
                         DEBUG="no",
                         DEBUG2=""
                         ) == env
-
 
     def test_err():
         spec = LabSpec.load("test_inputs")
