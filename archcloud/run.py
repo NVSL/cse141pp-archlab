@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException
+from Runner import build_submission, run_submission_locally, Submission, RunnerException
 import logging as log
 import json
 import platform
@@ -40,7 +40,6 @@ def main(argv):
     parser = argparse.ArgumentParser(description='Run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
-    parser.add_argument('--remote', default="http://localhost:5000", help="Run remotely on this host")
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
     parser.add_argument('--docker-image', default="stevenjswanson/cse141pp:latest", help="Docker image to use")
     parser.add_argument('--local', action='store_true', default=True, help="Run locally in this directory.")
@@ -48,31 +47,25 @@ def main(argv):
     parser.add_argument('--json', default=False, action='store_true', help="Dump json version of submission and response.")
     parser.add_argument('--directory', default=".", help="Lab root")
     parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
-    parser.add_argument('--config', default=[], nargs="*", help="Pass configuration option.  These override values in the config file")
-    parser.add_argument('--config-file', default="config", help="Which configuration file to load")
-    parser.add_argument('--list-options', action='store_true', default=False, help="List options available for inclusion in the config file")
-    parser.add_argument('--clean', action='store_true', default=False, help="Cleanup before running.  Only has an effect with '--local' execution.")
-    parser.add_argument('--test', action='store_true', default=False, help="Run regression tests")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
-    parser.add_argument('--apply-options', action='store_true', default=False, help="Examine the environment and apply configure the machine accordingly.")
-    parser.add_argument('--log-file', default="run.log", help="Record log of execution")
     parser.add_argument('--local-clone', default=False, action='store_true', help="Clone the local repo instead of the origin")
-
-    parser.add_argument('--new', default=False, action='store_true', help="Use new runner.")
-
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
 
     args = parser.parse_args(argv)
+
     
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
+
+    if args.run_json is not None:
+        args.pristine = True
+        log.info("Enabling pristine moder for json run")
 
     if args.devel:
         log.debug("Entering devel mode")
         args.validate = False
         os.environ['DEVEL_MODE'] = 'yes'
-
 
     # We default to 'solution' so the autograder will run the solution when we
     # test it with maste repo. Since we delete 'solution' in the starter repo,
@@ -86,7 +79,6 @@ def main(argv):
     input_dir=os.path.join(".", solution)
     log.debug(f"Fetching inputs from '{input_dir}'")
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
-        
     
     try:
         if args.run_json is not None:
@@ -94,91 +86,60 @@ def main(argv):
                 submission = Submission._fromdict(json.loads(sys.stdin.read()))
             else:
                 submission = Submission._fromdict(json.loads(open(args.run_json[0]).read()))
-            log.debug(f"loaded this submission from json:\n" + json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n')
+            log.debug(f"loaded this submission from json:\n" + str(submission._asdict()))
         else:
             submission = build_submission(args.directory,
                                           input_dir,
-                                          args.config,
-                                          args.config_file)
-
-
+                                          None)
+            
             if args.validate:
-                c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.lab_spec.input_files))
+                c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
                 p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
                 stdout, stderr = p.communicate()
                 if p.returncode != 0:
                     log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
                     log.error(stdout.decode("utf-8"))
                     sys.exit(1)
-
-        if args.list_options:
-            print("Here are here the available options for this lab:")
-            for o, spec in submission.lab_spec.valid_options.items():
-                print(f"  {o} = ", end="") 
-                if callable(spec):
-                    print("<value>")
-                else:
-                    print(f"{{{','.join(spec.keys())}}}")
-            sys.exit(0)
-
-        if args.clean:
-            subprocess.run(submission.lab_spec.clean_cmd, cwd=args.directory)
-
-        if args.test:
-            subprocess.run(submission.lab_spec.test_cmd, cwd=args.directory)
-
+   
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
-        log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))        
+            #log.debug("Submission: {}".format(json.dumps(submission._asdict(),  sort_keys=True, indent=4)))
+        log.debug("Submission: {}".format(submission._asdict()))
 
+
+        result = None
         if not args.nop:
-            if args.local:
-                result = run_submission_locally(submission,
-                                                root=args.directory,
-                                                run_in_docker=args.docker,
-                                                run_pristine=args.pristine,
-                                                apply_options=args.apply_options,
-                                                docker_image=args.docker_image)
-            else:
-                result = run_submission_remotely(submission, args.remote, "5000")
-
             
-            for i in submission.lab_spec.output_files:
-                if i in result.files:
-                    log.debug("========================= {} ===========================".format(i))
-                    log.debug(result.files[i][:1000])
-                    if len(result.files[i]) > 1000:
-                        log.debug("< more output >")
-                        
-                    if i == "STDERR":
-                        sys.stdout.write(result.files[i])
-                    elif i == "STDOUT":
-                        sys.stdout.write(result.files[i])
-                        
-                    with open(os.path.join(args.directory, i), "w") as t:
-                        t.write(result.files[i])
-                        
-            if args.json:
-                sys.stdout.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
-            else:
-                sys.stdout.write("Figures of merit:\n")
-
-                foms = [["FOM", "value"]]
-                for fom in result.figures_of_merit:
-                    foms.append([fom['name'],fom['value']])
-
-                sys.stdout.write(columnize(foms))
-                
+            result = run_submission_locally(submission,
+                                            root=args.directory,
+                                            run_in_docker=args.docker,
+                                            run_pristine=args.pristine,
+                                            docker_image=args.docker_image)
+            
+            for i in result.files:
+                log.debug("========================= {} ===========================".format(i))
+                log.debug(result.files[i][:1000])
+                if len(result.files[i]) > 1000:
+                    log.debug("< more output >")
+                    
+                if i == "STDERR":
+                    sys.stdout.write(result.files[i])
+                elif i == "STDOUT":
+                    sys.stdout.write(result.files[i])
+                    
+                with open(os.path.join(args.directory, i), "w") as t:
+                    t.write(result.files[i])
             
     except RunnerException as e: 
         log.error(e)
         status = "Unknown failure: {e}"
     else:
-        status = result.status
+        status = result.status if result else "success"
         
     log.info(f"Finished.  Final status: {status}")
 
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+

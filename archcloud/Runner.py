@@ -15,11 +15,16 @@ from contextlib import contextmanager
 import csv
 from pathlib import Path
 import functools
+import unittest
+from pathlib import Path
 
 class RunnerException(Exception):
     pass
 class BadOptionException(RunnerException):
     pass
+class ConfigException(Exception):
+    pass
+
 
 @contextmanager
 def environment(**kwds):
@@ -33,54 +38,46 @@ def environment(**kwds):
 
 class LabSpec(object):
 
-    required_fields = ["output_files",
-                       "input_files",
-                       "run_cmd",
-                       "repo",
-                       "reference_tag"]
-
-    optional_fields = ["clean_cmd",
-                       "allowed_env",
-                       "lab_name",
-                       "test_cmd",
-                       "solution",
-                       "valid_options",
-                       "default_options",
-                       "time_limit",
-                       "lab_env",
-                       #"turnin_files"
-    ]
-    
     def __init__(self,
+                 lab_name=None,
                  output_files= None,
                  input_files=None,
-                 run_cmd= None,
-                 test_cmd= None,
-                 repo= None,
+                 repo=None,
                  reference_tag = None,
+                 config_file=None,
+                 default_cmd=None,
+                 clean_cmd=None,
                  valid_options={},
-                 default_options = {},
                  time_limit = 30,
-                 solution=".",
-                 figures_of_merit = [],
-                 clean_cmd=['true'],
-                 allowed_env=[],
-                 lab_env={},
-                 lab_name="<unnamed>"):
-    
-        for i in LabSpec.required_fields:
-            if locals()[i] is None:
-                raise Exception(f"lab.py must set ThisLab.{i}")
-            else:
-                setattr(self, i, locals()[i])
-                
-        for i in LabSpec.optional_fields:
-            setattr(self, i, locals()[i])
+                 solution="."):
+
+        before =  list(self.__dict__.keys())
+        
+        self.lab_name = lab_name
+        self.output_files = output_files
+        self.input_files = input_files
+        self.repo = repo
+        self.reference_tag = reference_tag
+        self.default_cmd = default_cmd
+        self.clean_cmd = clean_cmd
+        self.valid_options = valid_options
+        self.time_limit = time_limit
+        self.solution = solution
+        self.config_file = config_file
+        
+        after = self.__dict__.keys()
+
+        self._fields = list(set(after) - set(before))
+
+        if self.default_cmd is None:
+            self.default_cmd = ['make']
+        if self.clean_cmd is None:
+            self.clean_cmd = ['make', 'clean']
+        
+        assert self.lab_name is not None, "You must name your lab"
                 
     def _asdict(self):
-        t = {f:getattr(self, f) for f in LabSpec.required_fields + LabSpec.optional_fields}
-        t['valid_options'] = {}
-        return t;
+        return {f:getattr(self, f) for f in self._fields}
 
     # there no reason for these to be methods of this class
     
@@ -113,7 +110,7 @@ class LabSpec(object):
     def parse_one_option(self, option, value):
         if option == "cmd_line":
             value = value.strip()
-            if re.match("[\w\.\s]*", value):
+            if re.match(r"[\w\.\s]*", value):
                 return True, True, "simple text", dict(USER_CMD_LINE=value)
             else:
                 return self.parse_one_dict_option(option, value)
@@ -121,7 +118,7 @@ class LabSpec(object):
             return True, True, "integer multiples of 100", dict(MHZ=str(int(value)))
         elif option == "optimize":
             value = value.strip();
-            if not re.match("[\s\w\-]*", value):
+            if not re.match(r"[\s\w\-]*", value):
                 return True, False, "Compiler optimization flags", {}
             else:
                 return True, True, "Compiler optimization flags", dict(C_OPTS=value)
@@ -156,11 +153,49 @@ class LabSpec(object):
 
         log.debug(f"New environment {submission.env}.")
 
+        
+    def safe_env_value(self, v):
+        safe_env = r"[a-zA-Z0-9_\-\. \"\']"
+        if not re.match(fr"^{safe_env}*$", v):
+            return False
+        else:
+            return True
+        
+    def parse_config(self, f):
+        r = dict()
+        for l in f.readlines():
+            l = re.sub(r"#.*", "", l)
+            l = l.strip()
+            if not l:
+                continue
+
+            m = re.match(r"(\w+)=(.*)", l)
+            if not m:
+                raise ConfigException(f"Malformed config line':  {l}")
+            else:
+                if m.group(1) not in self.valid_options:
+                    raise ConfigException(f"Setting {m.group(1)} is not permitted.  Possibilities are {','.join(self.valid_options.keys())}")
+                if not self.safe_env_value(m.group(2)):
+                    raise ConfigException(f"Unsafe value in this line.  Values cannot contain special characters.: {l}")
+
+            r[m.group(1)] = m.group(2)
+        return r
+    
+    def filter_env(self, env):
+        out = {}
+        for e in self.valid_options:
+            if e in env:
+                v = env[e]
+                if not self.safe_env_value(v):
+                    log.warn(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
+                else:
+                    out[e] = env[e]
+        return out
+
+
     @classmethod
     def _fromdict(cls, j):
         t = cls(**j)
-        t.figures_of_merit=[]
-        t.valid_options=dict()
         return t
 
     @classmethod
@@ -174,27 +209,22 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, options):
+    def __init__(self, lab_spec, files, env, command):
         self.lab_spec = lab_spec
         self.files = files
-        self.local_env = env
-        self.options = options
-        self.env = {}
+        self.env = env
+        self.command = command
         
     def _asdict(self):
         return dict(lab_spec=self.lab_spec._asdict(),
                     files=self.files,
                     env=self.env,
-                    local_env=self.local_env,
-                    options=self.options)
+                    command=self.command)
 
     @classmethod
     def _fromdict(cls, j):
-        t = cls(files=j['files'],
-                lab_spec=LabSpec._fromdict(j['lab_spec']),
-                env=j['env'],
-                options=j['options'])
-        t.local_env = j['local_env']
+        t = cls(**j)
+        t.lab_spec = LabSpec(**t.lab_spec)
         return t
 
     def apply_options(self):
@@ -213,7 +243,7 @@ class Submission(object):
         fields = o[1].split(", ")
         frequencies = []
         for f in fields:
-            m = re.search("(\d+):(\d+)", f)
+            m = re.search(r"(\d+):(\d+)", f)
             if not m:
                 raise Exception(f"Failed to parse output from cpupower: {f}")
             f = int(int(m.group(1))/1000)
@@ -250,20 +280,22 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status):
+    def __init__(self, submission, files, status, figures_of_merit=None):
         self.submission = submission
         self.files = files
         self.status = status
         r = []
-        if status == SubmissionResult.SUCCESS:
-            try:
-                self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
-            except KeyError as e:
-                self.figures_of_merit={}
-                log.warn(f"Couldn't extract figures of merit: {e}")
-                
+        if figures_of_merit is not None:
+            self.figures_of_merit = figures_of_merit
         else:
-            self.figures_of_merit ={}
+            if status == SubmissionResult.SUCCESS:
+                try:
+                    self.figures_of_merit = submission.lab_spec.extract_figures_of_merit(self)
+                except KeyError as e:
+                    self.figures_of_merit={}
+                    log.warn(f"Couldn't extract figures of merit: {e}")
+            else:
+                self.figures_of_merit ={}
 
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
@@ -273,18 +305,9 @@ class SubmissionResult(object):
 
     @classmethod
     def _fromdict(cls, j):
-        return cls(submission=Submission._fromdict(j['submission']),
-                   files=j['files'],
-                   status=j['status'],
-                   figures_of_merit=j['figures_of_merit'])
-
-
-def run_submission_remotely(sub, host, port):
-    log.debug("Running remotely on {}".format(host))
-    r = requests.post("{}/run-job".format(host), data=dict(payload=json.dumps(sub._asdict())))
-    log.debug(r.raw.read())
-    log.debug(r.json())
-    return SubmissionResult._fromdict(r.json())
+        t = cls(**j)
+        t.submission = Submission(**t.submission)
+        return cls(**j)
 
 
 def run_submission_locally(sub, root=".",
@@ -358,8 +381,6 @@ def run_submission_locally(sub, root=".",
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
-    figures_of_merit = []
-
     try:
         with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
@@ -369,7 +390,7 @@ def run_submission_locally(sub, root=".",
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                log.debug(f"Executing submission in docker\n{json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
+                log.debug(f"Executing submission in docker\n{sub._asdict()}")
                 with open(os.path.join(dirname, "job.json"), "w") as job:
                     json.dump(sub._asdict(), job, sort_keys=True, indent=4)
                 status = log_run(cmd=
@@ -380,47 +401,42 @@ def run_submission_locally(sub, root=".",
                                  # Convenience avoid having to rebuild the docker container
                                  (["-v", f"{os.environ['ARCHLAB_ROOT']}:/cse141pp-archlab"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
                                  [docker_image] +
-                                 ["run.py", "--run-json", "job.json", "--apply-options"] +
+                                 ["run.py", "--run-json", "job.json"] +
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                  timeout=sub.lab_spec.time_limit)
             else:
-                
                 if run_pristine:
-                    for f in sub.lab_spec.input_files:
+                    for f in sub.files:
                         path = os.path.join(dirname, f)
                         with open(path, "w") as of:
                             log.debug("Writing input file {}".format(path))
                             of.write(sub.files[f])
 
-                log.debug(f"Executing submission\n{json.dumps(sub._asdict(), sort_keys=True, indent=4)}")
-                sub.env = {}                         # distrust incoming environment, and recompue
-                sub.env.update(sub.lab_spec.lab_env) # lab spec environment
-                sub.lab_spec.parse_options(sub)      # config file
-                # In theory this was already filtered, but don't trust it.  Filter again.
-                sub.env.update(filter_env(sub.lab_spec, sub.local_env))        
+                
+                log.debug(f"Executing submission\n{sub._asdict()}")
 
-                if apply_options:
-                    sub.apply_options()
-
+                # filter the environment with the clean lab_spec
+                log.debug(f"Incomming env: {sub.env}")
+                sub.env = sub.lab_spec.filter_env(sub.env)
+                if run_pristine:
+                    # we just dumped the files in '.' so, look for them there.
+                    sub.env['LAB_SUBMISSION_DIR'] = "." 
+                log.debug(f"Filtered env: {sub.env}")
                 with environment(**sub.env):
-                    status = log_run(sub.lab_spec.run_cmd, cwd=dirname, timeout=sub.lab_spec.time_limit)
+                    log_run(sub.lab_spec.clean_cmd, cwd=dirname)
+                    status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
+                
+            for f in sub.lab_spec.output_files:
+                for filename in Path(dirname).glob(f):
+                    if os.path.isfile(filename):
+                        with open(filename, "r") as r:
+                            key = filename.relative_to(dirname)
+                            log.debug(f"Reading output file (storing as '{key}') {filename}.")
+                            result_files[str(key)] = r.read()
 
-            for i in sub.lab_spec.output_files:
-                if i in ['STDERR', 'STDOUT']:
-                    continue
-                path = os.path.join(dirname, i)
-                if os.path.exists(path) and os.path.isfile(path):
-                    with open(path, "r") as r:
-                        log.debug("Reading output file (storing as '{}') {}.".format(i, path))
-                        result_files[i] = r.read()
-                # else:
-                #     result_files[i] = f"<This output file did not exist>"
-                #     if status == SubmissionResult.SUCCESS:
-                #         status = SubmissionResult.MISSING_OUTPUT
-    except BadOptionException as e:
-        # if the get this, just fail, rather than exiting cleanly.
+    except TypeError:
         raise
-    except Exception:
+    except Exception as e:
         traceback.print_exc(file=err)
         traceback.print_exc()
         err.write("# Execution failed\n")
@@ -438,62 +454,154 @@ def remove_outputs(dirname, submission):
     for i in submission.lab_spec.output_files:
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
-
-def safe_env_value(v):
-    safe_env = "[a-zA-Z0-9_\-\. ]"
-    if not re.match(f"^{safe_env}*$", v):
-        return False
-    else:
-        return True
     
-def filter_env(spec, env):
-    out = {}
-    for e in spec.allowed_env:
-        if e in env:
-            v = env[e]
-            if not safe_env_value(v):
-                raise Exception(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
-            out[e] = env[e]
-    return out
-
-def build_submission(directory, input_dir, options, config_file):
+def build_submission(directory, input_dir, command, config_file=None):
     spec = LabSpec.load(directory)
     files = {}
+    if config_file is None:
+        config_file = spec.config_file
+    if command is None:
+        command = spec.default_cmd
 
     for f in spec.input_files:
-        full_path = os.path.join(directory, input_dir, f)
-        try:
-            with open(full_path, "r") as o:
-                log.debug(f"Reading input file '{full_path}'")
-                files[f] = o.read()
-        except Exception:
-            log.error(f"Failed to open {full_path}")
-            sys.exit(1)
+        full_path = os.path.join(directory, input_dir)
+        for filename in Path(full_path).glob(f):
+            log.debug(f"Found file '{filename}' matching '{f}'.")
+            try:
+                with open(filename, "r") as o:
+                    log.debug(f"Reading input file '{filename}'")
+                    key = filename.relative_to(full_path)
+                    log.debug(f"Storing as '{str(key)}'")
+                    files[str(key)] = o.read()
+            except Exception:
+                raise Exception(f"Couldn't open input file '{filename}'.")
 
-    env = filter_env(spec, os.environ)
+    env = spec.filter_env(os.environ)
 
-    options_dict = {}
-    
-    with open(os.path.join(directory,
-                           input_dir,
-                           config_file)) as config:
-        for l in config.readlines():
-            l = re.sub("#.*", "", l)
-            l = l.strip()
-            if l:
-                log.debug(f"parsing option {l} from config file")
-                k,v = l.split("=", maxsplit=1)
-                options_dict[k.strip()] = v.strip()
+    if config_file:
+        with open(os.path.join(directory,
+                               input_dir,
+                               config_file)) as config:
+            env.update(spec.parse_config(config))
+            
 
-                
-    if options: # THis is a hack to force make to rerun rules that depend on changes to the config file.
-        Path(config_file).touch()
-
-    log.debug(f"--config options are: {options}")
-    for o in options:
-        log.debug(f"parsing option {o} from command line")
-        k,v = o.split("=", maxsplit=1)
-        options_dict[k.strip()] = v.strip()
-
-    s = Submission(spec, files, env, options_dict)
+    s = Submission(spec, files, env, command)
     return s
+
+
+import io
+import platform
+import pytest
+
+def test_run():
+    sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
+
+    result = run_submission_locally(sub,
+                                    "test_inputs",
+                                    run_in_docker = False,
+                                    run_pristine = False,
+                                    docker_image = None)
+
+    assert set(result.files.keys()) == set(['an_output',
+                                            'out1',
+                                            'out2',
+                                            'STDOUT',
+                                            'STDERR'])
+    assert result.status == SubmissionResult.SUCCESS
+
+    d = result._asdict()
+    j = json.loads(json.dumps(d))
+    n = SubmissionResult._fromdict(j)
+
+    result2 = run_submission_locally(n,
+                                     "test_inputs",
+                                     run_in_docker = False,
+                                     run_pristine = False,
+                                     docker_image = None)
+
+    assert result.files == n.files
+    assert result.status == n.status
+    assert result.figures_of_merit == n.figures_of_merit
+
+    
+def test_lab_spec():
+    spec = LabSpec.load("test_inputs")
+    d = spec._asdict()
+    j = json.loads(json.dumps(d))
+    n = LabSpec._fromdict(j)
+    for f in spec._fields:
+        assert getattr(n, f) == getattr(spec, f), f"Field '{f}' doesn't match";
+
+        
+def test_build_submission():
+    with environment(FOO="BAR", C_OPTS="yes"):
+        sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
+
+        assert set(['foo.in',
+                    '1.inp',
+                    '2.inp',
+                    'bar/bang.1',
+                    'bar/bang.2'])  == set(map(str,sub.files.keys())), "Didn't find the expected input files"
+
+        assert "JUNK" not in sub.env
+        log.debug(f"{os.environ}")
+        assert sub.env["C_OPTS"] == "yes"
+
+        d = sub._asdict()
+        j = json.loads(json.dumps(d))
+        n = Submission._fromdict(j)
+
+        assert sub.env == n.env
+        assert sub.files == n.files
+
+        # 'solution' should be a symlink to test_inputs, so the result should
+        # be the same even though the file prefix is different.
+        sub2 = build_submission("test_inputs", "solution", config_file = "config-good", command=["true"])
+        assert set(['foo.in',
+                    '1.inp',
+                    '2.inp',
+                    'bar/bang.1',
+                    'bar/bang.2'])  == set(map(str,sub2.files.keys())), "Didn't find the expected input files"
+    
+    with pytest.raises(ConfigException):
+        sub = build_submission("test_inputs", ".", config_file="config-bad", command=["true"])
+
+def test_configs_validation():
+        
+    def test_good():
+        spec = LabSpec.load("test_inputs")
+        for f in [
+                """
+                USER_CMD_LINE=hello
+                USER_CMD_LINE2=hello
+                USER_CMD_LINE=--stat foo bar "baoeu aoue"
+                GPROF=yes
+                DEBUG=no
+                DEBUG2=
+                """
+        ]:
+            s = io.StringIO(f)
+            env = spec.parse_config(s)
+            assert dict(USER_CMD_LINE2="hello",
+                        USER_CMD_LINE='--stat foo bar "baoeu aoue"',
+                        GPROF="yes",
+                        DEBUG="no",
+                        DEBUG2=""
+                        ) == env
+
+
+    def test_err():
+        spec = LabSpec.load("test_inputs")
+        for f in ["USER_CMD_LINE=hello;goodbye",
+                  "foo=bar",
+                  "DEBUG=@",
+                  "foo=bar=baz"]:
+            s = io.StringIO(f)
+            log.debug(f"checking '{f}'")
+            with pytest.raises(ConfigException):
+                spec.parse_config(s)
+
+    test_good()
+    test_err()
+        
+    
