@@ -13,13 +13,11 @@ $(BUILD)config: $(LAB_SUBMISSION_DIR)/config
 	mkdir -p $(BUILD)
 	cp $< $@
 
-#$(BUILD)/config.env: $(BUILD)/config
-#	cp $< $@
 
 $(BUILD)config.env: $(LAB_SUBMISSION_DIR)/config.env
 	mkdir -p $(BUILD)
 	cp $< $@
-	cat $@
+
 
 $(BUILD)%.inp: $(LAB_SUBMISSION_DIR)/%.inp
 	mkdir -p $(BUILD)

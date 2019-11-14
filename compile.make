@@ -114,6 +114,7 @@ clean: rename-clean
 	(./$< --stats-file $*-stats.csv $(CMD_LINE_ARGS) > $@ 2>&1)
 	csv-pretty.py < $*-stats.csv >> $@
 	cat $@
+
 ifeq ($(GPROF),yes)
 	gprof ./$< > $*.gprof
 endif

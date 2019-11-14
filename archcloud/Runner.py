@@ -199,6 +199,19 @@ class LabSpec(object):
                     out[e] = env[e]
         return out
 
+    def filter_files(self, submission):
+        """
+        
+        Check and potentially modify input files.
+        
+        `submission` is a `Submission` object and `submission.files` has input
+        files.  You can check and/or modify them. 
+
+        Returns a tuple `success, error`.  If `not success`, then the reason should be `error`
+
+        """
+        return True, ""
+
     def filter_command(self, command):
         if command == self.default_cmd:
             return True, "", self.default_cmd
@@ -450,7 +463,8 @@ def run_submission_locally(sub, root=".",
                         with open(filename, "r") as r:
                             key = filename.relative_to(dirname)
                             log.debug(f"Reading output file (storing as '{key}') {filename}.")
-                            result_files[str(key)] = r.read()
+                            t = str(key)
+                            result_files[t] = r.read()
 
     except TypeError:
         raise
@@ -515,8 +529,9 @@ def build_submission(directory, input_dir, command, config_file=None):
             from_config = spec.parse_config(config)
             for i in from_config:
                 log.info(f"From '{Path(path).relative_to('.')}', loading environment variable '{i}={from_config[i]}'")
-
-
+    else:
+        from_config = {}
+        
     from_env.update(from_config)
 
     s = Submission(spec, files, from_env, command)
