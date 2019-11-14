@@ -1,5 +1,5 @@
 
-EXAMPLES=archlab_run
+EXAMPLES=archlab_run archlab_check
 
 default: $(EXAMPLES)
 
@@ -8,6 +8,9 @@ include ../compile.make
 	$(MAKE) -C ../libarchlab
 
 archlab_run: archlab_run.exe
+	mv $< $@
+
+archlab_check: archlab_check.exe
 	mv $< $@
 
 %.exe : %.o  ../libarchlab/libarchlab.a
