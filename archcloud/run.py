@@ -8,6 +8,7 @@ import argparse
 import sys
 import os
 import subprocess
+import base64
 
 def columnize(data, divider="|", headers=1):
     r = ""
@@ -133,7 +134,7 @@ def main(argv):
                     sys.stdout.write(result.files[i])
                     
                 with open(os.path.join(args.directory, i), "w") as t:
-                    t.write(result.files[i])
+                    t.write(base64.b64decode(result.files[i]).decode('utf8'))
 
             with open(os.path.join(args.directory, "results.json"), "w") as t:
                 t.write(json.dumps(result.results, sort_keys=True, indent=4))

@@ -20,6 +20,7 @@ from pathlib import Path
 import io
 import platform
 import pytest
+import base64
 
 
 class RunnerException(Exception):
@@ -435,9 +436,9 @@ def run_submission_locally(sub, root=".",
                 if run_pristine:
                     for f in sub.files:
                         path = os.path.join(dirname, f)
-                        with open(path, "w") as of:
+                        with open(path, "wb") as of:
                             log.debug("Writing input file {}".format(path))
-                            of.write(sub.files[f])
+                            of.write(base64.decode(sub.files[f]))
 
                 
                 log.debug(f"Executing submission\n{sub._asdict()}")
@@ -460,11 +461,11 @@ def run_submission_locally(sub, root=".",
             for f in sub.lab_spec.output_files:
                 for filename in Path(dirname).glob(f):
                     if os.path.isfile(filename):
-                        with open(filename, "r") as r:
+                        with open(filename, "rb") as r:
                             key = filename.relative_to(dirname)
                             log.debug(f"Reading output file (storing as '{key}') {filename}.")
                             t = str(key)
-                            result_files[t] = r.read()
+                            result_files[t] = base64.b64encode(r.read()).decode('utf8')
 
     except TypeError:
         raise
@@ -508,11 +509,11 @@ def build_submission(directory, input_dir, command, config_file=None):
         for filename in Path(full_path).glob(f):
             log.debug(f"Found file '{filename}' matching '{f}'.")
             try:
-                with open(filename, "r") as o:
+                with open(filename, "rb") as o:
                     log.debug(f"Reading input file '{filename}'")
                     key = filename.relative_to(full_path)
                     log.debug(f"Storing as '{str(key)}'")
-                    files[str(key)] = o.read()
+                    files[str(key)] = base64.b64encode(o.read()).decode('utf8')
                     log.info(f"Found input file '{filename}'")
             except Exception:
                 raise Exception(f"Couldn't open input file '{filename}'.")
