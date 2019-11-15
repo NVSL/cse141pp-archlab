@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Runner import build_submission, run_submission_locally, Submission, RunnerException
+from Runner import build_submission, run_submission_locally, Submission, RunnerException, SubmissionResult
 import logging as log
 import json
 import platform
@@ -142,12 +142,24 @@ def main(argv):
                 
     except RunnerException as e: 
         log.error(e)
-        status = "Unknown failure: {e}"
+        status_str = "Unknown failure: {e}"
+        exit_code = 1
     else:
-        status = result.status if result else "success"
+        if result:
+            status_str =  result.status
+            if result.status == SubmissionResult.SUCCESS:
+                exit_code = 0
+            else:
+                exit_code = 1
+        else:
+            status_str =  "success"
+            exit_code = 0
         
-    log.info(f"Finished.  Final status: {status}")
+    log.info(f"Finished.  Final status: {status_str}")
+    log.debug(f"Exit code: {exit_code}")
+    sys.exit(exit_code)
 
+    
 
 if __name__ == '__main__':
     main(sys.argv[1:])

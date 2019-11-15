@@ -428,6 +428,7 @@ def run_submission_locally(sub, root=".",
                                   "-v", f"{dirname}:/runner"] +
                                  # Convenience avoid having to rebuild the docker container
                                  (["-v", f"{os.environ['ARCHLAB_ROOT']}:/cse141pp-archlab"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
+                                 (["-v", f"{os.environ['CANELA_ROOT']}:/CSE141pp-SimpleCNN"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
                                  [docker_image] +
                                  ["run.py", "--run-json", "job.json"] +
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
@@ -438,7 +439,7 @@ def run_submission_locally(sub, root=".",
                         path = os.path.join(dirname, f)
                         with open(path, "wb") as of:
                             log.debug("Writing input file {}".format(path))
-                            of.write(base64.decode(sub.files[f]))
+                            of.write(base64.b64decode(sub.files[f]))
 
                 
                 log.debug(f"Executing submission\n{sub._asdict()}")
