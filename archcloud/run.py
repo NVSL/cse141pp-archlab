@@ -133,8 +133,8 @@ def main(argv):
                 elif i == "STDOUT":
                     sys.stdout.write(result.files[i])
                     
-                with open(os.path.join(args.directory, i), "w") as t:
-                    t.write(base64.b64decode(result.files[i]).decode('utf8'))
+                with open(os.path.join(args.directory, i), "wb") as t:
+                    t.write(base64.b64decode(result.files[i]))
 
             with open(os.path.join(args.directory, "results.json"), "w") as t:
                 t.write(json.dumps(result.results, sort_keys=True, indent=4))

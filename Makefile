@@ -29,5 +29,8 @@ setup:
 	insmod cache_control/cache_control.ko
 	modprobe msr
 
+test:
+	$(MAKE) -C archcloud test
+
 include compile.make
 
