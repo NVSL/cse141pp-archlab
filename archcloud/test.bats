@@ -7,6 +7,7 @@ export RUN_LOCAL_PUBSUB=yes
 export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/Test
 export PUBSUB_DIR=$SUBMISSION_DIR/com/ps
 export DATA_STORE_DIR=$SUBMISSION_DIR/com/ds
+
 rm -rf $PUBSUB_DIR
 rm -rf $DATA_STORE_DIR
 mkdir -p $PUBSUB_DIR

@@ -329,6 +329,7 @@ class SubmissionResult(object):
 
     def __init__(self, submission, files, status, results=None):
         self.submission = submission
+        log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
@@ -336,7 +337,13 @@ class SubmissionResult(object):
             self.results = {}
         else:
             self.results = results
-            
+
+    def get_file(self, name):
+        return base64.b64decode(self.files[name]).decode("utf-8")
+    def put_file(self, name, contents):
+        self.files[name] = base64.b64encode(contents).decode('utf8')
+        return base64.b64decode(self.files[name]).decode("utf8")
+        
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
@@ -645,7 +652,7 @@ def test_run():
     j = json.loads(json.dumps(d))
     n = SubmissionResult._fromdict(j)
 
-    result2 = run_submission_locally(n,
+    result2 = run_submission_locally(sub,
                                      "test_inputs",
                                      run_in_docker = False,
                                      run_pristine = False,

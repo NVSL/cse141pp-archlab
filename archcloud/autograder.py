@@ -73,7 +73,7 @@ from Runner import run_job_remotely
 import sys
 
 def main():
-
+        
         RUNNER_PATH = '/cse141pp-archlab/archcloud'
         sys.path.insert(1, '/cse141pp-archlab/archcloud')
         from Runner import build_submission
