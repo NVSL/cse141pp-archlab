@@ -14,8 +14,8 @@ mkdir -p $PUBSUB_DIR
 mkdir -p $DATA_STORE_DIR
 
 @test "server" {
-    packet_server.py  -v --just-once &
-    GPROF=yes run.py  --devel --solution . --directory $SUBMISSION_DIR --remote -v --lab-override repo=$SUBMISSION_DIR
+    packet_server.py  --just-once &
+    GPROF=yes run.py  --devel --solution . --directory $SUBMISSION_DIR --remote  --lab-override repo=$SUBMISSION_DIR
 
     [ "$(cat $SUBMISSION_DIR/message.out)" = "yes devel" ]
     [ "$(cat $SUBMISSION_DIR/protected.out)" = 'safe!' ]

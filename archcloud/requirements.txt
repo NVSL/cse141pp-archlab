@@ -1,3 +1,6 @@
+docopt
+google-cloud-pubsub
+google-cloud-datastore
 docker
 requests
 flask
