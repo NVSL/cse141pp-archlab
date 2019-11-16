@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Runner import build_submission, run_submission_locally, Submission, RunnerException, SubmissionResult
+from Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
 import logging as log
 import json
 import platform
@@ -48,14 +48,18 @@ def main(argv):
     parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
+    parser.add_argument('--remote', action='store_true', default=False, help="Run remotely")
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
-
+    parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
+    
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
 
     args = parser.parse_args(argv)
 
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
+
+    
 
     if args.run_json is not None:
         args.pristine = True
@@ -98,6 +102,12 @@ def main(argv):
             submission = build_submission(args.directory,
                                           input_dir,
                                           args.command)
+
+            for i in args.lab_override:
+                k, v = i.split("=")
+                log.debug(f"Overriding lab spec: {k} = {v}")
+                setattr(submission.lab_spec, k, v)
+                log.debug(f"{submission.lab_spec._asdict()}")
             
             if args.validate:
                 c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
@@ -115,13 +125,18 @@ def main(argv):
 
         result = None
         if not args.nop:
+
+            if not args.remote:
+                result = run_submission_locally(submission,
+                                                root=args.directory,
+                                                run_in_docker=args.docker,
+                                                run_pristine=args.pristine,
+                                                docker_image=args.docker_image)
+            else:
+                result = run_submission_remotely(submission)
             
-            result = run_submission_locally(submission,
-                                            root=args.directory,
-                                            run_in_docker=args.docker,
-                                            run_pristine=args.pristine,
-                                            docker_image=args.docker_image)
-            
+            log.debug(f"Got response: {result}")
+            log.debug(f"Got response: {result._asdict()}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
                 log.debug(result.files[i][:1000])
@@ -134,6 +149,7 @@ def main(argv):
                     sys.stdout.write(result.files[i])
                     
                 with open(os.path.join(args.directory, i), "wb") as t:
+                    log.debug(f"Writing data to {i}: {result.files[i][0:100]}")
                     t.write(base64.b64decode(result.files[i]))
 
             with open(os.path.join(args.directory, "results.json"), "w") as t:

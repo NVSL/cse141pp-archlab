@@ -36,3 +36,6 @@ benchmarks/new-*.patch
 .DS_Store
 *.gv
 *-gv.pdf
+__pycache__
+venv
+.idea

@@ -21,8 +21,19 @@ import io
 import platform
 import pytest
 import base64
+from uuid import uuid4 as uuid
+import time
 
+if "RUN_LOCAL_DS" in os.environ:
+    from LocalDataStore import LocalDataStore as DS
+else:
+    from GoogleDataStore import GoogleDataStore as DS
 
+if "RUN_LOCAL_PUBSUB" in os.environ:
+    from LocalPubSub import LocalPubSub as PubSub
+else:
+    from GooglePubSub import GooglePubSub as PubSub
+    
 class RunnerException(Exception):
     pass
 class BadOptionException(RunnerException):
@@ -318,6 +329,7 @@ class SubmissionResult(object):
 
     def __init__(self, submission, files, status, results=None):
         self.submission = submission
+        assert isinstance(submission, Submission)
         self.files = files
         self.status = status
         if results is None:
@@ -333,10 +345,78 @@ class SubmissionResult(object):
 
     @classmethod
     def _fromdict(cls, j):
+        j['submission'] = Submission._fromdict(j['submission'])
         t = cls(**j)
-        t.submission = Submission(**t.submission)
         return cls(**j)
 
+def run_submission_remotely(submission,
+                            metadata=None,
+                            manifest=None):
+        ds = DS()
+        pubsub = PubSub()
+
+        if not metadata:
+            metadata = ""
+            
+        if not manifest:
+            manifest = ""
+            
+        job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
+
+        job_id = uuid()
+
+        log.debug(f"Writing submission to datastore")
+        log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
+
+        output = ''
+        status = 'SUBMITTED'
+
+        ds.push(
+                str(job_id),
+                metadata, 
+                job_submission_json, 
+                manifest,
+                output,
+                status
+        )
+
+        time.sleep(1.0)
+
+        log.debug(f"Pushing job to pubsub")
+        pubsub.push(job_id=str(job_id))
+
+        start_time = time.time()
+        status = 'SUBMITTED'
+        running_time = time.time() - start_time
+
+        while True:
+            running_time = time.time() - start_time
+            
+            if running_time > 60*10:
+                status = 'TIME OUT (runtime > 10 minutes)'
+                log.error('Timeout: ' + str(running_time) + 's')
+                break
+            job_data = ds.pull(
+                job_id=str(job_id)
+            )
+
+            if job_data is None:
+                log.error("Can't find job!")
+                raise Exception(f"Couldn't find job: {job_id}")
+            else:
+                log.debug(f"Job progress: {job_data['status']}.")
+                
+                if job_data['status'] == 'COMPLETED':
+                    log.info(f"Job       finished after {running_time} seconds: {job_id}")
+                    log.debug(f"job_data['output'] = {job_data['output']}")
+                    status = 'COMPLETED'
+                    r = SubmissionResult._fromdict(json.loads(job_data['output']))
+                    log.debug(f"{r}")
+                    return r
+                
+                
+            time.sleep(1)
+                  
 
 def run_submission_locally(sub, root=".",
                            run_in_docker=False,
@@ -412,7 +492,9 @@ def run_submission_locally(sub, root=".",
     try:
         with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
-                log_run(cmd=['git', 'clone', ".", dirname])
+                r = log_run(cmd=['git', 'clone', sub.lab_spec.repo , dirname])
+                if r != SubmissionResult.SUCCESS:
+                    raise Exception("Clone for pristine execution failed.")
 
             sub.lab_spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
 
@@ -477,10 +559,13 @@ def run_submission_locally(sub, root=".",
         out.write("# Execution failed\n")
         status=SubmissionResult.ERROR
 
-    result_files['STDOUT'] = out.getvalue()
-    result_files['STDERR'] = err.getvalue()
-    log.debug("STDOUT: {}".format(out.getvalue()))
-    log.debug("STDERR: {}".format(err.getvalue()))
+    result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+    result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+    log.debug("STDOUT: \n{}".format(out.getvalue()))
+    log.debug("STDOUT_ENDS")
+    log.debug("STDERR: \n{}".format(err.getvalue()))
+    log.debug("STDERR_ENDS")
+    log.debug(result_files['STDOUT'])
     result = SubmissionResult(sub, result_files, status)
     return sub.lab_spec.post_run(result)
     
@@ -530,7 +615,7 @@ def build_submission(directory, input_dir, command, config_file=None):
         with open(path) as config:
             from_config = spec.parse_config(config)
             for i in from_config:
-                log.info(f"From '{Path(path).relative_to('.')}', loading environment variable '{i}={from_config[i]}'")
+                log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
     else:
         from_config = {}
         
