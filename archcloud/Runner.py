@@ -579,6 +579,17 @@ def test_lab_spec():
     for f in spec._fields:
         assert getattr(n, f) == getattr(spec, f), f"Field '{f}' doesn't match";
 
+def test_build_result():
+    with environment(FOO="BAR", C_OPTS="yes"):
+        sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
+        r = SubmissionResult(sub, dict(t="stuff"), SubmissionResult.SUCCESS)
+        d = r._asdict()
+        j = json.loads(json.dumps(d))
+        n = SubmissionResult._fromdict(j)
+
+        assert r.status == n.status
+        assert r.files == n.files
+        
         
 def test_build_submission():
     with environment(FOO="BAR", C_OPTS="yes"):
