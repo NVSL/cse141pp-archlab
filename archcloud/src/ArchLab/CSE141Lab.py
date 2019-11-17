@@ -1,4 +1,4 @@
-from Runner import LabSpec
+from .Runner import LabSpec
 
 class CSE141Lab(LabSpec):
     def __init__(self,

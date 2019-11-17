@@ -69,7 +69,7 @@ import random
 from uuid import uuid4 as uuid
 import time
 import os
-from Runner import run_job_remotely
+from .Runner import run_submission_remotely
 import sys
 
 def main():
@@ -94,7 +94,7 @@ def main():
         submission = build_submission('/autograder/submission', [])
         os.chdir(cdir)
 
-        result = run_job_remotely(submission, metadata, manifest)
+        result = run_submission_remotely(submission, metadata, manifest)
 
         files = []
 

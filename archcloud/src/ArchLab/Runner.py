@@ -25,14 +25,14 @@ from uuid import uuid4 as uuid
 import time
 
 if "RUN_LOCAL_DS" in os.environ:
-    from LocalDataStore import LocalDataStore as DS
+    from .LocalDataStore import LocalDataStore as DS
 else:
-    from GoogleDataStore import GoogleDataStore as DS
+    from .GoogleDataStore import GoogleDataStore as DS
 
 if "RUN_LOCAL_PUBSUB" in os.environ:
-    from LocalPubSub import LocalPubSub as PubSub
+    from .LocalPubSub import LocalPubSub as PubSub
 else:
-    from GooglePubSub import GooglePubSub as PubSub
+    from .GooglePubSub import GooglePubSub as PubSub
     
 class RunnerException(Exception):
     pass

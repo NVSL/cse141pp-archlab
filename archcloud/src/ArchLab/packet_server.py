@@ -16,16 +16,16 @@ import platform
 import argparse
 
 if "RUN_LOCAL_DS" in os.environ:
-    from LocalDataStore import LocalDataStore as DS
+    from .LocalDataStore import LocalDataStore as DS
 else:
-    from GoogleDataStore import GoogleDataStore as DS
+    from .GoogleDataStore import GoogleDataStore as DS
 
 if "RUN_LOCAL_PUBSUB" in os.environ:
-    from LocalPubSub import LocalPubSub as PubSub
+    from .LocalPubSub import LocalPubSub as PubSub
 else:
-    from GooglePubSub import GooglePubSub as PubSub
+    from .GooglePubSub import GooglePubSub as PubSub
 
-from Runner import build_submission, run_submission_locally, Submission
+from .Runner import build_submission, run_submission_locally, Submission
 
 def run_job(job_submission_json, submission_dir, pristine, in_docker, docker_image):
 
@@ -37,7 +37,7 @@ def run_job(job_submission_json, submission_dir, pristine, in_docker, docker_ima
 
     return output
 
-def main(argv):
+def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Server to run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")

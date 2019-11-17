@@ -4,18 +4,29 @@ import pytest
 import json
 
 
-import datastore_pull
-import datastore_push
+from . import datastore_pull
+from . import datastore_push
+
+required_env = [
+    "GOOGLE_CLOUD_PROJECT"
+]
+
 
 class GoogleDataStore(object):
     def __init__(self):
-        pass
-    def pull(self, key):
+        if any(map(lambda x : x not in os.environ, required_env)):
+            raise Exception(f"Can't start google datastore withouth these environment variables: {required_env}")
+
+    def pull(self, job_id):
         return datastore_pull.pull(key)
     def push(self, *argc):
         return datastore_push.push(*argc)
             
 def test_data_store():
+    if any(map(lambda x : x not in os.environ, required_env)):
+        pytest.skip("Enivornment not configured")
+
+        
     from uuid import uuid4 as uuid    
     ds = GoogleDataStore()
     id1 = uuid()

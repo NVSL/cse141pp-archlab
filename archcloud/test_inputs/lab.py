@@ -1,7 +1,7 @@
 # Students should not edit this file, since changes here will _only_
 # affect how your code runs locally.  It will not change how your code
 # executes in the cloud.
-from Runner import LabSpec
+from ArchLab.Runner import LabSpec
 import functools
 
 class ThisLab(LabSpec):
