@@ -22,7 +22,7 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
-def main(argv=sys.argv[1:0]):
+def main(argv=None):
     """
     This is the command line driver for Runner.py.  It should demonstrate everything you'll need to do with the library.
 
@@ -54,12 +54,16 @@ def main(argv=sys.argv[1:0]):
     
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
 
+    if argv == None:
+        argv = sys.argv[1:]
+        
     args = parser.parse_args(argv)
 
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
-    
+    log.debug(f"argv={argv}")
+    log.debug(f"args={args}")
 
     if args.run_json is not None:
         args.pristine = True

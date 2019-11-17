@@ -39,7 +39,6 @@ endif
 clean: lab-clean
 lab-clean:
 	rm -rf $(CLEANUP)
-	rm -rf $(BUILD)/*
 
 #  lab test suite.
 .PHONY: test

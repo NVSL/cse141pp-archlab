@@ -23,8 +23,6 @@ def pull(GOOGLE_CLOUD_PROJECT=None, SUBSCRIPTION=None):
 
     if GOOGLE_CLOUD_PROJECT is None:
         GOOGLE_CLOUD_PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT')
-    # TOPIC = os.getenv('PUBSUB_TOPIC')
-    # topic_name = f'projects/{GOOGLE_CLOUD_PROJECT}/topics/{TOPIC}'
 
     if SUBSCRIPTION is None:
         SUBSCRIPTION = os.getenv('PUBSUB_SUBSCRIPTION')
