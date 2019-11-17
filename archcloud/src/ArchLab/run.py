@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
 import logging as log
 import json
 import platform
@@ -22,7 +22,7 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
-def main(argv):
+def main(argv=sys.argv[1:0]):
     """
     This is the command line driver for Runner.py.  It should demonstrate everything you'll need to do with the library.
 

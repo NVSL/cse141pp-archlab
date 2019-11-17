@@ -1,4 +1,7 @@
+google-cloud
+google-cloud-pubsub
+docopt
+pyasn1
+google-cloud-datastore
 docker
-requests
-flask
 pytest
