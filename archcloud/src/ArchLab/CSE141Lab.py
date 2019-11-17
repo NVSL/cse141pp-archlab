@@ -10,7 +10,7 @@ class CSE141Lab(LabSpec):
                  default_cmd=None,
                  clean_cmd=None,
                  valid_options=None,
-                 timeout=20
+                timeout=20
     ):
         if default_cmd == None:
             default_cmd = ['make']

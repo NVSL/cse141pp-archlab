@@ -28,7 +28,7 @@ endif
 
 CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) -I. -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab  -lPCM -lpapi -lboost_program_options
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lPCM -lpapi -lboost_program_options
 GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
