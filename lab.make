@@ -28,6 +28,10 @@ clean: _lab-clean
 _lab-clean:
 	rm -rf $(BUILD)
 
+# The build infrastructure wants a install target.
+.PHONY: install
+install:
+
 #ifeq ($(DEVEL_MODE),yes)
 #CMD_LINE_ARGS=$(LAB_DEVEL_CMD_LINE) $(USER_CMD_LINE)
 #else
