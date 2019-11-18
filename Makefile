@@ -16,6 +16,7 @@ install-pin:
 	curl https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.11-97998-g7ecce2dac-gcc-linux.tar.gz -o pin-3.11-97998-g7ecce2dac-gcc-linux.tar.gz
 	tar xzf pin-3.11-97998-g7ecce2dac-gcc-linux.tar.gz
 
+install: install-prereqs
 install-prereqs: create-venv install-papi install-pin install-pcm 
 
 create-venv:

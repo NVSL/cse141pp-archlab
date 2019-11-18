@@ -519,7 +519,7 @@ def run_submission_locally(sub, root=".",
                                  (["-v", f"{os.environ['ARCHLAB_ROOT']}:/cse141pp-archlab"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
                                  (["-v", f"{os.environ['CANELA_ROOT']}:/CSE141pp-SimpleCNN"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
                                  [docker_image] +
-                                 ["run.py", "--run-json", "job.json"] +
+                                 ["runlab", "--run-json", "job.json"] +
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                  timeout=sub.lab_spec.time_limit)
             else:
@@ -549,6 +549,7 @@ def run_submission_locally(sub, root=".",
                     status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
+                log.debug(f"Searching for output files matchi '{f}'")
                 for filename in Path(dirname).glob(f):
                     if os.path.isfile(filename):
                         with open(filename, "rb") as r:
