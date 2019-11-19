@@ -8,12 +8,8 @@ import google.oauth2
 class GoogleDataStore(object):
     def __init__(self):
 
-        if "USE_ARCHLAB_TESTING_GOOGLE_ENVIRONMENT" in  os.environ:
-            self.namespace =  os.environ['DATASTORE_NAMESPACE_TEST']
-            self.credentials_path = os.environ['GOOGLE_CREDENTIALS_TEST']
-        else:
-            self.namespace =  os.environ['DATASTORE_NAMESPACE']
-            self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
+        self.namespace =  os.environ['DATASTORE_NAMESPACE']
+        self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
 
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
 
@@ -53,8 +49,8 @@ class GoogleDataStore(object):
 
 
 def test_google_data_store():
-    if "USE_ARCHLAB_TESTING_GOOGLE_ENVIRONMENT" not in os.environ:
-        pytest.skip("Enivornment not configured")
+    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") == "EMULATION":
+        pytest.skip("In emulation mode")
 
     from .LocalDataStore import do_test
 

@@ -3,19 +3,15 @@ import logging as log
 import pytest
 from google.cloud import pubsub_v1
 import google.oauth2
+import google.api_core
 
 class GooglePubSub(object):
     def __init__(self):
 
-        if "USE_ARCHLAB_TESTING_GOOGLE_ENVIRONMENT" in  os.environ:
-            self.subscription =  os.environ['PUBSUB_SUBSCRIPTION_TEST']
-            self.topic = os.environ['PUBSUB_TOPIC_TEST']
-            self.credentials_path = os.environ['GOOGLE_CREDENTIALS_TEST']
-        else:
-            self.subscription =  os.environ['PUBSUB_SUBSCRIPTION']
-            self.topic = os.environ['PUBSUB_TOPIC']
-            self.credentials_path = os.environ['ARCHLAB_GOOGLE_CREDENTIALS']
-            
+        self.subscription =  os.environ['PUBSUB_SUBSCRIPTION']
+        self.topic = os.environ['PUBSUB_TOPIC']
+        self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
+
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         
         
@@ -32,7 +28,10 @@ class GooglePubSub(object):
 
     def pull(self):
 
-        response = self.subscriber.pull(self.subscription_path, max_messages=1)
+        try:
+            response = self.subscriber.pull(self.subscription_path, max_messages=1)
+        except google.api_core.exceptions.DeadlineExceeded:
+            return None
 
         if len(response.received_messages) > 0:
             for msg in response.received_messages:
@@ -57,8 +56,8 @@ def test_push():
 
     from .LocalPubSub import do_test
     
-    if "USE_ARCHLAB_TESTING_GOOGLE_ENVIRONMENT" not in os.environ:
-        pytest.skip("Enivornment not configured")
+    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") == "EMULATION":
+        pytest.skip("In emulation mode")
 
     pubsub = GooglePubSub()
 

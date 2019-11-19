@@ -15,16 +15,15 @@ import logging as log
 import platform
 import argparse
 
-if "RUN_LOCAL_DS" in os.environ:
-    from .LocalDataStore import LocalDataStore as DS
-else:
-    from .GoogleDataStore import GoogleDataStore as DS
 
-if "RUN_LOCAL_PUBSUB" in os.environ:
+if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
+    from .LocalDataStore import LocalDataStore as DS
     from .LocalPubSub import LocalPubSub as PubSub
 else:
+    from .GoogleDataStore import GoogleDataStore as DS
     from .GooglePubSub import GooglePubSub as PubSub
 
+    
 from .Runner import build_submission, run_submission_locally, Submission
 
 def run_job(job_submission_json, submission_dir, pristine, in_docker, docker_image):
@@ -57,6 +56,7 @@ def main(argv=None):
 
     while True:
         job_id = pubsub.pull()
+            
         if job_id is not None:
             #job_id = msg.message.attributes['job_id']
 

@@ -24,23 +24,19 @@ import base64
 from uuid import uuid4 as uuid
 import time
 
-if "RUN_LOCAL_DS" in os.environ:
+if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
     from .LocalDataStore import LocalDataStore as DS
-else:
-    from .GoogleDataStore import GoogleDataStore as DS
-
-if "RUN_LOCAL_PUBSUB" in os.environ:
     from .LocalPubSub import LocalPubSub as PubSub
 else:
+    from .GoogleDataStore import GoogleDataStore as DS
     from .GooglePubSub import GooglePubSub as PubSub
-    
+
 class RunnerException(Exception):
     pass
 class BadOptionException(RunnerException):
     pass
 class ConfigException(Exception):
     pass
-
 
 @contextmanager
 def environment(**kwds):
