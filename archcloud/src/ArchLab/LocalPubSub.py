@@ -56,26 +56,23 @@ class LocalPubSub(object):
         with open(path, "w") as f:
             f.write(job_id)
 
+def do_test(pubsub):
+    to_send = set(map(str, [1 , 2, 3 ,4]))
 
+    for i in to_send:
+        pubsub.push(i)
+
+    while len(to_send):
+        r = pubsub.pull()
+        to_send -= {r}
+        
 def test_pub_sub():
 
-    def test(pubsub):
-        pubsub.push(str(1))
-        pubsub.push(str(2))
-        pubsub.push(str(3))
-
-        assert pubsub.pull() == str(1)
-        assert pubsub.pull() == str(2)
-        pubsub.push(str(4))
-        assert pubsub.pull() == str(3)
-        assert pubsub.pull() == str(4)
-
-        assert pubsub.pull() == None
-    test(LocalPubSub())
+    do_test(LocalPubSub())
 
     td =tempfile.TemporaryDirectory(prefix="ENVIRON")
     os.environ['PUBSUB_DIR'] = td.name
     t = LocalPubSub()
-    test(t)
+    do_test(t)
     assert "ENVIRON" in t.directory
     

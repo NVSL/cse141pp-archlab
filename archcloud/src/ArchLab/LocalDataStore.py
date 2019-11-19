@@ -46,35 +46,40 @@ class LocalDataStore(object):
         path = os.path.join(self.directory, str(job_id))
         with open(path, "w") as f:
             f.write(json.dumps(job))
-            
-def test_data_store():
 
-    def test(ds):
-        ds.push(job_id = 1,
-                metadata="a",
-                job_submission_json=json.dumps([]),
-                manifest="a file",
-                output="out",
-                status="sudmitted")
-        ds.push(job_id = 2,
-                metadata="b",
-                job_submission_json=json.dumps({}),
-                manifest="b file",
-                output="out2",
-                status="sudmitted2")
+def do_test(ds):
+    from uuid import uuid4 as uuid    
+    id1 = uuid()
+    id2 = uuid()
+    ds.push(job_id = str(id1),
+            metadata="a",
+            job_submission_json=json.dumps([]),
+            manifest="a file",
+            output="out",
+            status="sudmitted")
+    ds.push(job_id = str(id2),
+            metadata="b",
+            job_submission_json=json.dumps({}),
+            manifest="b file",
+            output="out2",
+            status="sudmitted2")
 
-        assert ds.pull(1)['metadata'] == "a"
-        assert ds.pull(2)['manifest'] == "b file"
-        assert ds.pull(3) == None
+    assert ds.pull(str(id1))['metadata'] == "a"
+    assert ds.pull(str(id2))['manifest'] == "b file"
+    assert ds.pull(str(uuid())) == None
+
+
+def test_local_data_store():
 
     tmp_dir = tempfile.TemporaryDirectory()
-    test(LocalDataStore(tmp_dir.name))
+    do_test(LocalDataStore(tmp_dir.name))
 
-    test(LocalDataStore())
+    do_test(LocalDataStore())
     td = tempfile.TemporaryDirectory(prefix="ENVIRON")
     os.environ['DATA_STORE_DIR'] = td.name
     ds = LocalDataStore()
     assert ds.pull(1) == None
-    test(ds)
+
+    do_test(ds)
     assert "ENVIRON" in ds.directory
     
