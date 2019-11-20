@@ -4,3 +4,5 @@ PATH=$PWD/tools/:$PWD/utils:$PWD/archcloud:$PIN_ROOT/:$PATH
 if [ -d archcloud/venv/ ]; then
     . archcloud/venv/bin/activate
 fi
+
+export LD_LIBRARY_PATH=/usr/local/lab
