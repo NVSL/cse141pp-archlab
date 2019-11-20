@@ -5,4 +5,4 @@ if [ -d archcloud/venv/ ]; then
     . archcloud/venv/bin/activate
 fi
 
-export LD_LIBRARY_PATH=/usr/local/lab
+export LD_LIBRARY_PATH=/usr/local/lib
