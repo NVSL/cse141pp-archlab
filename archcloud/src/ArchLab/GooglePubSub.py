@@ -22,7 +22,7 @@ class GooglePubSub(object):
         self.publisher = pubsub_v1.PublisherClient(credentials=self.credentials)
         self.topic_name = self.publisher.topic_path(self.project, self.topic)
         log.debug(f"pubsub credentials path={self.credentials_path}")
-        log.debug(f"env credentials path={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
+#        log.debug(f"env credentials path={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
         log.debug(f"pubsub topic_name ={self.topic_name}")
         log.debug(f"pubsub subscription name={self.subscription_path}")
 

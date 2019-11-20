@@ -2,7 +2,7 @@
 #-*- shell-script -*-
 
 export USE_LOCAL_ARCHLAB=yes
-export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/Test
+export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/CSE141pp-Lab-Test
 
 @test "server emulation" {
     export DATA_STORE_DIR=$SUBMISSION_DIR/com/ds
