@@ -56,7 +56,7 @@ def test_push():
 
     from .LocalPubSub import do_test
     
-    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") == "EMULATION":
+    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:
         pytest.skip("In emulation mode")
 
     pubsub = GooglePubSub()

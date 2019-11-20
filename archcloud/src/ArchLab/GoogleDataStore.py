@@ -48,8 +48,9 @@ class GoogleDataStore(object):
         self.datastore_client.put(job)
 
 
+        
 def test_google_data_store():
-    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") == "EMULATION":
+    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:
         pytest.skip("In emulation mode")
 
     from .LocalDataStore import do_test
