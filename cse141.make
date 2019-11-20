@@ -6,7 +6,7 @@ DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
-USER_CFLAGS=-I$(CANELA_ROOT)/googletest/googletest/include -I$(CANELA_ROOT)
+USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)
 
 # load user config
 include $(BUILD)config.env
@@ -21,7 +21,7 @@ regression.out: run_tests.exe
 include $(ARCHLAB_ROOT)/compile.make
 
 run_tests.exe: run_tests.o
-	$(CXX) $^ $(LDFLAGS) -L$(CANELA_ROOT)/googletest/lib -lgtest -lgtest_main  -o $@
+	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
 %.exe : $(BUILD)%.o main.o
