@@ -8,14 +8,18 @@ import tempfile
 class LocalPubSub(object):
     def __init__(self, directory=None):
         if directory == None:
-            if "PUBSUB_DIR" in os.environ:
-                directory = os.environ["PUBSUB_DIR"]
+            if "EMULATION_DIR" in os.environ:
+                log.debug("creating existing directory")
+                directory = os.environ["EMULATION_DIR"]
             else:
+                log.debug("creating new directory")
                 self.tmp_dir = tempfile.TemporaryDirectory()
                 directory = self.tmp_dir.name
 
         log.debug(f"Using directory {directory}")
         self.directory = directory
+        assert os.path.isdir(directory)
+        
         self.inbox = os.path.join(os.path.join(self.directory, "inbox"))
         self.outbox = os.path.join(os.path.join(self.directory, "outbox"))
                                
@@ -67,12 +71,17 @@ def do_test(pubsub):
         to_send -= {r}
         
 def test_pub_sub():
-
+    try:
+        del os.environ['EMULATION_DIR']
+    except:
+        pass
     do_test(LocalPubSub())
+    
+    with tempfile.TemporaryDirectory(prefix="ENVIRON") as td:
+        log.debug(f"Created temp directory: {td}")
+        os.environ["EMULATION_DIR"] = td
+        t = LocalPubSub()
+        do_test(t)
 
-    td =tempfile.TemporaryDirectory(prefix="ENVIRON")
-    os.environ['PUBSUB_DIR'] = td.name
-    t = LocalPubSub()
-    do_test(t)
-    assert "ENVIRON" in t.directory
+
     

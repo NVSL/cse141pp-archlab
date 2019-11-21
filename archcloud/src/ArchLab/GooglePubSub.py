@@ -7,7 +7,7 @@ import google.api_core
 
 class GooglePubSub(object):
     def __init__(self):
-
+        
         self.subscription =  os.environ['PUBSUB_SUBSCRIPTION']
         self.topic = os.environ['PUBSUB_TOPIC']
         self.credentials_path = os.environ['GOOGLE_CREDENTIALS']

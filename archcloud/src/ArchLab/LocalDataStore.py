@@ -8,13 +8,13 @@ import tempfile
 class LocalDataStore(object):
     def __init__(self, directory = None):
         if directory == None:
-            if "DATA_STORE_DIR" in os.environ:
-                directory = os.environ["DATA_STORE_DIR"]
+            if "EMULATION_DIR" in os.environ:
+                directory = os.environ["EMULATION_DIR"]
             else:
                 self.tmp_dir = tempfile.TemporaryDirectory()
                 directory = self.tmp_dir.name
 
-        self.directory = directory
+        self.directory = os.path.join(directory, "ds")
 
         if not os.path.exists(self.directory):
             log.debug(f"Creating inbox: {self.directory}")
@@ -70,13 +70,17 @@ def do_test(ds):
 
 
 def test_local_data_store():
+    try:
+        del os.environ['EMULATION_DIR']
+    except:
+        pass
 
     tmp_dir = tempfile.TemporaryDirectory()
     do_test(LocalDataStore(tmp_dir.name))
 
     do_test(LocalDataStore())
     td = tempfile.TemporaryDirectory(prefix="ENVIRON")
-    os.environ['DATA_STORE_DIR'] = td.name
+    os.environ['EMULATION_DIR'] = td.name
     ds = LocalDataStore()
     assert ds.pull(1) == None
 

@@ -493,9 +493,13 @@ def run_submission_locally(sub, root=".",
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
     try:
+        # use the existing directory, if we aren't doing a pristine checkout.
         with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
-                r = log_run(cmd=['git', 'clone', sub.lab_spec.repo , dirname])
+                repo = sub.lab_spec.repo
+                if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+                    repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+                r = log_run(cmd=['git', 'clone', repo , dirname])
                 if r != SubmissionResult.SUCCESS:
                     raise Exception("Clone for pristine execution failed.")
 
@@ -510,12 +514,8 @@ def run_submission_locally(sub, root=".",
                                  ["docker", "run",
                                   "--hostname", "runner",
                                   "--privileged",
-                                  "-v", f"{dirname}:/runner"] +
-                                 # Convenience avoid having to rebuild the docker container
-                                 (["-v", f"{os.environ['ARCHLAB_ROOT']}:/cse141pp-archlab"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
-                                 (["-v", f"{os.environ['CANELA_ROOT']}:/CSE141pp-SimpleCNN"] if os.environ.get("USE_LOCAL_ARCHLAB") is not None else [])+
-                                 [docker_image] +
-                                 ["runlab", "--run-json", "job.json"] +
+                                  docker_image,
+                                  "runlab", "--run-json", "job.json"] +
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                  timeout=sub.lab_spec.time_limit)
             else:
@@ -563,15 +563,20 @@ def run_submission_locally(sub, root=".",
         out.write("# Execution failed\n")
         status=SubmissionResult.ERROR
 
-    result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
-    result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
-    log.debug("STDOUT: \n{}".format(out.getvalue()))
-    log.debug("STDOUT_ENDS")
-    log.debug("STDERR: \n{}".format(err.getvalue()))
-    log.debug("STDERR_ENDS")
-    log.debug(result_files['STDOUT'])
-    result = SubmissionResult(sub, result_files, status)
-    return sub.lab_spec.post_run(result)
+    try:
+        result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+        result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+        log.debug("STDOUT: \n{}".format(out.getvalue()))
+        log.debug("STDOUT_ENDS")
+        log.debug("STDERR: \n{}".format(err.getvalue()))
+        log.debug("STDERR_ENDS")
+        log.debug(result_files['STDOUT'])
+        result = SubmissionResult(sub, result_files, status)
+        result = sub.lab_spec.post_run(result)
+    except Exception as e:
+        result = SubmissionResult(sub, {}, SubmissionResult.ERROR)
+        
+    return result
     
 
 

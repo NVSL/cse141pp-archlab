@@ -5,19 +5,13 @@ export USE_LOCAL_ARCHLAB=yes
 export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/CSE141pp-Lab-Test
 
 @test "server emulation" {
-    export DATA_STORE_DIR=$SUBMISSION_DIR/com/ds
-    export PUBSUB_DIR=$SUBMISSION_DIR/com/ps
-    rm -rf $PUBSUB_DIR
-    rm -rf $DATA_STORE_DIR
-    mkdir -p $PUBSUB_DIR
-    mkdir -p $DATA_STORE_DIR
-    
     pushd $CONFIG_REPO_ROOT
-    DEPLOYMENT_MODE=EMULATION
+    export DEPLOYMENT_MODE=EMULATION
     . config.sh
     popd
-    runlab.d --just-once &
-    runlab --devel --solution . --directory $SUBMISSION_DIR --remote --lab-override repo=$SUBMISSION_DIR
+
+    runlab.d --just-once -v  &
+    runlab --devel --solution . --directory $SUBMISSION_DIR --remote -v --lab-override repo=$SUBMISSION_DIR
 
     [ "$(cat $SUBMISSION_DIR/message.out)" = "yes devel" ]
     [ "$(cat $SUBMISSION_DIR/protected.out)" = 'safe!' ]
@@ -32,9 +26,10 @@ export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/CSE141pp-Lab-Test
 
 @test "server testing" {
     pushd $CONFIG_REPO_ROOT
-    DEPLOYMENT_MODE=TESTING
+    export DEPLOYMENT_MODE=TESTING
     . config.sh
     popd
+
     runlab.d --just-once &
     runlab --devel --solution . -v --directory $SUBMISSION_DIR --remote --lab-override repo=$SUBMISSION_DIR
 
@@ -52,7 +47,7 @@ export SUBMISSION_DIR=$ARCHLAB_ROOT/../labs/CSE141pp-Lab-Test
 
 @test "server deployed" {
     pushd $CONFIG_REPO_ROOT
-    DEPLOYMENT_MODE=DEPLOYED
+    export DEPLOYMENT_MODE=DEPLOYED
     . config.sh
     popd
     runlab.d --just-once &

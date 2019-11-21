@@ -18,8 +18,8 @@ setup(
     package_dir={'': 'src'},
     entry_points={
         'console_scripts' :[
-            'runlab=ArchLab.run:main',
-            'runlab.d=ArchLab.packet_server:main'
+            'runlab=ArchLab.runlab:main',
+            'runlab.d=ArchLab.runlab_daemon:main'
         ]
     }
 )
