@@ -41,8 +41,9 @@ lab-clean:
 	rm -rf $(CLEANUP)
 
 #  lab test suite.
+TESTS?=.*
 .PHONY: test
 test: 
-	bats test.bats
+	bats test.bats -f $(TESTS)
 
 ###############
