@@ -6,13 +6,15 @@ DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
-USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)
+USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUILD)
+
 
 # load user config
 include $(BUILD)config.env
 
 # -O4 breaks google test sometimes.
 run_tests.o: C_OPTS=-O0
+run_tests.o: $(BUILD)opt_cnn.hpp
 
 regression.out: run_tests.exe
 	./run_tests.exe --gtest_output=json:regression.json > $@ || true
@@ -44,6 +46,6 @@ lab-clean:
 TESTS?=.*
 .PHONY: test
 test: 
-	bats test.bats -f $(TESTS)
+	bats test.bats  -f '$(TESTS)'
 
 ###############
