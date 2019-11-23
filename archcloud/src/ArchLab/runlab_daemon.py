@@ -46,7 +46,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Server to run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
-    parser.add_argument('--docker-image', default=os.environ['DOCKER_IMAGE'], help="Docker image to use")
+    parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
     parser.add_argument('--just-once', action='store_true', help="Just check the queue 1 time, then exit.")
     if argv == None:
         argv = sys.argv[1:]

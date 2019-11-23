@@ -513,6 +513,8 @@ def run_submission_locally(sub, root=".",
                 status = log_run(cmd=
                                  ["docker", "run",
                                   "--hostname", "runner",
+                                  "--volume", f"{dirname}:/runner",
+                                  "-w", "/runner",
                                   "--privileged",
                                   docker_image,
                                   "runlab", "--run-json", "job.json"] +
