@@ -19,7 +19,8 @@ setup(
     entry_points={
         'console_scripts' :[
             'runlab=ArchLab.runlab:main',
-            'runlab.d=ArchLab.runlab_daemon:main'
+            'runlab.d=ArchLab.runlab_daemon:main',
+            'labtool=ArchLab.labtool:main'
         ]
     }
 )
