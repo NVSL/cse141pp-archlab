@@ -71,6 +71,7 @@ import argparse
 from .Runner import run_submission_remotely, build_submission
 import sys
 import logging as log
+import platform
 
 def main(argv=sys.argv[1:]):
         parser = argparse.ArgumentParser(description='Run a lab.')
