@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 @test "ls" {
     labtool --help
     labtool ls
@@ -32,4 +34,8 @@
     grep 'Some data' results/results.json
 }
 
-
+@test "jextract" {
+    echo '{"a": "b"}' | jextract a
+    [ $(echo '["a","b"]' | jextract 1) = "b" ]  
+    ! echo '{"a": "b"}' | jextract c
+}

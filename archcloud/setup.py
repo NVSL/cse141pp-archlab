@@ -21,7 +21,8 @@ setup(
             'runlab=ArchLab.runlab:main',
             'runlab.d=ArchLab.runlab_daemon:main',
             'labtool=ArchLab.labtool:main',
-            'gradescope=ArchLab.GradeScope:main'
+            'gradescope=ArchLab.GradeScope:main',
+            'jextract=ArchLab.jextract:main'
         ]
     }
 )
