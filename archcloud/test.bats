@@ -4,7 +4,7 @@
 
       # submit a job but don't wait.
       date=$(date)
-      runlab --directory test_inputs/tiny_lab --remote --no-validate --metadata "$date" &
+      runlab --directory $LABS_ROOT/CSE141pp-Lab-Tiny --remote --no-validate --metadata "$date" &
       echo  sleeping
       sleep 1
       echo  killing
@@ -26,4 +26,5 @@
       cp -r $LABS_ROOT/CSE141pp-Lab-Tiny/* submission/
       gradescope --root .
       [ -f results/results.json ]
+      grep 'Some data' results/results.json
 }

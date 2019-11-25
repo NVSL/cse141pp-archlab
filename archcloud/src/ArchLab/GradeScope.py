@@ -84,7 +84,7 @@ def main(argv=sys.argv[1:]):
         RUNNER_PATH = os.environ['ARCHLAB_REPO_ROOT']
         metadata_fn = os.path.join(args.root, 'submission_metadata.json')
         results_fn = os.path.join(args.root, 'results/results.json')
-        submission_dir =os.path.join(args.root, 'submission')
+        submission_dir = os.path.join(args.root, 'submission')
         
         with open(metadata_fn) as f:
                 metadata_str = f.read()
@@ -99,13 +99,13 @@ def main(argv=sys.argv[1:]):
 
         files = []
 
-        for key, value in result.files.items():
+        for filename in result.files:
                 files.append(
                         {
                                 "score": 0.0, # optional, but required if not on top level submission
                                 "max_score": 0.0, # optional
-                                "name": key, # optional
-                                "output": value, # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
+                                "name": filename, # optional
+                                "output": result.get_file(filename), # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
                                 "visibility": "visible", # Optional visibility setting
                                 "extra_data": {} # Optional extra data to be stored
                         }
