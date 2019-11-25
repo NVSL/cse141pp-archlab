@@ -23,13 +23,7 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-
-if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
-    from .LocalDataStore import LocalDataStore as DS
-    from .LocalPubSub import LocalPubSub as PubSub
-else:
-    from .GoogleDataStore import GoogleDataStore as DS
-    from .GooglePubSub import GooglePubSub as PubSub
+from .CloudServices import DS, PubSub
 
 class RunnerException(Exception):
     pass
@@ -355,70 +349,74 @@ class SubmissionResult(object):
 def run_submission_remotely(submission,
                             metadata=None,
                             manifest=None):
-        ds = DS()
-        pubsub = PubSub()
 
-        if not metadata:
-            metadata = ""
-            
-        if not manifest:
-            manifest = ""
-            
-        job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
+    ds = DS()
+    pubsub = PubSub()
 
-        job_id = uuid()
+    log.debug(f"Metadata was: {metadata}")
+    if not metadata:
+        metadata = ""
 
-        log.debug(f"Writing submission to datastore")
-        log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
+    if not manifest:
+        manifest = ""
 
-        output = ''
-        status = 'SUBMITTED'
+    log.debug(f"Metadata is: {metadata}")
 
-        ds.push(
-                str(job_id),
-                metadata, 
-                job_submission_json, 
-                manifest,
-                output,
-                status
-        )
+    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
 
-        time.sleep(1.0)
+    job_id = uuid()
 
-        log.debug(f"Pushing job to pubsub")
-        pubsub.push(job_id=str(job_id))
+    log.debug(f"Writing submission to datastore")
+    log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
 
-        start_time = time.time()
-        status = 'SUBMITTED'
+    output = ''
+    status = 'SUBMITTED'
+
+    ds.push(
+            str(job_id),
+            metadata, 
+            job_submission_json, 
+            manifest,
+            output,
+            status
+    )
+
+    time.sleep(1.0)
+
+    log.debug(f"Pushing job to pubsub")
+    pubsub.push(job_id=str(job_id))
+
+    start_time = time.time()
+    status = 'SUBMITTED'
+    running_time = time.time() - start_time
+
+    while True:
         running_time = time.time() - start_time
 
-        while True:
-            running_time = time.time() - start_time
-            
-            if running_time > 60*10:
-                status = 'TIME OUT (runtime > 10 minutes)'
-                log.error('Timeout: ' + str(running_time) + 's')
-                break
-            job_data = ds.pull(
-                job_id=str(job_id)
-            )
+        if running_time > 60*10:
+            status = 'TIME OUT (runtime > 10 minutes)'
+            log.error('Timeout: ' + str(running_time) + 's')
+            break
+        job_data = ds.pull(
+            job_id=str(job_id)
+        )
 
-            if job_data is None:
-                log.error("Can't find job!")
-                raise Exception(f"Couldn't find job: {job_id}")
-            else:
-                log.debug(f"Job progress: {job_data['status']}.")
-                
-                if job_data['status'] == 'COMPLETED':
-                    log.info(f"Job       finished after {running_time} seconds: {job_id}")
-                    log.debug(f"job_data['output'] = {job_data['output']}")
-                    status = 'COMPLETED'
-                    r = SubmissionResult._fromdict(json.loads(job_data['output']))
-                    log.debug(f"{r}")
-                    return r
-                
-                
-            time.sleep(1)
+        if job_data is None:
+            log.error("Can't find job!")
+            raise Exception(f"Couldn't find job: {job_id}")
+        else:
+            log.debug(f"Job progress: {job_data['status']}.")
+
+            if job_data['status'] == 'COMPLETED':
+                log.info(f"Job       finished after {running_time} seconds: {job_id}")
+                log.debug(f"job_data['output'] = {job_data['output']}")
+                status = 'COMPLETED'
+                r = SubmissionResult._fromdict(json.loads(job_data['output']))
+                log.debug(f"{r}")
+                return r
+
+
+        time.sleep(1)
                   
 
 def run_submission_locally(sub, root=".",

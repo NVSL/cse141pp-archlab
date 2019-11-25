@@ -1,8 +1,4 @@
-# Students should not edit this file, since changes here will _only_
-# affect how your code runs locally.  It will not change how your code
-# executes in the cloud.
 from ArchLab.Runner import LabSpec
-import functools
 
 class ThisLab(LabSpec):
     def __init__(self):

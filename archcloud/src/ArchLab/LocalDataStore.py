@@ -75,13 +75,16 @@ def test_local_data_store():
     except:
         pass
 
+    from .CloudServices import DS
+    assert DS == LocalDataStore
+    
     tmp_dir = tempfile.TemporaryDirectory()
-    do_test(LocalDataStore(tmp_dir.name))
+    do_test(DS(tmp_dir.name))
 
-    do_test(LocalDataStore())
+    do_test(DS())
     td = tempfile.TemporaryDirectory(prefix="ENVIRON")
     os.environ['EMULATION_DIR'] = td.name
-    ds = LocalDataStore()
+    ds = DS()
     assert ds.pull(1) == None
 
     do_test(ds)

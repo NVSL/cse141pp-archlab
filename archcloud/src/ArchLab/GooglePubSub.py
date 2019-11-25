@@ -59,6 +59,10 @@ def test_push():
     if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:
         pytest.skip("In emulation mode")
 
-    pubsub = GooglePubSub()
+    
+    from .CloudServices import PubSub
+    assert PubSub == GooglePubSub
+    
+    pubsub = PubSub()
 
     do_test(pubsub)

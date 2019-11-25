@@ -55,6 +55,9 @@ def test_google_data_store():
 
     from .LocalDataStore import do_test
 
-    ds = GoogleDataStore()
+    from .CloudServices import DS
+    assert DS == GoogleDataStore
+    
+    ds = DS()
 
     do_test(ds)

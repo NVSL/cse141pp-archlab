@@ -16,13 +16,7 @@ import platform
 import argparse
 import tempfile
 
-if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
-    from .LocalDataStore import LocalDataStore as DS
-    from .LocalPubSub import LocalPubSub as PubSub
-else:
-    from .GoogleDataStore import GoogleDataStore as DS
-    from .GooglePubSub import GooglePubSub as PubSub
-
+from .CloudServices import DS, PubSub
     
 from .Runner import build_submission, run_submission_locally, Submission
 

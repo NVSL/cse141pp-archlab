@@ -75,12 +75,15 @@ def test_pub_sub():
         del os.environ['EMULATION_DIR']
     except:
         pass
-    do_test(LocalPubSub())
+    from .CloudServices import PubSub
+    assert PubSub == LocalPubSub
+
+    do_test(PubSub())
     
     with tempfile.TemporaryDirectory(prefix="ENVIRON") as td:
         log.debug(f"Created temp directory: {td}")
         os.environ["EMULATION_DIR"] = td
-        t = LocalPubSub()
+        t = PubSub()
         do_test(t)
 
 

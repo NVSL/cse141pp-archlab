@@ -59,11 +59,11 @@ def main(argv=None):
         
     args = parser.parse_args(argv)
 
+              
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 
-    log.debug(f"argv={argv}")
-    log.debug(f"args={args}")
+    log.debug(f"Command line args: {args}")
 
     if args.run_json is not None:
         args.pristine = True

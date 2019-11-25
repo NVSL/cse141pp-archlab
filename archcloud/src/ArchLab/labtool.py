@@ -9,6 +9,7 @@ import sys
 import os
 import subprocess
 import base64
+from  .CloudServices import DS, PubSub
 
 def columnize(data, divider="|", headers=1):
     r = ""
