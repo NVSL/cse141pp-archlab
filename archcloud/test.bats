@@ -12,3 +12,18 @@
       labtool ls
       labtool ls | grep -F "$date"
 }
+
+@test "autograder" {
+      export DEPLOYMENT_MODE=EMULATION
+      pushd $CONFIG_REPO_ROOT
+      . config.sh
+      popd
+      
+      runlab.d --just-once -v  &
+      pushd test_inputs/gradescope/
+      rm -rf submission
+      mkdir -p submission
+      cp -r $LABS_ROOT/CSE141pp-Lab-Tiny/* submission/
+      gradescope --root .
+      [ -f results/results.json ]
+}

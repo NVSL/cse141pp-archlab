@@ -20,7 +20,8 @@ setup(
         'console_scripts' :[
             'runlab=ArchLab.runlab:main',
             'runlab.d=ArchLab.runlab_daemon:main',
-            'labtool=ArchLab.labtool:main'
+            'labtool=ArchLab.labtool:main',
+            'gradescope=ArchLab.GradeScope:main'
         ]
     }
 )

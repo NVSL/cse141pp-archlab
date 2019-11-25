@@ -56,7 +56,7 @@ metadata format:
   ],
   "previous_submissions": [
     {
-      "submission_time": "2017-04-06T14:24:48.087023-07:00",// previous submission time
+       "submission_time": "2017-04-06T14:24:48.087023-07:00",// previous submission time
       "score": 0.0, // Previous submission score
       "results": { ... } // Previous submission results object
     }, ...
@@ -65,35 +65,36 @@ metadata format:
 """
 
 import json
-import random
-from uuid import uuid4 as uuid
 import time
 import os
-from .Runner import run_submission_remotely
+import argparse
+from .Runner import run_submission_remotely, build_submission
 import sys
+import logging as log
 
-def main():
+def main(argv=sys.argv[1:]):
+        parser = argparse.ArgumentParser(description='Run a lab.')
+        parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
+        parser.add_argument('--root', default="/autograder", help="Autograder root")
+        args = parser.parse_args(argv)
+
+        log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
+                        level=log.DEBUG if args.verbose else log.INFO)
         
-        RUNNER_PATH = '/cse141pp-archlab/archcloud'
-        sys.path.insert(1, '/cse141pp-archlab/archcloud')
-        from Runner import build_submission
-
-        metadata_fn = '/autograder/submission_metadata.json'
-        results_fn = '/autograder/results/results.json'
-
+        RUNNER_PATH = os.environ['ARCHLAB_REPO_ROOT']
+        metadata_fn = os.path.join(args.root, 'submission_metadata.json')
+        results_fn = os.path.join(args.root, 'results/results.json')
+        submission_dir =os.path.join(args.root, 'submission')
+        
         with open(metadata_fn) as f:
                 metadata_str = f.read()
-                print(metadata_str)
                 metadata = json.loads(metadata_str)
 
         metadata = json.dumps(metadata)
         manifest = 'one file from student repo'
 
-        cdir = os.getcwd()
-        os.chdir('/autograder/submission/')
-        submission = build_submission('/autograder/submission', [])
-        os.chdir(cdir)
-
+        start_time = time.time()
+        submission = build_submission(submission_dir, ".", None)
         result = run_submission_remotely(submission, metadata, manifest)
 
         files = []
@@ -104,9 +105,7 @@ def main():
                                 "score": 0.0, # optional, but required if not on top level submission
                                 "max_score": 0.0, # optional
                                 "name": key, # optional
-                                # "number": "1.1", # optional (will just be numbered in order of array if no number given)
                                 "output": value, # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
-                                # "tags": ["tag1", "tag2", "tag3"], # optional
                                 "visibility": "visible", # Optional visibility setting
                                 "extra_data": {} # Optional extra data to be stored
                         }
@@ -136,7 +135,7 @@ def main():
                 #     },
                 #     # and more test cases...
                 # ],
-                "leaderboard": json.loads(job_data['output'])['figures_of_merit'] # Optional, will set up leaderboards for these values
+                "leaderboard": result.results['figures_of_merit'] # Optional, will set up leaderboards for these values
         }
 
         with open(results_fn, 'w') as f:
