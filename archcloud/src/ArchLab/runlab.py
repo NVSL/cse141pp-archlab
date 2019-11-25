@@ -51,7 +51,8 @@ def main(argv=None):
     parser.add_argument('--remote', action='store_true', default=False, help="Run remotely")
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
     parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
-    
+    parser.add_argument('--metadata', default="", help="Arbitrary metadata on remote execution")
+
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
 
     if argv == None:
@@ -137,7 +138,8 @@ def main(argv=None):
                                                 run_pristine=args.pristine,
                                                 docker_image=args.docker_image)
             else:
-                result = run_submission_remotely(submission)
+                result = run_submission_remotely(submission,
+                                                 metadata=args.metadata)
             
             log.debug(f"Got response: {result}")
             log.debug(f"Got response: {result._asdict()}")

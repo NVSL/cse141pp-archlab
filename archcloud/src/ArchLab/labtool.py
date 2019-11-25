@@ -25,6 +25,11 @@ def columnize(data, divider="|", headers=1):
 
 def cmd_ls(args):
     log.debug(f"Running ls with {args}")
+    ds = DS()
+    jobs = ds.query()
+    sys.stdout.write(f"{len(jobs)} jobs:\n")
+    for j in jobs:
+        sys.stdout.write(f"{j['job_id']}: {j['metadata']} \n")
     
 def main(argv=None):
     """

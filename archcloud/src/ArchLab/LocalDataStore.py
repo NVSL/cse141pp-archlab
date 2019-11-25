@@ -20,6 +20,21 @@ class LocalDataStore(object):
             log.debug(f"Creating inbox: {self.directory}")
             os.mkdir(self.directory)
 
+    def query(self, **kwargs):
+        log.debug(f"querying with {kwargs}")
+        r = []
+        for p in Path(self.directory).iterdir():
+            log.debug(f"examining {p}")
+            with open(p, 'r') as f:
+                job = json.loads(f.read())
+                log.debug(f"read {job}")
+                if len(kwargs) == 0 or all(map(lambda kv: job[kv[0]] == kv[1], kwargs.items())):
+                    log.debug("It matched!")
+                    r.append(job)
+                else:
+                    log.debug("It didn't match")
+        return r
+    
     def pull(self, job_id):
         path = os.path.join(self.directory, str(job_id))
         try:
@@ -61,13 +76,18 @@ def do_test(ds):
             metadata="b",
             job_submission_json=json.dumps({}),
             manifest="b file",
-            output="out2",
+            output="out",
             status="sudmitted2")
 
     assert ds.pull(str(id1))['metadata'] == "a"
     assert ds.pull(str(id2))['manifest'] == "b file"
     assert ds.pull(str(uuid())) == None
 
+    r = ds.query(job_id=str(id1))
+    assert len(r) == 1
+    assert r[0]['job_id'] == str(id1)
+    r = ds.query(output="out")
+    assert len(r) == 2
 
 def test_local_data_store():
     try:
