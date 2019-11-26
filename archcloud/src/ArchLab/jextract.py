@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
 import logging as log
 import json
 import platform
 import argparse
 import sys
 import os
-import subprocess
-import base64
 
 class JSONPathException(Exception):
     pass
@@ -35,7 +32,7 @@ def extract(data, path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
-    parser.add_argument('path', default=[], help="path components")
+    parser.add_argument('path', nargs="*", default=[], help="path components")
 
     if argv == None:
         argv = sys.argv[1:]
@@ -47,7 +44,7 @@ def main(argv=None):
     try:
         r = extract(d, args.path)
     except JSONPathException:
-        sys.stderr.write(f"Couldn't find path: {path}")
+        sys.stderr.write(f"Couldn't find path: {args.path}\n")
         sys.exit(1)
     else:
         print(r)

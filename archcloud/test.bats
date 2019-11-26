@@ -17,7 +17,7 @@
 
 @test "autograder" {
     # Test the autograding script
-    # This shoudl mimic how gradescopes runs it.
+    # This should mimic how our gradescope scripts run it.
     # Tests for the setup stuff is the autograder repo.
     export DEPLOYMENT_MODE=EMULATION
     pushd $CONFIG_REPO_ROOT
@@ -36,6 +36,7 @@
 
 @test "jextract" {
     echo '{"a": "b"}' | jextract a
+    echo '{"a": ["b", "c"]}' | jextract a 0
     [ $(echo '["a","b"]' | jextract 1) = "b" ]  
     ! echo '{"a": "b"}' | jextract c
 }

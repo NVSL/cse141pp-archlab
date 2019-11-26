@@ -33,6 +33,7 @@ setup:
 
 test:
 	$(MAKE) -C archcloud test
+	$(MAKE) -C archcloud tools
 
 include compile.make
 
