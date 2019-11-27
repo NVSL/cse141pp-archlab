@@ -51,24 +51,73 @@ def cmd_top(args):
 
     live_jobs=set()
     for i in ds.query(status="SUBMITTED"):
+        if 'submitted_utc' not in i or i['submitted_utc'] in ["", None]:
+            continue
+        if utcnow() - eval(i['submitted_utc']) > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+            continue
         live_jobs.add(i['job_id'])
     for i in ds.query(status="RUNNING"):
         live_jobs.add(i['job_id'])
         
-    while True:
-        os.system("clear")
-        for j in copy.copy(live_jobs):
-            job=ds.pull(j)
-            if job['status'] == "COMPLETED":
-                live_jobs.remove(job['job_id'])
-            sys.stdout.write(f"{job['job_id']}\t{job['status']}\n")
+    try: 
+        while True:
+            rows =[["id", "status", "wtime", "rtime", "tot. time", "runner", "lab" ]]
+            for j in copy.copy(live_jobs):
+                job=ds.pull(j)
+                now = utcnow()
+                if job['status'] == "COMPLETED":
+                    try:
+                        since_complete = now - eval(job['completed_utc'])
+                        if since_complete > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+                            live_jobs.remove(job['job_id'])
+                    except:
+                        live_jobs.remove(job['job_id'])
+
+                try:
+                    #log.debug(f"Parsing {job['submitted_utc']}")
+                    if job['status'] == "SUBMITTED":
+                        waiting = now - eval(job['submitted_utc'])
+                    else:
+                        waiting = eval(job['started_utc']) - eval(job['submitted_utc'])
+                except KeyError:
+                    waiting = "k"
+                except SyntaxError:
+                    waiting = "s"
+
+                try:
+                    #log.debug(f"Parsing {job['started_utc']}")
+                    if job['status'] == "STARTED":
+                        running = now - eval(job['started_utc'])
+                    elif job['status'] == "COMPLETED":
+                        running = eval(job['completed_utc']) - eval(job['started_utc'])
+                    else:
+                        running = "."
+                except KeyError as e:
+                    log.error(e)
+                    running = "k"
+                except SyntaxError as e:
+                    log.error(e)
+                    running = "s"
+
+                try:
+                    total = running + waiting
+                except:
+                    total = "?"
+                    
+                rows.append([job['job_id'], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), job['lab_name']])
+                
+            os.system("clear")
+            sys.stdout.write(columnize(rows, divider=" "))
             sys.stdout.flush()
-        m = ps.pull(timeout=1)
-        if not m:
-            continue
-        sys.stdout.write(f"Got message {m}")
-        sys.stdout.flush()
-        live_jobs.add(m)
+            m = ps.pull(timeout=1)
+            if m:
+                live_jobs.add(m)
+            
+    except KeyboardInterrupt:
+        sys.exit(0)
+    finally:
+        ps.tear_down()
+        
         
 def main(argv=None):
     """
