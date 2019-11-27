@@ -13,4 +13,4 @@ include ../compile.make
 
 .PHONY:  test
 test: run_tests.exe
-	./run_tests.exe
+	./run_tests.exe --engine papi
