@@ -4,11 +4,20 @@ import pytest
 from google.cloud import pubsub_v1
 import google.oauth2
 import google.api_core
-
+from uuid import uuid4 as uuid    
 class GooglePubSub(object):
-    def __init__(self):
-        
-        self.subscription =  os.environ['PUBSUB_SUBSCRIPTION']
+    def __init__(self, private_subscription=False, subscription_base=None):
+
+        if subscription_base is None:
+            self.subscription_base =  os.environ['PUBSUB_SUBSCRIPTION']
+        else:
+            self.subscription_base = subscription_base
+            
+        if private_subscription:
+            self.subscription_name = fr"{self.subscription_base}-{str(uuid())}"
+        else:
+            self.subscription_name = self.subscription_base
+            
         self.topic = os.environ['PUBSUB_TOPIC']
         self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
 
@@ -18,14 +27,18 @@ class GooglePubSub(object):
         assert os.path.exists(self.credentials_path)
         self.credentials = google.oauth2.service_account.Credentials.from_service_account_file(self.credentials_path)
         self.subscriber = pubsub_v1.SubscriberClient(credentials=self.credentials)
-        self.subscription_path = self.subscriber.subscription_path(self.project, self.subscription)
+        self.subscription_path = self.subscriber.subscription_path(self.project, self.subscription_name)
         self.publisher = pubsub_v1.PublisherClient(credentials=self.credentials)
         self.topic_name = self.publisher.topic_path(self.project, self.topic)
+
+        if private_subscription:
+            self.subscription = self.subscriber.create_subscription(self.subscription_path, self.topic_name)
         log.debug(f"pubsub credentials path={self.credentials_path}")
 #        log.debug(f"env credentials path={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
         log.debug(f"pubsub topic_name ={self.topic_name}")
         log.debug(f"pubsub subscription name={self.subscription_path}")
 
+        
     def pull(self):
 
         try:
@@ -51,7 +64,10 @@ class GooglePubSub(object):
         )
         log.debug(f"Result = {t.result()}")
 
-    
+
+    def tear_down(self):
+        self.subscriber.delete_subscription(self.subscription_path)
+        
 def test_push():
 
     from .LocalPubSub import do_test
@@ -62,7 +78,9 @@ def test_push():
     
     from .CloudServices import PubSub
     assert PubSub == GooglePubSub
-    
-    pubsub = PubSub()
 
-    do_test(pubsub)
+    pubsub = PubSub(private_subscription=True)
+    try:
+        do_test(pubsub)
+    except:
+        pubsub.teardown()

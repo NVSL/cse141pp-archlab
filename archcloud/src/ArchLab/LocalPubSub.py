@@ -3,7 +3,7 @@ import logging as log
 from pathlib import Path
 import pytest
 import tempfile
-
+import time
 
 class LocalPubSub(object):
     def __init__(self, directory=None):
@@ -66,6 +66,7 @@ def do_test(pubsub):
     for i in to_send:
         pubsub.push(i)
 
+    time.sleep(1)
     while len(to_send):
         r = pubsub.pull()
         to_send -= {r}
@@ -75,7 +76,10 @@ def test_pub_sub():
         del os.environ['EMULATION_DIR']
     except:
         pass
-    from .CloudServices import PubSub
+    os.environ['DEPLOYMENT_MODE'] = "EMULATION"
+    from .CloudServices import GetPubSub
+    PubSub = GetPubSub()
+    
     assert PubSub == LocalPubSub
 
     do_test(PubSub())

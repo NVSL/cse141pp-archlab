@@ -66,18 +66,20 @@ def do_test(ds):
     from uuid import uuid4 as uuid    
     id1 = uuid()
     id2 = uuid()
+    junk = str(uuid())
+    log.debug(f"Junk = {junk}")
     ds.push(job_id = str(id1),
             metadata="a",
             job_submission_json=json.dumps([]),
             manifest="a file",
             output="out",
-            status="sudmitted")
+            status=junk)
     ds.push(job_id = str(id2),
             metadata="b",
             job_submission_json=json.dumps({}),
             manifest="b file",
             output="out",
-            status="sudmitted2")
+            status=junk)
 
     assert ds.pull(str(id1))['metadata'] == "a"
     assert ds.pull(str(id2))['manifest'] == "b file"
@@ -86,7 +88,8 @@ def do_test(ds):
     r = ds.query(job_id=str(id1))
     assert len(r) == 1
     assert r[0]['job_id'] == str(id1)
-    r = ds.query(output="out")
+
+    r = ds.query(status=junk)
     assert len(r) == 2
 
 def test_local_data_store():
@@ -95,7 +98,11 @@ def test_local_data_store():
     except:
         pass
 
-    from .CloudServices import DS
+    os.environ['DEPLOYMENT_MODE'] = "EMULATION"
+
+    from .CloudServices import GetDS
+    DS = GetDS()
+
     assert DS == LocalDataStore
     
     tmp_dir = tempfile.TemporaryDirectory()

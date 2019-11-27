@@ -27,6 +27,14 @@ class GoogleDataStore(object):
         for entity in query_iter:
             return entity
 
+    def query(self, **kwargs):
+        log.debug(f"querying with {kwargs}")
+        query = self.datastore_client.query(kind=self.kind)
+        for k,v in kwargs.items():
+            query.add_filter(k, '=', v)
+        query_iter = query.fetch()
+        return list(query_iter)
+
     def push(self,
 	     job_id,
 	     metadata, 
