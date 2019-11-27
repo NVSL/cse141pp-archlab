@@ -76,8 +76,9 @@ def test_push():
         pytest.skip("In emulation mode")
 
     
-    from .CloudServices import PubSub
-    assert PubSub == GooglePubSub
+    from .CloudServices import GetPubSub
+    PubSub = GetPubSub()
+
 
     pubsub = PubSub(private_subscription=True)
     try:

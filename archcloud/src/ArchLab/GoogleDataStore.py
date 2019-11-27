@@ -62,8 +62,10 @@ def test_google_data_store():
         pytest.skip("In emulation mode")
 
     from .LocalDataStore import do_test
+    
+    from .CloudServices import GetDS
+    DS = GetDS()
 
-    from .CloudServices import DS
     assert DS == GoogleDataStore
     
     ds = DS()

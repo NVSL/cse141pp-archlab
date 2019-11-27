@@ -63,7 +63,8 @@ class LocalDataStore(object):
             f.write(json.dumps(job))
 
 def do_test(ds):
-    from uuid import uuid4 as uuid    
+    from uuid import uuid4 as uuid
+    import time
     id1 = uuid()
     id2 = uuid()
     junk = str(uuid())
@@ -80,7 +81,7 @@ def do_test(ds):
             manifest="b file",
             output="out",
             status=junk)
-
+    time.sleep(1)
     assert ds.pull(str(id1))['metadata'] == "a"
     assert ds.pull(str(id2))['manifest'] == "b file"
     assert ds.pull(str(uuid())) == None
