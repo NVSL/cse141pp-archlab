@@ -40,3 +40,17 @@
     [ $(echo '["a","b"]' | jextract 1) = "b" ]  
     ! echo '{"a": "b"}' | jextract c
 }
+
+@test "freqs" {
+    get-cpu-freqs
+    eval `get-cpu-freqs`
+    echo $ARCHLAB_AVAILABLE_CPU_FREQUENCIES;
+    (t=$(which get-cpu-freqs); PATH=; $t)
+    eval `(t=$(which get-cpu-freqs); PATH=; $t)`
+    [ "$ARCHLAB_AVAILABLE_CPU_FREQUENCIES" = "" ]
+
+    set-cpu-freq 1000
+    # there's some tabs in cpuinfo that makes grepping a pain
+    perl -ne 's/\s+/ /g; print' < /proc/cpuinfo | grep -q 'cpu MHz : 1000.'
+    set-cpu-freq max
+}
