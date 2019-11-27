@@ -4,6 +4,8 @@ import pytest
 import json
 from google.cloud import datastore
 import google.oauth2
+import datetime
+import platform
 
 class GoogleDataStore(object):
     def __init__(self):
@@ -41,9 +43,9 @@ class GoogleDataStore(object):
 	     job_submission_json, 
 	     manifest,
 	     output,
-	     status
+	     status,
+             lab_name
     ):
-        
         job_key = self.datastore_client.key(self.kind, job_id)
         job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest', 'output'))
         job['job_id'] = job_id
@@ -52,9 +54,21 @@ class GoogleDataStore(object):
         job['manifest'] = manifest
         job['output'] = output
         job['status'] = status
-
+        job['submitted_utc'] = repr(datetime.datetime.utcnow())
+        job['started_utc'] = ""
+        job['completed_utc'] = ""
+        job['submitted_host'] = platform.node()
+        job['runner_host'] = platform.node()
+        job['lab_name'] = lab_name
+        
         self.datastore_client.put(job)
 
+    def update(self,
+	       job_id,
+	       **kwargs):
+        job = self.pull(job_id)
+        job.update(**kwargs)
+        self.datastore_client.put(job)
 
         
 def test_google_data_store():

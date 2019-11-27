@@ -35,6 +35,10 @@ def cmd_ls(args):
 def cmd_top(args):
     from google.cloud.pubsub_v1.types import Duration
     from google.cloud.pubsub_v1.types import ExpirationPolicy
+    import datetime
+
+    utcnow = datetime.datetime.utcnow
+    
     log.debug(f"Running top with {args}")
 
     ds = DS()

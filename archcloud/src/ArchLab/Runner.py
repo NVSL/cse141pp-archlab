@@ -373,12 +373,13 @@ def run_submission_remotely(submission,
     status = 'SUBMITTED'
 
     ds.push(
-            str(job_id),
-            metadata, 
-            job_submission_json, 
-            manifest,
-            output,
-            status
+        str(job_id),
+        metadata, 
+        job_submission_json, 
+        manifest,
+        output,
+        status,
+        lab_name=submission.lab_spec.lab_name
     )
 
     time.sleep(1.0)

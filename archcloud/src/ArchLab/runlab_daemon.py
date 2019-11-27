@@ -15,6 +15,7 @@ import logging as log
 import platform
 import argparse
 import tempfile
+import datetime
 
 from .CloudServices import DS, PubSub
     
@@ -42,6 +43,7 @@ def main(argv=None):
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
     parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
     parser.add_argument('--just-once', action='store_true', help="Just check the queue 1 time, then exit.")
+    parser.add_argument('--debug', action='store_true', help="exit on errors")
     if argv == None:
         argv = sys.argv[1:]
     args = parser.parse_args(argv)
@@ -54,6 +56,7 @@ def main(argv=None):
     pubsub = PubSub()
 
     while True:
+        time.sleep(1)
         try:
             job_id = pubsub.pull()
 
@@ -63,20 +66,18 @@ def main(argv=None):
                 job_data = ds.pull(
                     job_id=str(job_id)
                 )
-
+                if not job_data:
+                    continue
                 metadata = job_data['metadata']
                 job_submission_json = job_data['job_submission_json']
                 manifest = job_data['manifest']
 
-                output = ''
 
-                ds.push(
-                    job_id=job_id,
-                    metadata=metadata, 
-                    job_submission_json=job_submission_json, 
-                    manifest=manifest,
-                    output=output,
-                    status='STARTED'
+                ds.update(
+                    job_id,
+                    status='STARTED',
+                    started_utc=repr(datetime.datetime.utcnow()),
+                    runner_host=platform.node()
                 )
 
 
@@ -87,13 +88,11 @@ def main(argv=None):
                 )
 
 
-                ds.push(
-                    job_id=job_id,
-                    metadata=metadata, 
-                    job_submission_json=job_submission_json, 
-                    manifest=manifest,
+                ds.update(
+                    job_id,
+                    status='COMPLETED',
                     output=output,
-                    status='COMPLETED'
+                    completed_utc=repr(datetime.datetime.utcnow())
                 )
                 if args.just_once:
                     sys.exit(0)
@@ -101,6 +100,8 @@ def main(argv=None):
                 log.info('No jobs in queue')
                 time.sleep(1.0)
         except Exception as e:
+            if args.debug:
+                raise
             log.error(f"Uncaught exception: {e}.\nSleeping for 1 second and trying again")
             time.sleep(1.0)
             

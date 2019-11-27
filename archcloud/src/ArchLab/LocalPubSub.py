@@ -35,7 +35,7 @@ class LocalPubSub(object):
         p = Path(self.inbox)
         return list(sorted(p.glob('*')))
 
-    def pull(self):
+    def pull(self, max_messages=1, **kwargs):
         paths = self.load_inbox()
         if not paths:
             return None

@@ -29,7 +29,7 @@
     rm -rf submission
     mkdir -p submission
     cp -r $LABS_ROOT/CSE141pp-Lab-Tiny/* submission/
-    gradescope --root .
+    gradescope -v --root .
     [ -f results/results.json ]
     grep 'Some data' results/results.json
 }
