@@ -6,7 +6,7 @@ import google.oauth2
 import google.api_core
 from uuid import uuid4 as uuid    
 class GooglePubSub(object):
-    def __init__(self, private_subscription=False, subscription_base=None):
+    def __init__(self, private_subscription=False, subscription_base=None, **kwargs):
 
         if subscription_base is None:
             self.subscription_base =  os.environ['PUBSUB_SUBSCRIPTION']
@@ -32,17 +32,17 @@ class GooglePubSub(object):
         self.topic_name = self.publisher.topic_path(self.project, self.topic)
 
         if private_subscription:
-            self.subscription = self.subscriber.create_subscription(self.subscription_path, self.topic_name)
+            self.subscription = self.subscriber.create_subscription(self.subscription_path, self.topic_name, **kwargs)
         log.debug(f"pubsub credentials path={self.credentials_path}")
 #        log.debug(f"env credentials path={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
         log.debug(f"pubsub topic_name ={self.topic_name}")
         log.debug(f"pubsub subscription name={self.subscription_path}")
 
         
-    def pull(self):
+    def pull(self, max_messages=1, **kwargs):
 
         try:
-            response = self.subscriber.pull(self.subscription_path, max_messages=1)
+            response = self.subscriber.pull(self.subscription_path, max_messages, **kwargs)
         except google.api_core.exceptions.DeadlineExceeded:
             return None
 
