@@ -24,6 +24,80 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
+def cmd_hosts(args):
+    log.debug(f"Running hosts with {args}")
+    from google.cloud.pubsub_v1.types import Duration
+    from google.cloud.pubsub_v1.types import ExpirationPolicy
+    from .GooglePubSub import ensure_subscription_exists, get_subscriber, compute_subscription_path, delete_subscription
+    from uuid import uuid4 as uuid
+    import datetime
+    import google.api_core
+
+    class Host(object):
+        def __init__(self, name, status):
+            self.name = name
+            self.last_heart_beat = datetime.datetime.utcnow()
+            self.status = status
+            self.last_status_change = datetime.datetime.utcnow()
+            
+        def touch(self, when):
+            self.last_heart_beat = max(when, self.last_heart_beat)
+
+        def update_status(self, status):
+            if self.status != status:
+                self.last_status_change = datetime.datetime.utcnow()
+                self. status = status
+
+    os.system("clear")
+    
+    try: 
+        sub_name = f"top-listener-{uuid()}"
+        ensure_subscription_exists(topic=f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events",
+                                   subscription=sub_name,
+                                   message_retention_duration=Duration(seconds=30*60),
+                                   expiration_policy=ExpirationPolicy(ttl=Duration(seconds=24*3600)))
+
+        subscriber = get_subscriber()
+        sub_path = compute_subscription_path(sub_name)
+        hosts = dict()
+        while True:
+            try:
+                r = subscriber.pull(sub_path, max_messages=5, timeout=3)
+            except google.api_core.exceptions.DeadlineExceeded as e: 
+                log.debug(e)
+                pass
+            else:
+                for r in r.received_messages:
+                    log.debug(f"Got {r.message.data.decode('utf8')}")
+                    d = json.loads(r.message.data.decode("utf8"))
+                    try:
+                        if d['id'] not in hosts:
+                            hosts[d['id']] = Host(name=d['node'],
+                                                  status=d['status'])
+                        else:
+                            host = hosts[d['id']]
+                            stamp = eval(d['time'])
+                            if stamp > host.last_heart_beat:
+                                host.touch(stamp)
+                                host.update_status(d['status'])
+
+                    except KeyError:
+                        log.warning("Got strange message: {d}")
+
+            rows = [["host", "MIA", "status", "for"]]
+            for n, h in hosts.items():
+                rows.append([h.name, datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change])
+            os.system("clear")
+            sys.stdout.write(columnize(rows, divider=" "))
+            sys.stdout.flush()
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        try:
+            delete_subscription(sub_name)
+        except:
+            pass
+            
 def cmd_ls(args):
     log.debug(f"Running ls with {args}")
     ds = DS()
@@ -114,7 +188,7 @@ def cmd_top(args):
                 live_jobs.add(m)
             
     except KeyboardInterrupt:
-        sys.exit(0)
+        return 0
     finally:
         ps.tear_down()
         
@@ -128,11 +202,14 @@ def main(argv=None):
 
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    ls_parser = subparsers.add_parser('ls', help="List lab jobs")
+    ls_parser = subparsers.add_parser('ls', help="List jobs")
     ls_parser.set_defaults(func=cmd_ls)
 
     top_parser = subparsers.add_parser('top', help="Track jobs")
     top_parser.set_defaults(func=cmd_top)
+    
+    hosts_parser = subparsers.add_parser('hosts', help="Track hosts")
+    hosts_parser.set_defaults(func=cmd_hosts)
     
     if argv == None:
         argv = sys.argv[1:]
@@ -145,5 +222,5 @@ def main(argv=None):
     return args.func(args)
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    sys.exit(main(sys.argv[1:]))
 
