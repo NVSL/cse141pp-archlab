@@ -32,7 +32,7 @@ import google.api_core
 status = "IDLE"
 keep_running = True
 my_id=str(uuid())
-    
+heart = None
 class Heart(object):
     def __init__(self):
         self.topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events"
@@ -82,7 +82,10 @@ class CommandListener(object):
                         log.info("Got exit command")
                         global keep_running
                         keep_running = False
-        
+                    elif command['command'] == "send-heartbeat":
+                        global heart
+                        heart.beat()
+                        
     def teardown(self):
         try:
             delete_subscription(self.subscription_path)
@@ -123,6 +126,7 @@ def main(argv=None):
     ds = DS()
     pubsub = PubSub()
 
+    global heart
     heart = Heart()
     head = CommandListener()
     
