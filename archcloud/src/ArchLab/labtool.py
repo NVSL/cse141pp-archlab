@@ -11,6 +11,7 @@ import subprocess
 import base64
 from  .CloudServices import DS, PubSub
 import copy
+from .Packet import PacketCmd
 
 def columnize(data, divider="|", headers=1):
     r = ""
@@ -210,6 +211,8 @@ def main(argv=None):
     
     hosts_parser = subparsers.add_parser('hosts', help="Track hosts")
     hosts_parser.set_defaults(func=cmd_hosts)
+
+    PacketCmd(subparsers)
     
     if argv == None:
         argv = sys.argv[1:]
