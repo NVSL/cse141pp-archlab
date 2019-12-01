@@ -11,36 +11,36 @@ import subprocess
 import base64
 from  .CloudServices import DS, PubSub
 import copy
-from .Packet import PacketCmd
+from .Columnize import columnize
+from .SubCommand import SubCommand
 
-def columnize(data, divider="|", headers=1):
-    r = ""
-    column_count = max(map(len, data))
-    rows = [x + ([""] * (column_count - len(x))) for x in data]
-    widths = [max(list(map(lambda x:len(str(x)), col))) for col in zip(*rows)]
-    div = "{}".format(divider)
-    for i, row in enumerate(rows):
-        if headers is not None and headers == i:
-            r += divider.join(map(lambda x: "-" * (x), widths )) + "\n"
-        r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
-    return r
-
+def send_command_to_hosts(command):
+    from .GooglePubSub import ensure_topic, get_publisher, compute_topic_path
+    topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-commands"        
+    ensure_topic(topic)
+    publisher = get_publisher()
+    s = json.dumps(dict(command=command))
+    log.debug(f"Sent command {s} on top {topic}")
+    publisher.publish(compute_topic_path(topic), s.encode('utf8'))
+    
 def cmd_hosts(args):
     log.debug(f"Running hosts with {args}")
     from google.cloud.pubsub_v1.types import Duration
     from google.cloud.pubsub_v1.types import ExpirationPolicy
     from .GooglePubSub import ensure_subscription_exists, get_subscriber, compute_subscription_path, delete_subscription
+    from .GooglePubSub import ensure_topic, get_publisher, compute_topic_path
     from uuid import uuid4 as uuid
     import datetime
     import google.api_core
 
     class Host(object):
-        def __init__(self, name, status):
+        def __init__(self, name, status, sw_hash):
             self.name = name
             self.last_heart_beat = datetime.datetime.utcnow()
             self.status = status
             self.last_status_change = datetime.datetime.utcnow()
-            
+            self.sw_hash = sw_hash
+        
         def touch(self, when):
             self.last_heart_beat = max(when, self.last_heart_beat)
 
@@ -49,9 +49,12 @@ def cmd_hosts(args):
                 self.last_status_change = datetime.datetime.utcnow()
                 self. status = status
 
+        def update_software(self, sw_hash):
+            self.sw_hash = sw_hash
+            
+
     os.system("clear")
-    
-    try: 
+    try:
         sub_name = f"top-listener-{uuid()}"
         ensure_subscription_exists(topic=f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events",
                                    subscription=sub_name,
@@ -60,8 +63,11 @@ def cmd_hosts(args):
 
         subscriber = get_subscriber()
         sub_path = compute_subscription_path(sub_name)
+
+        send_command_to_hosts("send-heartbeat")
         hosts = dict()
         while True:
+
             try:
                 r = subscriber.pull(sub_path, max_messages=5, timeout=3)
             except google.api_core.exceptions.DeadlineExceeded as e: 
@@ -74,20 +80,22 @@ def cmd_hosts(args):
                     try:
                         if d['id'] not in hosts:
                             hosts[d['id']] = Host(name=d['node'],
-                                                  status=d['status'])
+                                                  status=d['status'],
+                                                  sw_hash=d.get('sw_git_hash', " "*8))
                         else:
                             host = hosts[d['id']]
                             stamp = eval(d['time'])
                             if stamp > host.last_heart_beat:
                                 host.touch(stamp)
                                 host.update_status(d['status'])
-
+                                host.update_software(d.get('sw_git_hash', " "*8))
                     except KeyError:
                         log.warning("Got strange message: {d}")
 
-            rows = [["host", "MIA", "status", "for"]]
+            rows = [["host", "MIA", "status", "for", "version"]]
             for n, h in hosts.items():
-                rows.append([h.name, datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change])
+                rows.append([h.name, datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change, h.sw_hash[:8]])
+                            
             os.system("clear")
             sys.stdout.write(columnize(rows, divider=" "))
             sys.stdout.flush()
@@ -192,7 +200,17 @@ def cmd_top(args):
         return 0
     finally:
         ps.tear_down()
+
+class HostControl(SubCommand):
+    def __init__(self, parent):
+        super(HostControl, self).__init__(parent_subparser=parent,
+                                          name="hostctl",
+                                          help="Control build servers processes")
         
+        self.parser.add_argument("command", help="Command to send")
+        
+    def run(self, args):
+        send_command_to_hosts(args.command)
         
 def main(argv=None):
     """
@@ -212,13 +230,17 @@ def main(argv=None):
     hosts_parser = subparsers.add_parser('hosts', help="Track hosts")
     hosts_parser.set_defaults(func=cmd_hosts)
 
-    PacketCmd(subparsers)
+    HostControl(subparsers)
     
     if argv == None:
         argv = sys.argv[1:]
         
     args = parser.parse_args(argv)
-    
+
+    if not "func" in args:
+        parser.print_help()
+        sys.exit(1)
+        
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
 

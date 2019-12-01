@@ -33,19 +33,44 @@ status = "IDLE"
 keep_running = True
 my_id=str(uuid())
 heart = None
+valid_status = ["IDLE",
+                "RUNNING",
+                "RELOAD_DOCKER",
+                "RELOAD_PYTHON",
+                "SHUTDOWN"]
+
+def set_status(new_status, message=None):
+    global status
+    message = message if message else ""
+    
+    if new_status not in valid_status:
+        raise Exception("Illegal status: {new_status}.  should be in {valid_status}")
+    status = f"{new_status}: {message}"
+    log.info(f"Setting status to '{status}'")
+    with open(f"{os.environ['RUNLAB_STATUS_DIRECTORY']}/status", "w") as f:
+        log.info(f"Writing status: '{new_status}'")
+        f.write(new_status)
+    heart.send_beat()
+    
 class Heart(object):
     def __init__(self):
         self.topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events"
         ensure_topic(self.topic)
         self.publisher = get_publisher()
         self.topic_path = compute_topic_path(self.topic)
-
+        try:
+            with open(f"{os.environ['RUNLAB_STATUS_DIRECTORY']}/archlab_version", "r") as f:
+                self.git_hash = f.read()
+        except:
+            self.git_hash = "unknown"
+        
     def send_beat(self):
         global status
         data = dict(id=my_id,
                     type="heartbeat",
                     node=platform.node(),
                     time=repr(datetime.datetime.utcnow()),
+                    sw_git_hash=self.git_hash,
                     status=status)
         
         self.publisher.publish(self.topic_path,
@@ -75,16 +100,24 @@ class CommandListener(object):
             except google.api_core.exceptions.DeadlineExceeded as e: 
                 log.debug(e)
             else:
+                global keep_running
                 for r in r.received_messages:
                     log.info(f"Received command: {r.message.data.decode('utf8')}")
                     command = json.loads(r.message.data.decode('utf8'))
                     if command['command'] == "exit":
-                        log.info("Got exit command")
-                        global keep_running
                         keep_running = False
+                    if command['command'] == "reload-python":
+                        keep_running = False
+                        set_status("RELOAD_PYTHON")
+                    if command['command'] == "reload-docker":
+                        keep_running = False
+                        set_status("RELOAD_DOCKER")
+                    if command['command'] == "shutdown":
+                        keep_running = False
+                        set_status("SHUTDOWN")
                     elif command['command'] == "send-heartbeat":
                         global heart
-                        heart.beat()
+                        heart.send_beat()
                         
     def teardown(self):
         try:
@@ -103,7 +136,8 @@ def run_job(job_submission_json, in_docker, docker_image):
                                         root=directory,
                                         run_pristine=True,
                                         run_in_docker=in_docker,
-                                        docker_image=docker_image)
+                                        docker_image=docker_image,
+                                        timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
         
     output = json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n"
 
@@ -123,16 +157,17 @@ def main(argv=None):
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                     level=log.DEBUG if args.verbose else log.INFO)
     log.debug(f"args={args}")
+
     ds = DS()
     pubsub = PubSub()
 
     global heart
     heart = Heart()
     head = CommandListener()
-    
+    set_status("IDLE")    
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
-
+    global keep_running
     while keep_running:
         time.sleep(1)
         try:
@@ -146,12 +181,14 @@ def main(argv=None):
                 )
                 if not job_data:
                     continue
+                if job_data['status'] != "SUBMITTED":
+                    continue
+                
                 metadata = job_data['metadata']
                 job_submission_json = job_data['job_submission_json']
                 manifest = job_data['manifest']
-                global status
-                status = f"RUNNING {job_data['job_id'][:8]}"
-                heart.send_beat()
+                set_status("RUNNING", job_data['job_id'][:8])
+
                 ds.update(
                     job_id,
                     status='STARTED',
@@ -166,15 +203,14 @@ def main(argv=None):
                     docker_image=args.docker_image
                 )
 
-
                 ds.update(
                     job_id,
                     status='COMPLETED',
                     output=output,
                     completed_utc=repr(datetime.datetime.utcnow())
                 )
-                status = "IDLE"
-                heart.send_beat()
+                set_status("IDLE")
+
                 if args.just_once:
                     sys.exit(0)
             else:
@@ -185,8 +221,7 @@ def main(argv=None):
                 raise
             log.error(f"Uncaught exception: {e}.\nSleeping for 1 second and trying again")
             time.sleep(1.0)
-    status = "EXITED"
-    heart.send_beat()
+
             
 if __name__ == '__main__':
     main(sys.argv[1:])

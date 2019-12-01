@@ -24,7 +24,8 @@ setup(
             'gradescope=ArchLab.GradeScope:main',
             'jextract=ArchLab.jextract:main',
             'get-cpu-freqs=ArchLab.CPUFreq:get_freqs_cli',
-            'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli'
+            'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli',
+            'hosttool=ArchLab.hosttool:main'
         ]
     }
 )

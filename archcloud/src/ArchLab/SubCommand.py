@@ -8,7 +8,7 @@ class SubCommand(object):
         self.help = help
         self.parser = self.subparsers.add_parser(name=name, help=help)
         self.parser.set_defaults(func=self._run)
-
+        self.parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")        
     def _run(self, args):
         log.debug("Executing {self.name} with {args}")
         self.run(args)
