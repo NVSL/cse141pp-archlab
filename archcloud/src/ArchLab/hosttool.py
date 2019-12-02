@@ -23,7 +23,7 @@ def send_command_to_hosts(command):
 class HostControl(SubCommand):
     def __init__(self, parent):
         super(HostControl, self).__init__(parent_subparser=parent,
-                                          name="hostctl",
+                                          name="cmd",
                                           help="Control build servers processes")
         
         self.parser.add_argument("command", help="Command to send")
@@ -39,18 +39,20 @@ class PacketCommand(SubCommand):
         self.project = os.environ["PACKET_PROJECT_ID"]
         self.manager = packet.Manager(auth_token=self.token)
 
+
+    def get_packet_hosts(self):
+        params = {
+            'per_page': 50
+        }
+        return self.manager.list_devices(project_id=self.project, params=params)
         
 class PacketList(PacketCommand):
     def __init__(self, parent):
         super(PacketList, self).__init__(parent_subparser=parent, name="ls", help="List hosts")
-        #self.parser.add_argument("-l", "--long", action="store_true",help="List everytihng")
         
     def run(self, args):
-        params = {
-            'per_page': 50
-        }
-        current_devices = self.manager.list_devices(project_id=self.project, params=params)
-
+        current_devices = self.get_packet_hosts()
+        
         rows=[["hostname","id", "IP"]]
         for h in current_devices:
             rows.append([f"{h['hostname']}",f"{h['id']}", f"{h['ip_addresses'][0]['address']}"])
@@ -73,7 +75,7 @@ class PacketDelete(PacketCommand):
                 
 class PacketCreate(PacketCommand):
     def __init__(self, parent):
-        super(PacketCreate, self).__init__(parent_subparser=parent, name="create", help="Manipulate packet.com hosts")
+        super(PacketCreate, self).__init__(parent_subparser=parent, name="create", help="Create hosts on packet.com")
 
     def run(self, args):
         import subprocess
@@ -108,7 +110,8 @@ class HostTop(SubCommand):
         super(HostTop, self).__init__(parent_subparser=parent,
                                       name="top",
                                       help="Track hosts")
-
+        self.parser.add_argument('--once', action='store_true', default=False, help="Just collect stats once and exit")
+        
     def run(self, args):
         log.debug(f"Running hosts with {args}")
         from google.cloud.pubsub_v1.types import Duration
@@ -141,6 +144,7 @@ class HostTop(SubCommand):
 
         if not args.verbose:
             os.system("clear")
+            
         try:
             sub_name = f"top-listener-{uuid()}"
             ensure_subscription_exists(topic=f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events",
@@ -188,6 +192,8 @@ class HostTop(SubCommand):
                     os.system("clear")
                 sys.stdout.write(columnize(rows, divider=" "))
                 sys.stdout.flush()
+                if args.once:
+                    break
         except KeyboardInterrupt:
             return 0
         finally:
@@ -208,8 +214,8 @@ def main(argv=None):
     PacketCreate(subparsers)
     PacketList(subparsers)
     PacketDelete(subparsers)
-    HostControl(subparsers)
 
+    HostControl(subparsers)
     HostTop(subparsers)
 
     if argv == None:
