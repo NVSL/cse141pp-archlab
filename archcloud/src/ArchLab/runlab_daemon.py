@@ -118,6 +118,7 @@ class CommandListener(object):
                     elif command['command'] == "send-heartbeat":
                         global heart
                         heart.send_beat()
+                    self.subscriber.acknowledge(self.subscription_path, [r.ack_id])
                         
     def teardown(self):
         try:
