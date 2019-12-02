@@ -32,8 +32,9 @@ setup:
 	modprobe msr
 
 test:
+	$(MAKE) -C tests test
 	$(MAKE) -C archcloud test
-	$(MAKE) -C archcloud tools
+	$(MAKE) -C tools test
 
 include compile.make
 

@@ -22,7 +22,10 @@ setup(
             'runlab.d=ArchLab.runlab_daemon:main',
             'labtool=ArchLab.labtool:main',
             'gradescope=ArchLab.GradeScope:main',
-            'jextract=ArchLab.jextract:main'
+            'jextract=ArchLab.jextract:main',
+            'get-cpu-freqs=ArchLab.CPUFreq:get_freqs_cli',
+            'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli',
+            'hosttool=ArchLab.hosttool:main'
         ]
     }
 )

@@ -36,6 +36,9 @@ public:
   
 	void add_string(char * name, char * value);
 	void add_double(char * name, double value);
+	template <class T>
+	T get_value(const std::string & k) {return kv[k].get<T>();}
+	json& get_kv() {return kv;}
 	virtual void start();
 	virtual void stop();
 	virtual json build_json();
@@ -123,6 +126,9 @@ public:
 	}
 
 
+	std::vector<MeasurementInterval* > * get_intervals() {
+		return & stored_intervals;
+	}
 private:
 	std::vector<std::string> get_ordered_column_names();
 	template<class T>

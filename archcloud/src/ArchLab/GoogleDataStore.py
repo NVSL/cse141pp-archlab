@@ -4,6 +4,8 @@ import pytest
 import json
 from google.cloud import datastore
 import google.oauth2
+import datetime
+import platform
 
 class GoogleDataStore(object):
     def __init__(self):
@@ -27,15 +29,23 @@ class GoogleDataStore(object):
         for entity in query_iter:
             return entity
 
+    def query(self, **kwargs):
+        log.debug(f"querying with {kwargs}")
+        query = self.datastore_client.query(kind=self.kind)
+        for k,v in kwargs.items():
+            query.add_filter(k, '=', v)
+        query_iter = query.fetch()
+        return list(query_iter)
+
     def push(self,
 	     job_id,
 	     metadata, 
 	     job_submission_json, 
 	     manifest,
 	     output,
-	     status
+	     status,
+             lab_name
     ):
-        
         job_key = self.datastore_client.key(self.kind, job_id)
         job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest', 'output'))
         job['job_id'] = job_id
@@ -44,9 +54,21 @@ class GoogleDataStore(object):
         job['manifest'] = manifest
         job['output'] = output
         job['status'] = status
-
+        job['submitted_utc'] = repr(datetime.datetime.utcnow())
+        job['started_utc'] = ""
+        job['completed_utc'] = ""
+        job['submitted_host'] = platform.node()
+        job['runner_host'] = platform.node()
+        job['lab_name'] = lab_name
+        
         self.datastore_client.put(job)
 
+    def update(self,
+	       job_id,
+	       **kwargs):
+        job = self.pull(job_id)
+        job.update(**kwargs)
+        self.datastore_client.put(job)
 
         
 def test_google_data_store():
@@ -54,8 +76,10 @@ def test_google_data_store():
         pytest.skip("In emulation mode")
 
     from .LocalDataStore import do_test
+    
+    from .CloudServices import GetDS
+    DS = GetDS()
 
-    from .CloudServices import DS
     assert DS == GoogleDataStore
     
     ds = DS()

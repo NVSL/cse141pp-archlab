@@ -171,7 +171,7 @@ extern "C" {
 	void load_frequencies() {
 
 		const char* s = getenv("ARCHLAB_AVAILABLE_CPU_FREQUENCIES");
-		if (!s) {
+		if (!s || strlen(s) == 0) {
 			cpu_frequencies.push_back(-1);
 		} else {
 			std::stringstream ss(s);
