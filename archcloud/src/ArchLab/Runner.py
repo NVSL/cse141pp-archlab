@@ -405,7 +405,7 @@ def run_submission_remotely(submission,
             log.error("Can't find job!")
             raise Exception(f"Couldn't find job: {job_id}")
         else:
-            log.debug(f"Job progress: {job_data['status']}.")
+            log.info(f"Job progress: {job_data['status']}.")
 
             if job_data['status'] == 'COMPLETED':
                 log.info(f"Job       finished after {running_time} seconds: {job_id}")
