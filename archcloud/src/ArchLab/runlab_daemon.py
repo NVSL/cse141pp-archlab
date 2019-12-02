@@ -45,7 +45,7 @@ def set_status(new_status, message=None):
     
     if new_status not in valid_status:
         raise Exception("Illegal status: {new_status}.  should be in {valid_status}")
-    status = f"{new_status}: {message}"
+    status = new_status + (f": {message}" if message else "")
     log.info(f"Setting status to '{status}'")
     with open(f"{os.environ['RUNLAB_STATUS_DIRECTORY']}/status", "w") as f:
         log.info(f"Writing status: '{new_status}'")
