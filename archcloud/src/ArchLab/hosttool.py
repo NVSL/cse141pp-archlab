@@ -105,7 +105,7 @@ class PacketCreate(PacketCommand):
                                             userdata=userdata)
         log.info(f"Created device {device}")
 
-class HostTop(SubCommand):
+class HostTop(PacketCommand):
     def __init__(self, parent):
         super(HostTop, self).__init__(parent_subparser=parent,
                                       name="top",
@@ -123,13 +123,14 @@ class HostTop(SubCommand):
         import google.api_core
 
         class Host(object):
-            def __init__(self,id, name, status, sw_hash):
+            def __init__(self,id, name, status, sw_hash, ipaddr):
                 self.id=id
                 self.name = name
                 self.last_heart_beat = datetime.datetime.utcnow()
                 self.status = status
                 self.last_status_change = datetime.datetime.utcnow()
                 self.sw_hash = sw_hash
+                self.ipaddr = ipaddr
 
             def touch(self, when):
                 self.last_heart_beat = max(when, self.last_heart_beat)
@@ -158,7 +159,6 @@ class HostTop(SubCommand):
             send_command_to_hosts("send-heartbeat")
             hosts = dict()
             while True:
-
                 try:
                     r = subscriber.pull(sub_path, max_messages=5, timeout=3)
                 except google.api_core.exceptions.DeadlineExceeded as e: 
@@ -170,10 +170,13 @@ class HostTop(SubCommand):
                         d = json.loads(r.message.data.decode("utf8"))
                         try:
                             if d['id'] not in hosts:
+                                current_devices = self.get_packet_hosts()
+                                device_map = {x.hostname : x for x in current_devices}
                                 hosts[d['id']] = Host(id=d['id'],
                                                       name=d['node'],
                                                       status=d['status'],
-                                                      sw_hash=d.get('sw_git_hash', " "*8))
+                                                      sw_hash=d.get('sw_git_hash', " "*8),
+                                                      ipaddr=device_map[d['node']]['ip_addresses'][0]['address'])
                             else:
                                 host = hosts[d['id']]
                                 stamp = eval(d['time'])
@@ -184,9 +187,9 @@ class HostTop(SubCommand):
                         except KeyError:
                             log.warning("Got strange message: {d}")
                         subscriber.acknowledge(sub_path, [r.ack_id])
-                rows = [["host", "server-ID", "MIA", "status", "for", "version"]]
+                rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
                 for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
-                    rows.append([h.name, h.id[:8], datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change, h.sw_hash[:8]])
+                    rows.append([h.name, h.ipaddr, h.id[:8], datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change, h.sw_hash[:8]])
 
                 if not args.verbose:
                     os.system("clear")

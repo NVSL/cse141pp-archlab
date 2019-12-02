@@ -330,6 +330,7 @@ class SubmissionResult(object):
 
     def get_file(self, name):
         return base64.b64decode(self.files[name]).decode("utf-8")
+    
     def put_file(self, name, contents):
         self.files[name] = base64.b64encode(contents).decode('utf8')
         return base64.b64decode(self.files[name]).decode("utf8")
@@ -394,8 +395,8 @@ def run_submission_remotely(submission,
     while True:
         running_time = time.time() - start_time
 
-        if running_time > 60*10:
-            status = 'TIME OUT (runtime > 10 minutes)'
+        if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
+            status = 'TIME-OUT'
             log.error('Timeout: ' + str(running_time) + 's')
             break
         job_data = ds.pull(
@@ -409,13 +410,14 @@ def run_submission_remotely(submission,
             log.debug(f"Job progress: {job_data['status']}.")
 
             if job_data['status'] == 'COMPLETED':
-                log.info(f"Job       finished after {running_time} seconds: {job_id}")
+                log.info(f"Job finished after {running_time} seconds: {job_id}")
                 log.debug(f"job_data['output'] = {job_data['output']}")
                 status = 'COMPLETED'
                 r = SubmissionResult._fromdict(json.loads(job_data['output']))
                 log.debug(f"{r}")
                 return r
-
+            elif job_data['status'] == 'ERROR':
+                raise Exception(f"Job failed after {running_time} seconds: {job_id}")
 
         time.sleep(1)
                   

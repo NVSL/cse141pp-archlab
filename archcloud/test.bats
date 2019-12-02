@@ -78,5 +78,4 @@
     hosttool top --once 
     hosttool ls
     hosttool cmd send-heartbeat
-    
 }

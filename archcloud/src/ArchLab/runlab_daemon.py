@@ -98,7 +98,7 @@ class CommandListener(object):
             try:
                 r = self.subscriber.pull(self.subscription_path, max_messages=5, timeout=10)
             except google.api_core.exceptions.DeadlineExceeded as e: 
-                log.debug(e)
+                pass
             else:
                 global keep_running
                 for r in r.received_messages:
@@ -138,6 +138,7 @@ def run_job(job_submission_json, in_docker, docker_image):
                                         run_pristine=True,
                                         run_in_docker=in_docker,
                                         docker_image=docker_image,
+                                        # this timeout is conservative.  The lab timeout is enforced on the docker process
                                         timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
         
     output = json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n"
@@ -204,12 +205,21 @@ def main(argv=None):
                     docker_image=args.docker_image
                 )
 
-                ds.update(
-                    job_id,
-                    status='COMPLETED',
-                    output=output,
-                    completed_utc=repr(datetime.datetime.utcnow())
-                )
+                try:
+                    ds.update(
+                        job_id,
+                        status='COMPLETED',
+                        output=output,
+                        completed_utc=repr(datetime.datetime.utcnow())
+                    )
+                except:
+                    # if something goes wrong, we still need to notify
+                    # the client, so try this simpler request.  The
+                    # main culprit seems to be values being too large.
+                    log.error(f"Updating status of {job_id} failed.  Job failed.")
+                    ds.update(job_id,
+                              status='ERROR')
+                    
                 set_status("IDLE")
 
                 if args.just_once:
