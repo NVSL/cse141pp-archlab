@@ -19,7 +19,7 @@ import datetime
 import threading
 from uuid import uuid4 as uuid
 
-from .CloudServices import DS, PubSub
+from .CloudServices import DS, PubSub, BlobStore
     
 from .Runner import build_submission, run_submission_locally, Submission
 
@@ -162,7 +162,8 @@ def main(argv=None):
 
     ds = DS()
     pubsub = PubSub()
-
+    blobstore = BlobStore("jobs")
+    
     global heart
     heart = Heart()
     head = CommandListener()
@@ -206,17 +207,17 @@ def main(argv=None):
                 )
 
                 try:
+                    blobstore.write_file(job_id, output)
                     ds.update(
                         job_id,
                         status='COMPLETED',
-                        output=output,
                         completed_utc=repr(datetime.datetime.utcnow())
                     )
-                except:
+                except Exception as e:
                     # if something goes wrong, we still need to notify
                     # the client, so try this simpler request.  The
                     # main culprit seems to be values being too large.
-                    log.error(f"Updating status of {job_id} failed.  Job failed.")
+                    log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
                     ds.update(job_id,
                               status='ERROR')
                     

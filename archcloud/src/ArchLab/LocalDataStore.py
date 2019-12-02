@@ -59,7 +59,6 @@ class LocalDataStore(object):
         job['metadata'] = metadata
         job['job_submission_json'] = job_submission_json
         job['manifest'] = manifest
-        job['output'] = output
         job['status'] = status
         job['submitted_utc'] = repr(datetime.datetime.utcnow())
         job['started_utc'] = ""

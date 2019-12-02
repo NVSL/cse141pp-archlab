@@ -47,12 +47,11 @@ class GoogleDataStore(object):
              lab_name
     ):
         job_key = self.datastore_client.key(self.kind, job_id)
-        job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest', 'output'))
+        job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest'))
         job['job_id'] = job_id
         job['metadata'] = metadata
         job['job_submission_json'] = job_submission_json
         job['manifest'] = manifest
-        job['output'] = output
         job['status'] = status
         job['submitted_utc'] = repr(datetime.datetime.utcnow())
         job['started_utc'] = ""

@@ -23,7 +23,7 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .CloudServices import DS, PubSub
+from .CloudServices import DS, PubSub, BlobStore
 
 class RunnerException(Exception):
     pass
@@ -353,7 +353,7 @@ def run_submission_remotely(submission,
 
     ds = DS()
     pubsub = PubSub()
-
+    
     log.debug(f"Metadata was: {metadata}")
     if not metadata:
         metadata = ""
@@ -411,9 +411,9 @@ def run_submission_remotely(submission,
 
             if job_data['status'] == 'COMPLETED':
                 log.info(f"Job finished after {running_time} seconds: {job_id}")
-                log.debug(f"job_data['output'] = {job_data['output']}")
                 status = 'COMPLETED'
-                r = SubmissionResult._fromdict(json.loads(job_data['output']))
+                blobstore = BlobStore("jobs")
+                r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
                 log.debug(f"{r}")
                 return r
             elif job_data['status'] == 'ERROR':

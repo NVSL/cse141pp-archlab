@@ -11,6 +11,7 @@ setup(
         "docopt",
         "pyasn1",
         "google-cloud-datastore",
+        "google-cloud-storage",
         "docker",
         "pytest"
      ],
