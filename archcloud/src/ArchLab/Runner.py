@@ -55,7 +55,8 @@ class LabSpec(object):
 
     def __init__(self,
                  lab_name=None,
-                 output_files= None,
+                 short_name=None,
+                 output_files=None,
                  input_files=None,
                  repo=None,
                  reference_tag = None,
@@ -68,6 +69,7 @@ class LabSpec(object):
 
         with collect_fields_of(self):
             self.lab_name = lab_name
+            self.short_name = short_name
             self.output_files = output_files
             self.input_files = input_files
             self.repo = repo
@@ -87,7 +89,7 @@ class LabSpec(object):
         assert self.lab_name is not None, "You must name your lab"
 
     def get_help(self):
-        rows = [[k,getattr(self, k)] for k in ["lab_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
+        rows = [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
         return columnize(rows, headers=None, divider=" : " )
     
     def _asdict(self):
@@ -376,8 +378,8 @@ def run_submission_remotely(submission,
 
     job_id = uuid()
 
-    log.debug(f"Writing submission to datastore")
-    log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
+    log.debug(f"Job = {job_id}")
+    log.debug(f"{job_id}\n{metadata}{manifest}\n")
 
     output = ''
     status = 'SUBMITTED'
@@ -389,7 +391,6 @@ def run_submission_remotely(submission,
         manifest,
         output,
         status,
-        lab_name=submission.lab_spec.lab_name
     )
 
     time.sleep(1.0)
@@ -401,6 +402,7 @@ def run_submission_remotely(submission,
     status = 'SUBMITTED'
     running_time = time.time() - start_time
 
+    log.info(f"Started job {job_id}.")
     while True:
         running_time = time.time() - start_time
 
@@ -416,7 +418,7 @@ def run_submission_remotely(submission,
             log.error("Can't find job!")
             raise Exception(f"Couldn't find job: {job_id}")
         else:
-            log.debug(f"Job progress: {job_data['status']}.")
+            log.debug(f"Job progress: {str(job_id)[:8]} is {job_data['status']} on host {job_data['runner_host']}")
 
             if job_data['status'] == 'COMPLETED':
                 log.info(f"Job finished after {running_time} seconds: {job_id}")

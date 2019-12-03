@@ -43,8 +43,7 @@ class GoogleDataStore(object):
 	     job_submission_json, 
 	     manifest,
 	     output,
-	     status,
-             lab_name
+	     status
     ):
         job_key = self.datastore_client.key(self.kind, job_id)
         job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest'))
@@ -57,8 +56,7 @@ class GoogleDataStore(object):
         job['started_utc'] = ""
         job['completed_utc'] = ""
         job['submitted_host'] = platform.node()
-        job['runner_host'] = platform.node()
-        job['lab_name'] = lab_name
+        job['runner_host'] = ""
         
         self.datastore_client.put(job)
 

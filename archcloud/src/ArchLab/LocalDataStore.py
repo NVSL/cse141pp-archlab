@@ -51,8 +51,7 @@ class LocalDataStore(object):
              job_submission_json, 
 	     manifest,
 	     output,
-	     status,
-             lab_name
+	     status
     ):
         job={}
         job['job_id'] = job_id
@@ -64,8 +63,7 @@ class LocalDataStore(object):
         job['started_utc'] = ""
         job['completed_utc'] = ""
         job['submitted_host'] = platform.node()
-        job['runner_host'] = platform.node()
-        job['lab_name'] = lab_name
+        job['runner_host'] = ""
         
         path = os.path.join(self.directory, str(job_id))
         with open(path, "w") as f:

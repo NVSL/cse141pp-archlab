@@ -102,7 +102,8 @@ class Top(SubCommand):
                     except:
                         total = "?"
 
-                    rows.append([job['job_id'], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), job['lab_name']])
+                    submission = Submission._fromdict(json.loads(job['job_submission_json']))
+                    rows.append([job['job_id'][:8], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), submission.lab_spec.short_name])
 
                 os.system("clear")
                 sys.stdout.write(columnize(rows, divider=" "))

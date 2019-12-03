@@ -3,6 +3,7 @@ from .Runner import LabSpec
 class CSE141Lab(LabSpec):
     def __init__(self,
                  lab_name,
+                 short_name,
                  output_files,
                  input_files,
                  repo,
@@ -10,7 +11,7 @@ class CSE141Lab(LabSpec):
                  default_cmd=None,
                  clean_cmd=None,
                  valid_options=None,
-                timeout=20
+                 timeout=20
     ):
         if default_cmd == None:
             default_cmd = ['make']
@@ -30,6 +31,7 @@ class CSE141Lab(LabSpec):
         
         super(CSE141Lab, self).__init__(
             lab_name = lab_name,
+            short_name = short_name,
             output_files = output_files,
             input_files = input_files,
             default_cmd = default_cmd,
