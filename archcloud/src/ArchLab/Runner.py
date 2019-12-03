@@ -406,13 +406,16 @@ def run_submission_remotely(submission,
     while True:
         running_time = time.time() - start_time
 
-        if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
-            status = 'TIME-OUT'
-            log.error('Timeout: ' + str(running_time) + 's')
-            break
         job_data = ds.pull(
             job_id=str(job_id)
         )
+
+        if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
+            status = SubmissionResult.TIMEOUT
+            log.error('Job timed out after {running_time}s')
+            ds.update(status="COMPLETED",
+                      submission_status=SubmissionResult.TIMEOUT)
+            break
 
         if job_data is None:
             log.error("Can't find job!")

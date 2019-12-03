@@ -61,6 +61,7 @@ class LocalDataStore(object):
         job['job_submission_json'] = job_submission_json
         job['manifest'] = manifest
         job['status'] = status
+        job['submission_status'] = ""
         job['submitted_utc'] = datetime.datetime.now(pytz.utc)
         job['started_utc'] = ""
         job['completed_utc'] = ""

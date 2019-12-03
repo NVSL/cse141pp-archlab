@@ -63,7 +63,7 @@ class Top(SubCommand):
 
         try: 
             while True:
-                rows =[["id", "status", "wtime", "rtime", "tot. time", "runner", "lab" ]]
+                rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner", "lab" ]]
                 for j in copy.copy(live_jobs):
                     job = ds.pull(j)
                     now = datetime.datetime.now(pytz.utc)
@@ -105,10 +105,10 @@ class Top(SubCommand):
                     try:
                         total = running + waiting
                     except:
-                        total = "?"
+                        total = waiting
 
                     submission = Submission._fromdict(json.loads(job['job_submission_json']))
-                    rows.append([job['job_id'][:8], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), submission.lab_spec.short_name])
+                    rows.append([job['job_id'][:8], job.get('status','.'), job.get('submission_status', "."), str(waiting), str(running), str(total), str(job['runner_host']), submission.lab_spec.short_name])
 
                 recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
                 s = datetime.timedelta()
@@ -120,11 +120,10 @@ class Top(SubCommand):
                     if d > timeout:
                         overdue += 1
                     s += d
-
-                    
                     
                 if not args.verbose:
                     os.system("clear")
+                sys.stdout.write(f"Namespace: {os.environ['DEPLOYMENT_MODE']}\n")
                 sys.stdout.write(f"Comp. in the last {args.window}s: {len(recent_jobs)}\n")
                 sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
                 sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")

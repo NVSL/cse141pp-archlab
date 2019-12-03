@@ -66,15 +66,16 @@ class Heart(object):
         
     def send_beat(self):
         global status
+        log.debug(f"now = {repr(datetime.datetime.utcnow())}")
         data = dict(id=my_id,
                     type="heartbeat",
                     node=platform.node(),
-                    time=repr(datetime.datetime.now(pytz.utc)),
+                    time=repr(datetime.datetime.utcnow()),
                     sw_git_hash=self.git_hash,
                     status=status)
         
         self.publisher.publish(self.topic_path,
-                          json.dumps(data).encode('utf8'))
+                               json.dumps(data).encode('utf8'))
         log.info(f"Heartbeat sent: {data}")
 
     @classmethod
@@ -141,9 +142,9 @@ def run_job(job_submission_json, in_docker, docker_image):
                                         # this timeout is conservative.  The lab timeout is enforced on the docker process
                                         timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
         
-    output = json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n"
+    
 
-    return output
+    return result
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Server to run a lab.')
@@ -174,10 +175,10 @@ def main(argv=None):
     while keep_running:
         time.sleep(1)
         try:
-            job_id = pubsub.pull()[0]
+            job_id = pubsub.pull()
 
-            if job_id is not None:
-                #job_id = msg.message.attributes['job_id']
+            if len(job_id):
+                job_id = job_id[0]
 
                 job_data = ds.pull(
                     job_id=str(job_id)
@@ -200,17 +201,18 @@ def main(argv=None):
                 )
 
 
-                output = run_job(
+                result = run_job(
                     job_submission_json=job_submission_json,
                     in_docker=args.docker,
                     docker_image=args.docker_image
                 )
 
                 try:
-                    blobstore.write_file(job_id, output)
+                    blobstore.write_file(job_id, json.dumps(result._asdict(), sort_keys=True, indent=4))
                     ds.update(
                         job_id,
                         status='COMPLETED',
+                        submission_status=result.status,
                         completed_utc=datetime.datetime.now(pytz.utc)
                     )
                 except Exception as e:
