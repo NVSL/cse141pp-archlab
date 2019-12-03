@@ -143,16 +143,16 @@ class GooglePubSub(object):
         try:
             response = self.subscriber.pull(self.subscription_path, max_messages, **kwargs)
         except google.api_core.exceptions.DeadlineExceeded:
-            return None
+            return []
 
         if len(response.received_messages) > 0:
             for msg in response.received_messages:
                 payload = msg.message.data.decode("utf8")
                 log.debug(f"Received {payload}")
                 self.subscriber.acknowledge(self.subscription_path, [msg.ack_id])
-            return payload
+            return [msg.message.data.decode("utf8") for msg in response.received_messages]
         else:
-            return None
+            return []
         
     def push(self, job_id):
 

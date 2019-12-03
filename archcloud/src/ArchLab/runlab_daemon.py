@@ -174,7 +174,7 @@ def main(argv=None):
     while keep_running:
         time.sleep(1)
         try:
-            job_id = pubsub.pull()
+            job_id = pubsub.pull()[0]
 
             if job_id is not None:
                 #job_id = msg.message.attributes['job_id']

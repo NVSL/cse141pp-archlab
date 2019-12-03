@@ -68,11 +68,14 @@ class GoogleDataStore(object):
         job.update(**kwargs)
         self.datastore_client.put(job)
 
-    def get_recent_jobs(self, seconds_ago):
+    def get_recently_completed_jobs(self, seconds_ago):
         query = self.datastore_client.query(kind=self.kind)
-        query.add_filter('submitted_utc', ">", datetime.datetime.now(pytz.utc) - datetime.timedelta(seconds = seconds_ago))
+        query.add_filter('submitted_utc', ">", datetime.datetime.now(pytz.utc) - datetime.timedelta(seconds = seconds_ago))            
         query_iter = query.fetch()
-        return list(query_iter)
+        r =  list(filter(lambda x: x['status'] == "COMPLETED", query_iter))
+        log.debug(f"found {len(r)} recently completed jobs")
+        return r
+
         
 def test_google_data_store():
     if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:

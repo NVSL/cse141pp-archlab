@@ -38,7 +38,7 @@ class LocalPubSub(object):
     def pull(self, max_messages=1, **kwargs):
         paths = self.load_inbox()
         if not paths:
-            return None
+            return []
         
         path = os.path.join(self.inbox, paths[0])
         log.debug(f"Loading pull from {path}")
@@ -47,7 +47,7 @@ class LocalPubSub(object):
             log.debug(f"Data: {r}")
         log.debug(f"Deleting {path}")
         os.unlink(path)
-        return r
+        return [r]
 
     def push(self, job_id):
         paths = self.load_inbox()
@@ -68,7 +68,7 @@ def do_test(pubsub):
 
     time.sleep(1)
     while len(to_send):
-        r = pubsub.pull()
+        r = pubsub.pull()[0]
         to_send -= {r}
         
 def test_pub_sub():

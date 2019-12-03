@@ -30,6 +30,7 @@ class Top(SubCommand):
                                   name="top",
                                   help="Track lab submission status")
         self.parser.add_argument('--once', action='store_true', default=False, help="Just collect stats once and exit")
+        self.parser.add_argument('--window', default=30, help="Time window to compute stats (in minutes) (default = 30)")
 
     def run(self, args):
         from google.cloud.pubsub_v1.types import Duration
@@ -38,6 +39,8 @@ class Top(SubCommand):
 
         log.debug(f"Running top with {args}")
 
+        args.window = int(args.window)*60
+        
         ds = DS()
 
         ps = PubSub(private_subscription=True,
@@ -47,13 +50,15 @@ class Top(SubCommand):
                     expiration_policy=ExpirationPolicy(ttl=Duration(seconds=24*3600)))
 
         live_jobs=set()
+
         for i in ds.query(status="SUBMITTED"):
-            if 'submitted_utc' not in i or i['submitted_utc'] in ["", None]:
-                continue
-            if datetime.datetime.now(pytz.utc) - i['submitted_utc'] > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
-                continue
+            log.debug(f"Found submitted job: {i['job_id']}")
             live_jobs.add(i['job_id'])
         for i in ds.query(status="RUNNING"):
+            log.debug(f"Found running job: {i['job_id']}")
+            live_jobs.add(i['job_id'])
+        for i in ds.get_recently_completed_jobs(args.window):
+            log.debug(f"Found completed job: {i['job_id']}")
             live_jobs.add(i['job_id'])
 
         try: 
@@ -65,9 +70,10 @@ class Top(SubCommand):
                     if job['status'] == "COMPLETED":
                         try:
                             since_complete = now - job['completed_utc']
-                            if since_complete > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+                            if since_complete > datetime.timedelta(seconds=args.window):
                                 live_jobs.remove(job['job_id'])
-                        except:
+                        except Exception as e:
+                            log.error("Error checking status of job {j}: {e}")
                             live_jobs.remove(job['job_id'])
 
                     try:
@@ -104,12 +110,30 @@ class Top(SubCommand):
                     submission = Submission._fromdict(json.loads(job['job_submission_json']))
                     rows.append([job['job_id'][:8], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), submission.lab_spec.short_name])
 
-                os.system("clear")
+                recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
+                s = datetime.timedelta()
+                timeout = datetime.timedelta(seconds = int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
+                overdue = 0
+
+                for j in recent_jobs:
+                    d = j['completed_utc'] - j['submitted_utc']
+                    if d > timeout:
+                        overdue += 1
+                    s += d
+
+                    
+                    
+                if not args.verbose:
+                    os.system("clear")
+                sys.stdout.write(f"Comp. in the last {args.window}s: {len(recent_jobs)}\n")
+                sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
+                sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                 sys.stdout.write(columnize(rows, divider=" "))
                 sys.stdout.flush()
-                m = ps.pull(timeout=1)
-                if m:
+
+                for m in ps.pull(timeout=5,max_messages=100):
                     live_jobs.add(m)
+                
                 if args.once:
                     break
         except KeyboardInterrupt:
