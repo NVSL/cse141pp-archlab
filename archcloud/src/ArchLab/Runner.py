@@ -24,6 +24,7 @@ import base64
 from uuid import uuid4 as uuid
 import time
 from .CloudServices import DS, PubSub, BlobStore
+from .Columnize import columnize
 
 class RunnerException(Exception):
     pass
@@ -84,7 +85,11 @@ class LabSpec(object):
             self.clean_cmd = ['make', 'clean']
         
         assert self.lab_name is not None, "You must name your lab"
-                
+
+    def get_help(self):
+        rows = [[k,getattr(self, k)] for k in ["lab_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
+        return columnize(rows, headers=None, divider=" : " )
+    
     def _asdict(self):
         return {f:getattr(self, f) for f in self._fields}
 
@@ -237,10 +242,14 @@ class LabSpec(object):
 
     @classmethod
     def load(cls, root):
-        log.debug("Importing {}".format(os.path.join(root, "lab.py")))
+        path =  os.path.join(root, "lab.py")
+        log.debug(f"Importing {path}")
         spec = importlib.util.spec_from_file_location("LabInfo", os.path.join(root, "lab.py"))
         lab_info = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(lab_info)
+        try:
+            spec.loader.exec_module(lab_info)
+        except FileNotFoundError as e:
+            raise Exception(f"Couldn't find '{path}'")
 
         return lab_info.ThisLab()
 

@@ -15,6 +15,7 @@
     labtool ls | grep -F "$date"
 }
 
+
 @test "autograder" {
     # Test the autograding script
     # This should mimic how our gradescope scripts run it.

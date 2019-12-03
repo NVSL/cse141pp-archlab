@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult, LabSpec
 import logging as log
 import json
 import platform
@@ -10,17 +10,9 @@ import os
 import subprocess
 import base64
 
-def columnize(data, divider="|", headers=1):
-    r = ""
-    column_count = max(map(len, data))
-    rows = [x + ([""] * (column_count - len(x))) for x in data]
-    widths = [max(list(map(lambda x:len(str(x)), col))) for col in zip(*rows)]
-    div = "{}".format(divider)
-    for i, row in enumerate(rows):
-        if headers is not None and headers == i:
-            r += divider.join(map(lambda x: "-" * (x), widths )) + "\n"
-        r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
-    return r
+def show_info(args):
+    spec=LabSpec.load(args.directory)
+    sys.stdout.write(spec.get_help())
 
 def main(argv=None):
     """
@@ -52,6 +44,8 @@ def main(argv=None):
     parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
     parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
     parser.add_argument('--metadata', default="", help="Arbitrary metadata on remote execution")
+    parser.add_argument('--debug', action="store_true", help="Be more verbose about errors.")
+    parser.add_argument('--info', action="store_true", help="Print information about this lab an exit")
 
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
 
@@ -66,6 +60,9 @@ def main(argv=None):
 
     log.debug(f"Command line args: {args}")
 
+    if args.info:
+        return show_info(args)
+    
     if args.run_json is not None:
         args.pristine = True
         log.info("Enabling pristine modern for json run")
@@ -166,6 +163,12 @@ def main(argv=None):
         log.error(e)
         status_str = "Unknown failure: {e}"
         exit_code = 1
+    except Exception as e:
+        if args.debug:
+            raise
+        else:
+            sys.stderr.write(f"{e}\n")
+            sys.exit(1)
     else:
         if result:
             status_str =  result.status
@@ -181,7 +184,6 @@ def main(argv=None):
     log.debug(f"Exit code: {exit_code}")
     sys.exit(exit_code)
 
-    
 
 if __name__ == '__main__':
     main(sys.argv[1:])
