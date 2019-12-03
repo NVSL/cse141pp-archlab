@@ -6,6 +6,7 @@ from google.cloud import datastore
 import google.oauth2
 import datetime
 import platform
+import pytz
 
 class GoogleDataStore(object):
     def __init__(self):
@@ -52,7 +53,7 @@ class GoogleDataStore(object):
         job['job_submission_json'] = job_submission_json
         job['manifest'] = manifest
         job['status'] = status
-        job['submitted_utc'] = repr(datetime.datetime.utcnow())
+        job['submitted_utc'] = datetime.datetime.now(pytz.utc)
         job['started_utc'] = ""
         job['completed_utc'] = ""
         job['submitted_host'] = platform.node()
@@ -67,6 +68,11 @@ class GoogleDataStore(object):
         job.update(**kwargs)
         self.datastore_client.put(job)
 
+    def get_recent_jobs(self, seconds_ago):
+        query = self.datastore_client.query(kind=self.kind)
+        query.add_filter('submitted_utc', ">", datetime.datetime.now(pytz.utc) - datetime.timedelta(seconds = seconds_ago))
+        query_iter = query.fetch()
+        return list(query_iter)
         
 def test_google_data_store():
     if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:

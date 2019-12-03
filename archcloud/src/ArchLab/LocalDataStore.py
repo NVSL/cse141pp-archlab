@@ -2,10 +2,12 @@ import os
 import logging as log
 from pathlib import Path
 import pytest
+import pickle
 import json
 import tempfile
 import datetime
 import platform
+import pytz
 
 class LocalDataStore(object):
     def __init__(self, directory = None):
@@ -27,8 +29,8 @@ class LocalDataStore(object):
         r = []
         for p in Path(self.directory).iterdir():
             log.debug(f"examining {p}")
-            with open(p, 'r') as f:
-                job = json.loads(f.read())
+            with open(p, 'rb') as f:
+                job = pickle.load(f)
                 log.debug(f"read {job}")
                 if len(kwargs) == 0 or all(map(lambda kv: job[kv[0]] == kv[1], kwargs.items())):
                     log.debug("It matched!")
@@ -40,8 +42,8 @@ class LocalDataStore(object):
     def pull(self, job_id):
         path = os.path.join(self.directory, str(job_id))
         try:
-            with open(path, "r") as f:
-                return json.loads(f.read())
+            with open(path, "rb") as f:
+                return pickle.load(f)
         except:
             return None
 
@@ -59,15 +61,15 @@ class LocalDataStore(object):
         job['job_submission_json'] = job_submission_json
         job['manifest'] = manifest
         job['status'] = status
-        job['submitted_utc'] = repr(datetime.datetime.utcnow())
+        job['submitted_utc'] = datetime.datetime.now(pytz.utc)
         job['started_utc'] = ""
         job['completed_utc'] = ""
         job['submitted_host'] = platform.node()
         job['runner_host'] = ""
         
         path = os.path.join(self.directory, str(job_id))
-        with open(path, "w") as f:
-            f.write(json.dumps(job))
+        with open(path, "wb") as f:
+            pickle.dump(job, f)
 
     def update(self,
 	       job_id,
@@ -75,12 +77,13 @@ class LocalDataStore(object):
         job = self.pull(job_id)
         job.update(**kwargs)
         path = os.path.join(self.directory, str(job_id))
-        with open(path, "w") as f:
-            f.write(json.dumps(job))
+        with open(path, "wb") as f:
+            pickle.dump(job, f)
 
 
 def do_test(ds):
     from uuid import uuid4 as uuid
+    import json
     import time
     id1 = uuid()
     id2 = uuid()
@@ -91,15 +94,13 @@ def do_test(ds):
             job_submission_json=json.dumps([]),
             manifest="a file",
             output="out",
-            status=junk,
-            lab_name="lab2")
+            status=junk)
     ds.push(job_id = str(id2),
             metadata="b",
             job_submission_json=json.dumps({}),
             manifest="b file",
             output="out",
-            status=junk,
-            lab_name="lab1")
+            status=junk)
     time.sleep(1)
     assert ds.pull(str(id1))['metadata'] == "a"
     assert ds.pull(str(id2))['manifest'] == "b file"
@@ -111,6 +112,8 @@ def do_test(ds):
     time.sleep(1)
     assert ds.pull(str(id2))['metadata'] == "c"
     assert ds.pull(str(id2))['foo'] == "d"
+
+    ds.pull(str(id2))['submitted_utc'] - datetime.datetime.now(pytz.utc)
     
     r = ds.query(job_id=str(id1))
     assert len(r) == 1

@@ -172,11 +172,16 @@ class HostTop(PacketCommand):
                             if d['id'] not in hosts:
                                 current_devices = self.get_packet_hosts()
                                 device_map = {x.hostname : x for x in current_devices}
+                                
+                                if d['node'] in device_map:
+                                    ip_addr = device_map[d['node']]['ip_addresses'][0]['address']
+                                else:
+                                    ip_addr = "unknown"
                                 hosts[d['id']] = Host(id=d['id'],
                                                       name=d['node'],
                                                       status=d['status'],
                                                       sw_hash=d.get('sw_git_hash', " "*8),
-                                                      ipaddr=device_map[d['node']]['ip_addresses'][0]['address'])
+                                                      ipaddr=ip_addr)
                             else:
                                 host = hosts[d['id']]
                                 stamp = eval(d['time'])
@@ -184,8 +189,9 @@ class HostTop(PacketCommand):
                                     host.touch(stamp)
                                     host.update_status(d['status'])
                                     host.update_software(d.get('sw_git_hash', " "*8))
-                        except KeyError:
-                            log.warning("Got strange message: {d}")
+                        except KeyError as e:
+                            log.warning(f"Got strange message: {d} ({e})")
+                            raise
                         subscriber.acknowledge(sub_path, [r.ack_id])
                 rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
                 for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):

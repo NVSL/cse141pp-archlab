@@ -18,12 +18,12 @@ import tempfile
 import datetime
 import threading
 from uuid import uuid4 as uuid
+import pytz
 
 from .CloudServices import DS, PubSub, BlobStore
     
 from .Runner import build_submission, run_submission_locally, Submission
-
-
+ 
 
 from .GooglePubSub import get_publisher, ensure_topic, compute_topic_path
 from .GooglePubSub import get_subscriber, ensure_subscription_exists, compute_subscription_path
@@ -69,7 +69,7 @@ class Heart(object):
         data = dict(id=my_id,
                     type="heartbeat",
                     node=platform.node(),
-                    time=repr(datetime.datetime.utcnow()),
+                    time=repr(datetime.datetime.now(pytz.utc)),
                     sw_git_hash=self.git_hash,
                     status=status)
         
@@ -195,7 +195,7 @@ def main(argv=None):
                 ds.update(
                     job_id,
                     status='STARTED',
-                    started_utc=repr(datetime.datetime.utcnow()),
+                    started_utc=datetime.datetime.now(pytz.utc),
                     runner_host=platform.node()
                 )
 
@@ -211,7 +211,7 @@ def main(argv=None):
                     ds.update(
                         job_id,
                         status='COMPLETED',
-                        completed_utc=repr(datetime.datetime.utcnow())
+                        completed_utc=datetime.datetime.now(pytz.utc)
                     )
                 except Exception as e:
                     # if something goes wrong, we still need to notify

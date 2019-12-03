@@ -14,6 +14,7 @@ import copy
 from .Columnize import columnize
 from .SubCommand import SubCommand
 from .hosttool import send_command_to_hosts
+import pytz
 
 def cmd_ls(args):
     log.debug(f"Running ls with {args}")
@@ -35,8 +36,6 @@ class Top(SubCommand):
         from google.cloud.pubsub_v1.types import ExpirationPolicy
         import datetime
 
-        utcnow = datetime.datetime.utcnow
-
         log.debug(f"Running top with {args}")
 
         ds = DS()
@@ -51,7 +50,7 @@ class Top(SubCommand):
         for i in ds.query(status="SUBMITTED"):
             if 'submitted_utc' not in i or i['submitted_utc'] in ["", None]:
                 continue
-            if utcnow() - eval(i['submitted_utc']) > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+            if datetime.datetime.now(pytz.utc) - i['submitted_utc'] > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
                 continue
             live_jobs.add(i['job_id'])
         for i in ds.query(status="RUNNING"):
@@ -61,11 +60,11 @@ class Top(SubCommand):
             while True:
                 rows =[["id", "status", "wtime", "rtime", "tot. time", "runner", "lab" ]]
                 for j in copy.copy(live_jobs):
-                    job=ds.pull(j)
-                    now = utcnow()
+                    job = ds.pull(j)
+                    now = datetime.datetime.now(pytz.utc)
                     if job['status'] == "COMPLETED":
                         try:
-                            since_complete = now - eval(job['completed_utc'])
+                            since_complete = now - job['completed_utc']
                             if since_complete > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
                                 live_jobs.remove(job['job_id'])
                         except:
@@ -74,9 +73,9 @@ class Top(SubCommand):
                     try:
                         #log.debug(f"Parsing {job['submitted_utc']}")
                         if job['status'] == "SUBMITTED":
-                            waiting = now - eval(job['submitted_utc'])
+                            waiting = now - job['submitted_utc']
                         else:
-                            waiting = eval(job['started_utc']) - eval(job['submitted_utc'])
+                            waiting = job['started_utc'] - job['submitted_utc']
                     except KeyError:
                         waiting = "k"
                     except SyntaxError:
@@ -85,9 +84,9 @@ class Top(SubCommand):
                     try:
                         #log.debug(f"Parsing {job['started_utc']}")
                         if job['status'] == "STARTED":
-                            running = now - eval(job['started_utc'])
+                            running = now - job['started_utc']
                         elif job['status'] == "COMPLETED":
-                            running = eval(job['completed_utc']) - eval(job['started_utc'])
+                            running = job['completed_utc'] - job['started_utc']
                         else:
                             running = "."
                     except KeyError as e:
