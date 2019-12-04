@@ -6,13 +6,13 @@
 
     # submit a job but don't wait.
     date=$(date)
-    runlab --directory $LABS_ROOT/CSE141pp-Lab-Tiny --remote --no-validate --metadata "$date" &
+    runlab --directory $LABS_ROOT/CSE141pp-Lab-Tiny --remote --no-validate &
     echo  sleeping
     sleep 1
     echo  killing
     kill $!
     labtool ls
-    labtool ls | grep -F "$date"
+
 }
 
 
@@ -20,12 +20,13 @@
     # Test the autograding script
     # This should mimic how our gradescope scripts run it.
     # Tests for the setup stuff is the autograder repo.
-    export DEPLOYMENT_MODE=EMULATION
+    export DEPLOYMENT_MODE=TESTING
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
     
-    runlab.d --just-once -v  &
+    (runlab.d --just-once -v & sleep 10; kill $!) &
+    sleep 3
     pushd test_inputs/gradescope/
     rm -rf submission
     mkdir -p submission

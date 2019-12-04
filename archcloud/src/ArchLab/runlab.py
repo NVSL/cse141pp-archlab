@@ -9,10 +9,14 @@ import sys
 import os
 import subprocess
 import base64
+import textwrap
 
-def show_info(args):
-    spec=LabSpec.load(args.directory)
-    sys.stdout.write(spec.get_help())
+def show_info():
+    try:
+        spec=LabSpec.load(".")
+        return spec.get_help()
+    except :
+        return "Not a lab directory"
 
 def main(argv=None):
     """
@@ -29,25 +33,52 @@ def main(argv=None):
     6. `./runlab --json --nop | ./runlab --run-json --pristine --docker` generate the submission, consume it, and run it in a pristine clone in a docker container.
 
     """
-    parser = argparse.ArgumentParser(description='Run a lab.')
+
+    student_mode = "STUDENT_MODE" in os.environ # Don't get any clever
+                                                # ideas, this just
+                                                # hides the options to
+                                                # the make help more
+                                                # useful.  Access
+                                                # control checks
+                                                # happen
+                                                # elsewhere. ;-)
+    
+    parser = argparse.ArgumentParser(description=textwrap.dedent("""Run a Lab
+
+    Running the lab with this command ensure that your compilation and
+    execution enviroment matches the autograder's as closely as possible.
+    
+    Useful options include:
+    
+    * '--no-validate' to run your code without committing it.
+    * '--info' to see the parameters for the current lab.
+    * '--pristine' to (as near as possible) exactly mimic how the autograder runs code.
+    
+    """),
+                                     epilog=f"Information about this lab:\n\n{show_info()}",
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
-    parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
-    parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
-    parser.add_argument('--nop', action='store_true', default=False, help="Don't actually running anything.")
-    parser.add_argument('--json', default=False, action='store_true', help="Dump json version of submission and response.")
-    parser.add_argument('--directory', default=".", help="Lab root")
-    parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
-    parser.add_argument('--devel', action='store_true', default=False, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
-    parser.add_argument('--remote', action='store_true', default=False, help="Run remotely")
-    parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
-    parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
-    parser.add_argument('--metadata', default="", help="Arbitrary metadata on remote execution")
-    parser.add_argument('--debug', action="store_true", help="Be more verbose about errors.")
     parser.add_argument('--info', action="store_true", help="Print information about this lab an exit")
+    parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
+    
+    if not student_mode:
+        parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
+        parser.add_argument('--nop', action='store_true', default=False, help="Don't actually run anything.")
+        parser.add_argument('--native', action='store_false', dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
+        parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
+        parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
+        parser.add_argument('--json', default=False, action='store_true', help="Dump json version of submission and response.")
+        parser.add_argument('--directory', default=".", help="Lab root")
+        parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
+        parser.add_argument('--remote', action='store_true', default=False, help="Run remotely")
+        parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
+        parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
+        parser.add_argument('--debug', action="store_true", help="Be more verbose about errors.")
+        parser.add_argument('--verify-repo', action="store_true", help="Check that repo in lab.py is on the whitelist")
 
-    parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run")
 
     if argv == None:
         argv = sys.argv[1:]
@@ -103,7 +134,9 @@ def main(argv=None):
         else:
             submission = build_submission(args.directory,
                                           input_dir,
-                                          args.command)
+                                          args.command,
+                                          username=os.environ.get("USER"))
+            )
 
             for i in args.lab_override:
                 k, v = i.split("=")
@@ -133,11 +166,11 @@ def main(argv=None):
                                                 root=args.directory,
                                                 run_in_docker=args.docker,
                                                 run_pristine=args.pristine,
-                                                docker_image=args.docker_image)
+                                                docker_image=args.docker_image,
+                                                verify_repo=args.verify_repo)
             else:
-                result = run_submission_remotely(submission,
-                                                 metadata=args.metadata)
-            
+                result = run_submission_remotely(submission)
+                
             log.debug(f"Got response: {result}")
             log.debug(f"Got response: {result._asdict()}")
             for i in result.files:

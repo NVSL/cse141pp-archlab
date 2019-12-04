@@ -49,17 +49,13 @@ class LocalDataStore(object):
 
     def push(self,
              job_id,
-	     metadata, 
              job_submission_json, 
-	     manifest,
 	     output,
 	     status
     ):
         job={}
         job['job_id'] = job_id
-        job['metadata'] = metadata
         job['job_submission_json'] = job_submission_json
-        job['manifest'] = manifest
         job['status'] = status
         job['submission_status'] = ""
         job['submitted_utc'] = datetime.datetime.now(pytz.utc)
@@ -91,27 +87,19 @@ def do_test(ds):
     junk = str(uuid())
     log.debug(f"Junk = {junk}")
     ds.push(job_id = str(id1),
-            metadata="a",
             job_submission_json=json.dumps([]),
-            manifest="a file",
             output="out",
             status=junk)
     ds.push(job_id = str(id2),
-            metadata="b",
             job_submission_json=json.dumps({}),
-            manifest="b file",
             output="out",
             status=junk)
     time.sleep(1)
-    assert ds.pull(str(id1))['metadata'] == "a"
-    assert ds.pull(str(id2))['manifest'] == "b file"
     assert ds.pull(str(uuid())) == None
 
     ds.update(job_id = str(id2),
-              metadata="c",
               foo="d")
     time.sleep(1)
-    assert ds.pull(str(id2))['metadata'] == "c"
     assert ds.pull(str(id2))['foo'] == "d"
 
     ds.pull(str(id2))['submitted_utc'] - datetime.datetime.now(pytz.utc)

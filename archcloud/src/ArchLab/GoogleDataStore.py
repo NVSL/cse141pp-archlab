@@ -40,18 +40,14 @@ class GoogleDataStore(object):
 
     def push(self,
 	     job_id,
-	     metadata, 
 	     job_submission_json, 
-	     manifest,
 	     output,
 	     status
     ):
         job_key = self.datastore_client.key(self.kind, job_id)
-        job = datastore.Entity(key=job_key, exclude_from_indexes=('metadata', 'job_submission_json', 'manifest'))
+        job = datastore.Entity(key=job_key, exclude_from_indexes=('job_submission_json',))
         job['job_id'] = job_id
-        job['metadata'] = metadata
         job['job_submission_json'] = job_submission_json
-        job['manifest'] = manifest
         job['status'] = status
         job['submission_status'] = ""
         job['submitted_utc'] = datetime.datetime.now(pytz.utc)

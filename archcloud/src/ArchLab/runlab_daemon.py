@@ -188,9 +188,7 @@ def main(argv=None):
                 if job_data['status'] != "SUBMITTED":
                     continue
                 
-                metadata = job_data['metadata']
                 job_submission_json = job_data['job_submission_json']
-                manifest = job_data['manifest']
                 set_status("RUNNING", job_data['job_id'][:8])
 
                 ds.update(
@@ -200,29 +198,37 @@ def main(argv=None):
                     runner_host=platform.node()
                 )
 
-
                 result = run_job(
                     job_submission_json=job_submission_json,
                     in_docker=args.docker,
                     docker_image=args.docker_image
                 )
 
-                try:
-                    blobstore.write_file(job_id, json.dumps(result._asdict(), sort_keys=True, indent=4))
-                    ds.update(
-                        job_id,
-                        status='COMPLETED',
-                        submission_status=result.status,
-                        completed_utc=datetime.datetime.now(pytz.utc)
-                    )
-                except Exception as e:
-                    # if something goes wrong, we still need to notify
-                    # the client, so try this simpler request.  The
-                    # main culprit seems to be values being too large.
-                    log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
-                    ds.update(job_id,
-                              status='ERROR')
-                    
+                # pull the job data again to make sure it wasn't
+                # canceled or completed by someone else.  If it timed
+                # out, we should leave it incomplete, since that's
+                # what effectively happened.
+                job_data = ds.pull(job_id=str(job_id))
+                if job_data['status'] == "STARTED":
+                    try:
+                        blobstore.write_file(job_id, json.dumps(result._asdict(), sort_keys=True, indent=4))
+                        ds.update(
+                            job_id,
+                            status='COMPLETED',
+                            submission_status=result.status,
+                            completed_utc=datetime.datetime.now(pytz.utc)
+                        )
+                    except Exception as e:
+                        # if something goes wrong, we still need to notify
+                        # the client, so try this simpler request.
+                        #
+                        # We probably don't adequately handle "ERROR" as a status.
+                        log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
+                        ds.update(job_id,
+                                  status='ERROR')
+                else:
+                    log.error(f"Found that job I was runnin completed without me")
+                        
                 set_status("IDLE")
 
                 if args.just_once:
@@ -233,7 +239,8 @@ def main(argv=None):
         except Exception as e:
             if args.debug:
                 raise
-            log.error(f"Uncaught exception: {e}.\nSleeping for 1 second and trying again")
+            log.error(f"Uncaught exception: {e}.")
+            log.error("Sleeping for 1 second and trying again")
             time.sleep(1.0)
 
             

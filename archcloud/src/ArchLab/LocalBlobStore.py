@@ -22,6 +22,7 @@ class LocalBlobStore(object):
 
 def test_local_blob_store():
     from .GoogleBlobStore import _test_blob_store
-    
+    if "EMULATION_DIR" not in os.environ:
+        return
     bs = LocalBlobStore("test-bucket")
     _test_blob_store(bs)

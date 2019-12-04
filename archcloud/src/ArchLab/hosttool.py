@@ -8,7 +8,7 @@ import os
 import re
 from .SubCommand import SubCommand
 import packet
-from .Columnize import columnize
+from .Columnize import columnize, format_time_delta
 
 def send_command_to_hosts(command):
     from .GooglePubSub import ensure_topic, get_publisher, compute_topic_path
@@ -203,7 +203,11 @@ class HostTop(PacketCommand):
                         subscriber.acknowledge(sub_path, [r.ack_id])
                 rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
                 for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
-                    rows.append([h.name, h.ipaddr, h.id[:8], datetime.datetime.utcnow()-h.last_heart_beat, h.status, datetime.datetime.utcnow()-h.last_status_change, h.sw_hash[:8]])
+                    rows.append([h.name, h.ipaddr, h.id[:8],
+                                 format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
+                                 h.status,
+                                 format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
+                                 h.sw_hash[:8]])
 
                 if not args.verbose:
                     os.system("clear")

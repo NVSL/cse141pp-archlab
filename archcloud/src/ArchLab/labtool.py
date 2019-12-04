@@ -11,7 +11,7 @@ import subprocess
 import base64
 from  .CloudServices import DS, PubSub
 import copy
-from .Columnize import columnize
+from .Columnize import columnize, format_time_delta
 from .SubCommand import SubCommand
 from .hosttool import send_command_to_hosts
 import pytz
@@ -22,7 +22,7 @@ def cmd_ls(args):
     jobs = ds.query()
     sys.stdout.write(f"{len(jobs)} jobs:\n")
     for j in jobs:
-        sys.stdout.write(f"{j['job_id']}: {j['metadata']} \n")
+        sys.stdout.write(f"{j['job_id']}\n")
 
 class Cleanup(SubCommand):
     def __init__(self, parent):
@@ -83,7 +83,7 @@ class Top(SubCommand):
 
         try: 
             while True:
-                rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner", "lab" ]]
+                rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner", "lab", "user" ]]
                 for j in copy.copy(live_jobs):
                     job = ds.pull(j)
                     now = datetime.datetime.now(pytz.utc)
@@ -128,7 +128,7 @@ class Top(SubCommand):
                         total = waiting
 
                     submission = Submission._fromdict(json.loads(job['job_submission_json']))
-                    rows.append([job['job_id'][:8], job.get('status','.'), job.get('submission_status', "."), str(waiting), str(running), str(total), str(job['runner_host']), submission.lab_spec.short_name])
+                    rows.append([job['job_id'][:8], job.get('status','.'), job.get('submission_status', "."), format_time_delta(waiting), format_time_delta(running), format_time_delta(total), str(job['runner_host']), submission.lab_spec.short_name, submission.username])
 
                 recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
                 s = datetime.timedelta()

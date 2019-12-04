@@ -82,7 +82,6 @@ def main(argv=sys.argv[1:]):
         log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                         level=log.DEBUG if args.verbose else log.INFO)
         
-        RUNNER_PATH = os.environ['ARCHLAB_REPO_ROOT']
         metadata_fn = os.path.join(args.root, 'submission_metadata.json')
         results_fn = os.path.join(args.root, 'results/results.json')
         submission_dir = os.path.join(args.root, 'submission')
@@ -91,12 +90,11 @@ def main(argv=sys.argv[1:]):
                 metadata_str = f.read()
                 metadata = json.loads(metadata_str)
 
-        metadata = json.dumps(metadata)
         manifest = 'one file from student repo'
 
         start_time = time.time()
-        submission = build_submission(submission_dir, ".", None)
-        result = run_submission_remotely(submission, metadata, manifest)
+        submission = build_submission(submission_dir, ".", None, metadata=metadata, username=metadata['users'][0]["email"])
+        result = run_submission_remotely(submission)
 
         files = []
 

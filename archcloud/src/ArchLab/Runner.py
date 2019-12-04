@@ -259,17 +259,19 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command):
+    def __init__(self, lab_spec, files, env, command, metadata, username=None):
         self.lab_spec = lab_spec
-        self.files = files
-        self.env = env
-        self.command = command
-        
+        with collect_fields_of(self):
+            self.files = files
+            self.env = env
+            self.command = command
+            self.metadata = metadata
+            self.username = username if username else "unknown"
+            
     def _asdict(self):
-        return dict(lab_spec=self.lab_spec._asdict(),
-                    files=self.files,
-                    env=self.env,
-                    command=self.command)
+        t = {f:getattr(self, f) for f in self._fields}
+        t['lab_spec'] = self.lab_spec._asdict()
+        return t
 
     @classmethod
     def _fromdict(cls, j):
@@ -360,37 +362,21 @@ class SubmissionResult(object):
         t = cls(**j)
         return cls(**j)
 
-def run_submission_remotely(submission,
-                            metadata=None,
-                            manifest=None):
+def run_submission_remotely(submission):
 
     ds = DS()
     pubsub = PubSub()
     
-    log.debug(f"Metadata was: {metadata}")
-    if not metadata:
-        metadata = ""
-
-    if not manifest:
-        manifest = ""
-
-    log.debug(f"Metadata is: {metadata}")
-
-    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
+    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
     job_id = uuid()
-
-    log.debug(f"Job = {job_id}")
-    log.debug(f"{job_id}\n{metadata}{manifest}\n")
 
     output = ''
     status = 'SUBMITTED'
 
     ds.push(
         str(job_id),
-        metadata, 
         job_submission_json, 
-        manifest,
         output,
         status,
     )
@@ -440,13 +426,15 @@ def run_submission_remotely(submission,
         time.sleep(1)
                   
 
-def run_submission_locally(sub, root=".",
+def run_submission_locally(sub,
+                           root=".",
                            run_in_docker=False,
                            run_pristine=False,
                            nop=False,
                            timeout=None,
                            apply_options=False,
-                           docker_image=None):
+                           docker_image=None,
+                           verify_repo=True):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -516,6 +504,8 @@ def run_submission_locally(sub, root=".",
         with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
                 repo = sub.lab_spec.repo
+                if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
+                    raise Exception(f"Repo {repo} is not valid")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 r = log_run(cmd=['git', 'clone', repo , dirname])
@@ -606,9 +596,11 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None):
+def build_submission(directory, input_dir, command, config_file=None, metadata=None):
     spec = LabSpec.load(directory)
     files = {}
+    if metadata is None:
+        metadata = {}
     if config_file is None:
         config_file = spec.config_file
 
@@ -651,7 +643,8 @@ def build_submission(directory, input_dir, command, config_file=None):
         
     from_env.update(from_config)
 
-    s = Submission(spec, files, from_env, command)
+    s = Submission(spec, files, from_env, command, metadata, username)
+
     return s
 
 
