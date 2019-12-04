@@ -82,6 +82,7 @@ class LabSpec(object):
             self.time_limit = time_limit
             self.solution = solution
             self.config_file = config_file
+
             
         if self.default_cmd is None:
             self.default_cmd = ['make']
@@ -596,7 +597,7 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None, metadata=None):
+def build_submission(directory, input_dir, command, config_file=None, metadata=None, username=None):
     spec = LabSpec.load(directory)
     files = {}
     if metadata is None:
@@ -643,7 +644,7 @@ def build_submission(directory, input_dir, command, config_file=None, metadata=N
         
     from_env.update(from_config)
 
-    s = Submission(spec, files, from_env, command, metadata, username)
+    s = Submission(spec, files, from_env, command,metadata, username)
 
     return s
 

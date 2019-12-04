@@ -136,7 +136,7 @@ def main(argv=None):
                                           input_dir,
                                           args.command,
                                           username=os.environ.get("USER"))
-            )
+            
 
             for i in args.lab_override:
                 k, v = i.split("=")
