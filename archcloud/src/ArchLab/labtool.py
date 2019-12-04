@@ -24,6 +24,26 @@ def cmd_ls(args):
     for j in jobs:
         sys.stdout.write(f"{j['job_id']}: {j['metadata']} \n")
 
+class Cleanup(SubCommand):
+    def __init__(self, parent):
+        super(Cleanup, self).__init__(parent,
+                                  name="cleanup",
+                                  help="Cleanup stale jobs")
+        self.parser.add_argument('-n', '--dry-run', action='store_true', default=False, help="Don't actually do anything")
+
+    def run(self, args):
+        import datetime
+        ds = DS()
+        for i in ds.query(status="SUBMITTED"):
+            now = datetime.datetime.now(pytz.utc)
+            if now - i['submitted_utc'] > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+                log.info(f"Canceling {i['job_id']}")
+                if not args.dry_run:
+                    ds.update(i['job_id'],
+                              status = "COMPLETED",
+                              completed_utc=datetime.datetime.now(pytz.utc),
+                              submission_status = SubmissionResult.TIMEOUT,
+                    )            
 class Top(SubCommand):
     def __init__(self, parent):
         super(Top, self).__init__(parent,
@@ -78,7 +98,7 @@ class Top(SubCommand):
 
                     try:
                         #log.debug(f"Parsing {job['submitted_utc']}")
-                        if job['status'] == "SUBMITTED":
+                        if job['status'] == "SUBMITTED" or not job['started_utc']:
                             waiting = now - job['submitted_utc']
                         else:
                             waiting = job['started_utc'] - job['submitted_utc']
@@ -91,7 +111,7 @@ class Top(SubCommand):
                         #log.debug(f"Parsing {job['started_utc']}")
                         if job['status'] == "STARTED":
                             running = now - job['started_utc']
-                        elif job['status'] == "COMPLETED":
+                        elif job['status'] == "COMPLETED" and job['started_utc']:
                             running = job['completed_utc'] - job['started_utc']
                         else:
                             running = "."
@@ -153,6 +173,7 @@ def main(argv=None):
     ls_parser.set_defaults(func=cmd_ls)
 
     Top(subparsers)
+    Cleanup(subparsers)
 
     if argv == None:
         argv = sys.argv[1:]

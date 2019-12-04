@@ -64,12 +64,20 @@ class PacketDelete(PacketCommand):
         self.parser.add_argument("device", nargs="+", help="Device id")
 
     def run(self, args):
+        current_devices = self.get_packet_hosts()
+        by_name = {x.hostname : x for x in current_devices}
+        by_id = {x.id : x for x in current_devices}
         for id in args.device:
             log.info(f"Deleting '{id}'")
             try:
-                device = self.manager.get_device(id)
-                device.delete()
+                if id in by_id:
+                    device = self.manager.get_device(id)
+                    device.delete()
+                elif id in by_name:
+                    device = self.manager.get_device(by_name[id].id)
+                    device.delete()
             except packet.baseapi.Error as e:
+                
                 log.error(f"{e}")
                 
                 
@@ -199,6 +207,7 @@ class HostTop(PacketCommand):
 
                 if not args.verbose:
                     os.system("clear")
+                sys.stdout.write(f"Namespace: {os.environ['DEPLOYMENT_MODE']}\n")
                 sys.stdout.write(columnize(rows, divider=" "))
                 sys.stdout.flush()
                 if args.once:

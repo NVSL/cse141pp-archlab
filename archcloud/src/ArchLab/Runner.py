@@ -25,6 +25,8 @@ from uuid import uuid4 as uuid
 import time
 from .CloudServices import DS, PubSub, BlobStore
 from .Columnize import columnize
+import datetime
+import pytz
 
 class RunnerException(Exception):
     pass
@@ -412,8 +414,10 @@ def run_submission_remotely(submission,
 
         if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
             status = SubmissionResult.TIMEOUT
-            log.error('Job timed out after {running_time}s')
-            ds.update(status="COMPLETED",
+            log.error(f'Job timed out after {running_time}s')
+            ds.update(str(job_id),
+                      status="COMPLETED",
+                      completed_utc=datetime.datetime.now(pytz.utc),
                       submission_status=SubmissionResult.TIMEOUT)
             break
 
