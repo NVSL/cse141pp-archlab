@@ -1,14 +1,12 @@
 import os
 import logging as log
 import pytest
-import json
 from google.cloud import datastore
 import google.oauth2
 import datetime
-import platform
 import pytz
 
-from .LocalDataStore import BaseDataStore
+from .BaseDataStore import BaseDataStore, do_test_datastore
 
 class GoogleDataStore(BaseDataStore):
     def __init__(self):
@@ -60,14 +58,4 @@ class GoogleDataStore(BaseDataStore):
 def test_google_data_store():
     if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:
         pytest.skip("In emulation mode")
-
-    from .LocalDataStore import do_test
-    
-    from .CloudServices import GetDS
-    DS = GetDS()
-
-    assert DS == GoogleDataStore
-    
-    ds = DS()
-
-    do_test(ds)
+    do_test_datastore(GoogleDataStore)
