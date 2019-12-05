@@ -66,17 +66,18 @@ class LocalPublisher(LocalPubSubAgent, BasePublisher):
         log.debug(f"Publishing to topic {self.topic_path}")
         for subscription in os.listdir(self.subscriptions_root):
             subscription = os.path.join(self.subscriptions_root, subscription)
-            log.debug(f"Found subscription {subscription}")
             if os.path.isdir(subscription):
                 with open(os.path.join(subscription, "topic")) as out:
                     topic = out.read()
-                    log.debug(f"It is for topic '{repr(topic)}'")
+                    #log.debug(f"It is for topic '{repr(topic)}'")
                     if topic== self.topic_path:
-                        log.debug(f"It is a match.  Writing to {fn}")
+                        #log.debug(f"It is a match.  Writing to {fn}")
+                        log.debug(f"Found matching subscription {subscription}")
                         with open(os.path.join(subscription, fn), "wb") as out:
                             out.write(message)
                     else:
-                        log.debug(f"It is not a match for '{repr(self.topic_path)}'")
+                        pass
+                        #log.debug(f"It is not a match for '{repr(self.topic_path)}'")
                                         
     def do_delete_topic(self, path):
         shutil.rmtree(os.path.join(self.topics_root, path))
@@ -105,7 +106,7 @@ class LocalSubscriber(LocalPubSubAgent, BaseSubscriber):
             raise AlreadyExists
     
     PulledMessage = namedtuple("PulledMessage",  "data ack_id")
-    def do_pull(self, path, max_messages=1, **kwargs):
+    def do_pull(self, path, max_messages=1, timeout=1, **kwargs):
         sub = os.path.join(self.subscriptions_root, path)
         items = list(filter(lambda x: x != "topic", os.listdir(sub)))
         log.debug(f"Directory contents for {path} {list(items)} ")
@@ -129,6 +130,8 @@ class LocalSubscriber(LocalPubSubAgent, BaseSubscriber):
             c += 1
             if c == max_messages:
                 break
+        if len(r) == 0:
+            time.sleep(timeout)
         return r
 
     def do_acknowledge(self, path, msg):

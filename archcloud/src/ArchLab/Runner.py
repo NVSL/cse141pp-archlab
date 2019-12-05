@@ -23,8 +23,8 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .CloudServices import DS, BlobStore
-
+from .BlobStore import BlobStore
+from .DataStore import DataStore
 from .PubSub import Publisher
 
 from .Columnize import columnize
@@ -368,8 +368,7 @@ class SubmissionResult(object):
 
 def run_submission_remotely(submission):
 
-    ds = DS()
-
+    ds = DataStore()
     publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
     
     job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
@@ -418,7 +417,7 @@ def run_submission_remotely(submission):
             if job_data['status'] == 'COMPLETED':
                 log.info(f"Job finished after {running_time} seconds: {job_id}")
                 status = 'COMPLETED'
-                blobstore = BlobStore("jobs")
+                blobstore = BlobStore(os.environ['JOBS_BUCKET'])
                 r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
                 log.debug(f"{r}")
                 return r

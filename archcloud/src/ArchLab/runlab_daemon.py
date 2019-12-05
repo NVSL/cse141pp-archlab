@@ -20,8 +20,10 @@ import threading
 from uuid import uuid4 as uuid
 import pytz
 
-from .CloudServices import DS, BlobStore
+from .BlobStore import BlobStore
+from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
+
 
 from .Runner import build_submission, run_submission_locally, Submission
 
@@ -51,16 +53,19 @@ def set_status(new_status, message=None):
     heart.send_beat()
     
 class Heart(object):
-    def __init__(self):
-        self.publisher = Publisher(topic="host-events")
+    def __init__(self, rate):
+        self.publisher = Publisher(topic=os.environ['HOST_EVENTS_TOPIC'])
         try:
             with open(f"{os.environ['RUNLAB_STATUS_DIRECTORY']}/archlab_version", "r") as f:
                 self.git_hash = f.read()
         except:
             self.git_hash = "unknown"
+
+        self.heart_rate = rate
         
     def send_beat(self):
         global status
+        global my_id
         log.debug(f"now = {repr(datetime.datetime.utcnow())}")
         data = dict(id=my_id,
                     type="heartbeat",
@@ -76,21 +81,21 @@ class Heart(object):
     def beat(cls, heart):
         while True:
             heart.send_beat()
-            time.sleep(30)
+            time.sleep(heart.heart_rate)
 
 class CommandListener(object):
     def listen(self):
-        with Subscriber(topic="host-commands") as subscriber:
+        with Subscriber(topic=os.environ['HOST_COMMAND_TOPIC']) as subscriber:
             while True:
                 try:
-                    r = subscriber.pull(max_messages=5, timeout=10)
+                    messages = subscriber.pull(max_messages=5, timeout=2)
                 except DeadlineExceeded: 
                     pass
                 else:
                     global keep_running
-                    for r in r.received_messages:
-                        log.info(f"Received command: {r.message.data.decode('utf8')}")
-                        command = json.loads(r.message.data.decode('utf8'))
+                    for r in messages: 
+                        log.info(f"Received command: {r}")
+                        command = json.loads(r)
                         if command['command'] == "exit":
                             keep_running = False
                         if command['command'] == "reload-python":
@@ -126,12 +131,17 @@ def run_job(job_submission_json, in_docker, docker_image):
     return result
 
 def main(argv=None):
+
     parser = argparse.ArgumentParser(description='Server to run a lab.')
     parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
     parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
     parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
     parser.add_argument('--just-once', action='store_true', help="Just check the queue 1 time, then exit.")
+    parser.add_argument('--id', default=None,  help="Use this as the server identifier.")
     parser.add_argument('--debug', action='store_true', help="exit on errors")
+    parser.add_argument('--heart-rate', default=30, help="seconds between heart beats")
+    
+        
     if argv == None:
         argv = sys.argv[1:]
     args = parser.parse_args(argv)
@@ -140,21 +150,24 @@ def main(argv=None):
                     level=log.DEBUG if args.verbose else log.INFO)
     log.debug(f"args={args}")
 
-    ds = DS()
-    blobstore = BlobStore("jobs")
+    global my_id
+    if args.id != None:
+        my_id = args.id
+
+    ds = DataStore()
+    blobstore = BlobStore(os.environ['JOBS_BUCKET'])
     subscriber = Subscriber(name=os.environ['PUBSUB_SUBSCRIPTION'],
                             topic=os.environ['PUBSUB_TOPIC'])
 
     global heart
     global keep_running
 
-    heart = Heart()
+    heart = Heart(float(args.heart_rate))
     head = CommandListener()
     set_status("IDLE")    
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
     while keep_running:
-        time.sleep(1)
         try:
             job_id = subscriber.pull()
 

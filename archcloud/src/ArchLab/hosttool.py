@@ -9,17 +9,13 @@ import re
 from .SubCommand import SubCommand
 import packet
 from .Columnize import columnize, format_time_delta
+from .PubSub import Publisher, Subscriber
 
 def send_command_to_hosts(command):
-    from .GooglePubSub import ensure_topic, get_publisher, compute_topic_path
-    topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-commands"        
-    ensure_topic(topic)
-    publisher = get_publisher()
+    publisher = Publisher(os.environ['HOST_COMMAND_TOPIC'])
     s = json.dumps(dict(command=command))
-    log.debug(f"Sent command {s} on top {topic}")
-    publisher.publish(compute_topic_path(topic), s.encode('utf8'))
+    publisher.publish(s)
     
-
 class HostControl(SubCommand):
     def __init__(self, parent):
         super(HostControl, self).__init__(parent_subparser=parent,
@@ -119,17 +115,16 @@ class HostTop(PacketCommand):
                                       name="top",
                                       help="Track hosts")
         self.parser.add_argument('--once', action='store_true', default=False, help="Just collect stats once and exit")
-        
+
     def run(self, args):
         log.debug(f"Running hosts with {args}")
         from google.cloud.pubsub_v1.types import Duration
         from google.cloud.pubsub_v1.types import ExpirationPolicy
-        from .GooglePubSub import ensure_subscription_exists, get_subscriber, compute_subscription_path, delete_subscription
-        from .GooglePubSub import ensure_topic, get_publisher, compute_topic_path
         from uuid import uuid4 as uuid
         import datetime
         import google.api_core
 
+        
         class Host(object):
             def __init__(self,id, name, status, sw_hash, ipaddr):
                 self.id=id
@@ -151,78 +146,67 @@ class HostTop(PacketCommand):
             def update_software(self, sw_hash):
                 self.sw_hash = sw_hash
 
+        countdown = 3
+            
         if not args.verbose:
             os.system("clear")
-            
+
         try:
-            sub_name = f"top-listener-{uuid()}"
-            ensure_subscription_exists(topic=f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events",
-                                       subscription=sub_name,
-                                       message_retention_duration=Duration(seconds=30*60),
-                                       expiration_policy=ExpirationPolicy(ttl=Duration(seconds=24*3600)))
+            with Subscriber(topic=os.environ['HOST_EVENTS_TOPIC']) as subscriber:
+                send_command_to_hosts("send-heartbeat")
+                hosts = dict()
+                while True:
+                    try:
+                        messages = subscriber.pull(max_messages=5, timeout=3)
+                    except google.api_core.exceptions.DeadlineExceeded as e: 
+                        log.debug(e)
+                        pass
+                    else:
+                        for r in messages:
+                            d = json.loads(r)
+                            try:
+                                if d['id'] not in hosts:
+                                    current_devices = self.get_packet_hosts()
+                                    device_map = {x.hostname : x for x in current_devices}
 
-            subscriber = get_subscriber()
-            sub_path = compute_subscription_path(sub_name)
-
-            send_command_to_hosts("send-heartbeat")
-            hosts = dict()
-            while True:
-                try:
-                    r = subscriber.pull(sub_path, max_messages=5, timeout=3)
-                except google.api_core.exceptions.DeadlineExceeded as e: 
-                    log.debug(e)
-                    pass
-                else:
-                    for r in r.received_messages:
-                        log.debug(f"Got {r.message.data.decode('utf8')}")
-                        d = json.loads(r.message.data.decode("utf8"))
-                        try:
-                            if d['id'] not in hosts:
-                                current_devices = self.get_packet_hosts()
-                                device_map = {x.hostname : x for x in current_devices}
-                                
-                                if d['node'] in device_map:
-                                    ip_addr = device_map[d['node']]['ip_addresses'][0]['address']
+                                    if d['node'] in device_map:
+                                        ip_addr = device_map[d['node']]['ip_addresses'][0]['address']
+                                    else:
+                                        ip_addr = "unknown"
+                                    hosts[d['id']] = Host(id=d['id'],
+                                                          name=d['node'],
+                                                          status=d['status'],
+                                                          sw_hash=d.get('sw_git_hash', " "*8),
+                                                          ipaddr=ip_addr)
                                 else:
-                                    ip_addr = "unknown"
-                                hosts[d['id']] = Host(id=d['id'],
-                                                      name=d['node'],
-                                                      status=d['status'],
-                                                      sw_hash=d.get('sw_git_hash', " "*8),
-                                                      ipaddr=ip_addr)
-                            else:
-                                host = hosts[d['id']]
-                                stamp = eval(d['time'])
-                                if stamp > host.last_heart_beat:
-                                    host.touch(stamp)
-                                    host.update_status(d['status'])
-                                    host.update_software(d.get('sw_git_hash', " "*8))
-                        except KeyError as e:
-                            log.warning(f"Got strange message: {d} ({e})")
-                            raise
-                        subscriber.acknowledge(sub_path, [r.ack_id])
-                rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
-                for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
-                    rows.append([h.name, h.ipaddr, h.id[:8],
-                                 format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
-                                 h.status,
-                                 format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
-                                 h.sw_hash[:8]])
+                                    host = hosts[d['id']]
+                                    stamp = eval(d['time'])
+                                    if stamp > host.last_heart_beat:
+                                        host.touch(stamp)
+                                        host.update_status(d['status'])
+                                        host.update_software(d.get('sw_git_hash', " "*8))
+                            except KeyError as e:
+                                log.warning(f"Got strange message: {d} ({e})")
+                                raise
+                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
+                    for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
+                        rows.append([h.name, h.ipaddr, h.id[:8],
+                                     format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
+                                     h.status,
+                                     format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
+                                     h.sw_hash[:8]])
 
-                if not args.verbose:
-                    os.system("clear")
-                sys.stdout.write(f"Namespace: {os.environ['DEPLOYMENT_MODE']}\n")
-                sys.stdout.write(columnize(rows, divider=" "))
-                sys.stdout.flush()
-                if args.once:
-                    break
+                    if not args.verbose:
+                        os.system("clear")
+                    sys.stdout.write(f"Namespace: {os.environ['DEPLOYMENT_MODE']}\n")
+                    sys.stdout.write(columnize(rows, divider=" "))
+                    sys.stdout.flush()
+                    countdown -= 1
+                    if args.once and countdown == 0:
+                        break
         except KeyboardInterrupt:
             return 0
-        finally:
-            try:
-                delete_subscription(sub_name)
-            except:
-                pass
+
 
 def main(argv=None):
     """

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/sh
 
 @test "ls" {
     labtool --help
@@ -12,7 +12,6 @@
     echo  killing
     kill $!
     labtool ls
-
 }
 
 
@@ -20,20 +19,60 @@
     # Test the autograding script
     # This should mimic how our gradescope scripts run it.
     # Tests for the setup stuff is the autograder repo.
-    export DEPLOYMENT_MODE=TESTING
+
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    
-    (runlab.d --just-once -v & sleep 10; kill $!) &
-    sleep 3
-    pushd test_inputs/gradescope/
-    rm -rf submission
-    mkdir -p submission
-    cp -r $LABS_ROOT/CSE141pp-Lab-Tiny/* submission/
-    gradescope -v --root .
-    [ -f results/results.json ]
-    grep 'Some data' results/results.json
+    for DEPLOYMENT_MODE in TESTING EMULATION; do
+	reconfig
+	(runlab.d --just-once -v & sleep 10; kill $!) &
+	sleep 3
+	pushd test_inputs/gradescope/
+	rm -rf submission
+	mkdir -p submission
+	cp -r $LABS_ROOT/$TESTING_LAB/* submission/
+	gradescope -v --root .
+	[ -f results/results.json ]
+	grep 'Some data' results/results.json
+    done
+}
+
+@test "local tools" {
+    pushd $CONFIG_REPO_ROOT
+    . config.sh
+    popd
+
+    [ -v EMULATION_DIR ]
+    [ -v DEPLOYMENT_MODE ]
+    for DEPLOYMENT_MODE in TESTING EMULATION; do
+	reconfig
+	(runlab.d -v --heart-rate 0.5 --id foobar & sleep 10; kill $!) &
+	sleep 1
+	hosttool top --once -v 2>&1 | tee t
+	grep foobar t
+	hosttool cmd send-heartbeat
+    done
+}
+
+@test "packet" {
+    if [ "$PACKET_PROJECT_ID" = "" ]; then
+	skip
+    fi
+    hosttool ls
+}
+
+@test "job flow" {
+    pushd $CONFIG_REPO_ROOT
+    . config.sh
+    popd
+    for DEPLOYMENT_MODE in TESTING EMULATION; do
+	reconfig
+	(runlab.d --just-once -v & sleep 10; kill $!) &
+	sleep 3
+	pushd $LABS_ROOT/$TESTING_LAB
+	runlab --remote --pristine
+	popd
+    done
 }
 
 @test "jextract" {

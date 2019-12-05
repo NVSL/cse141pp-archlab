@@ -69,10 +69,10 @@ class BaseSubscriber(PubSubAgent):
         self.private_subscription = name is None
         
         if self.private_subscription:
-            log.debug(f"name = {name}; creating private")
+            log.debug(f"name = {name}; creating private subscription on {topic}")
             self.subscription_name = str(uuid())
         else:
-            log.debug(f"name = {name}; creating shared")
+            log.debug(f"name = {name}; creating shared subscription on {topic}")
             self.subscription_name = name
 
         self._subscription_name = self.add_namespace(self.subscription_name)
@@ -93,7 +93,7 @@ class BaseSubscriber(PubSubAgent):
             log.debug(f"Not creating subscription {self.subscription_path}.  It exists")
             
     def pull(self, max_messages=1, **kwargs):
-        log.debug(f"Pulling on {self.subscription_path}")
+        log.debug(f"Pulling on {self.subscription_path} from {self.topic_path}")
         try:
             messages = self.do_pull(self.subscription_path, max_messages, **kwargs)
         except DeadlineExceeded:

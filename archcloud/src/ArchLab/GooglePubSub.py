@@ -89,7 +89,7 @@ class GoogleSubscriber(BaseSubscriber):
         super(GoogleSubscriber, self).__init__(topic, name=name, **kwargs)
 
     def create_subscriber(self):
-        self.credentials = get_credentials()
+        self.credentials = GoogleSubscriber.get_credentials()
         return pubsub_v1.SubscriberClient(credentials=self.credentials)
 
     def compose_subscription_path(self, project, name):
