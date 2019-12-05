@@ -15,15 +15,15 @@ class PubSubAgent(object):
         return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}-{name}'
 
 class BasePublisher(PubSubAgent):
-    def __init__(self, topic_name, private_topic=False, **kwargs):
+    def __init__(self, topic, private_topic=False, **kwargs):
         log.debug("BasePublisher Constructor")        
         
         if private_topic:
-            self.topic_name = f"{topic_name}-{str(uuid())}"
+            self.topic = f"{topic}-{str(uuid())}"
         else:
-            self.topic_name = topic_name
+            self.topic = topic
 
-        self._topic_name = self.add_namespace(self.topic_name)
+        self._topic_name = self.add_namespace(self.topic)
             
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         self.private_topic = private_topic
@@ -33,7 +33,7 @@ class BasePublisher(PubSubAgent):
 
         try:
             log.debug(f"Trying to create topic {self.topic_path}")
-            self.topic = self.create_topic(self.topic_path, **kwargs)
+            self.topic_object = self.create_topic(self.topic_path, **kwargs)
         except AlreadyExists:
             log.debug(f"Topic '{self.topic_path}' already exists")
             if private_topic:
@@ -64,17 +64,20 @@ class BasePublisher(PubSubAgent):
 
 class BaseSubscriber(PubSubAgent):
 
-    def __init__(self, subscription_name, topic, private_subscription=False, **kwargs):
+    def __init__(self, topic, name=None, **kwargs):
 
-        if private_subscription:
-            self.subscription_name = f"{subscription_name}-{str(uuid())}"
+        self.private_subscription = name is None
+        
+        if self.private_subscription:
+            log.debug(f"name = {name}; creating private")
+            self.subscription_name = str(uuid())
         else:
-            self.subscription_name = subscription_name
+            log.debug(f"name = {name}; creating shared")
+            self.subscription_name = name
 
         self._subscription_name = self.add_namespace(self.subscription_name)
-        self.private_subscription = private_subscription
         
-        self.topic_name = topic
+        self.topic = topic
         self._topic_name = self.add_namespace(topic)
 
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
@@ -83,10 +86,12 @@ class BaseSubscriber(PubSubAgent):
         self.subscription_path = self.compose_subscription_path(self.project, self._subscription_name)
         self.topic_path = self.compose_topic_path(self.project, self._topic_name)
 
-        if private_subscription or not type(self).subscription_exists(self.subscription_path):
+        if self.private_subscription or not type(self).subscription_exists(self.subscription_path):
             log.debug(f"Creating subscription: {self.subscription_path}")
-            self.subscription = self.create_subscription(self.subscription_path, self.topic_path, **kwargs)
-        
+            self.subscription = self.create_subscription(sub_path=self.subscription_path, topic_path=self.topic_path, **kwargs)
+        else:
+            log.debug(f"Not creating subscription {self.subscription_path}.  It exists")
+            
     def pull(self, max_messages=1, **kwargs):
         log.debug(f"Pulling on {self.subscription_path}")
         try:
@@ -159,7 +164,7 @@ def do_test_subscriber(SubscriberType, PublisherType):
     
     id = str(uuid())
     with PublisherType(f"sub-test-topic-{id}", private_topic=True) as topic:
-        s = SubscriberType(f"sub-test-sub-{id}", topic=topic.topic_name)
+        s = SubscriberType(name=f"sub-test-sub-{id}", topic=topic.topic)
         assert SubscriberType.subscription_exists(s.subscription_path)
         topic.publish("Hello")
         assert s.pull(timeout=4)[0] == "Hello"
@@ -168,9 +173,9 @@ def do_test_subscriber(SubscriberType, PublisherType):
 
         items = set(map(str, range(0,3)))
 
-        shared1 = SubscriberType(f"sub2-test-sub-{id}", topic=topic.topic_name)
-        shared2 = SubscriberType(f"sub2-test-sub-{id}", topic=topic.topic_name)
-        private = SubscriberType(f"sub2-test-sub-{id}", topic=topic.topic_name, private_subscription=True)
+        shared1 = SubscriberType(name=f"sub2-test-sub-{id}", topic=topic.topic)
+        shared2 = SubscriberType(name=f"sub2-test-sub-{id}", topic=topic.topic)
+        private = SubscriberType(topic=topic.topic)
         
         for i in items:
             topic.publish(str(i))
@@ -200,15 +205,15 @@ def do_test_subscriber(SubscriberType, PublisherType):
                 break
         assert len(missing2) == 0
 
-        with SubscriberType(f"sub3-test-sub-{id}", private_subscription=True, topic=topic.topic_name) as s5:
+        with SubscriberType(topic=topic.topic) as s5:
             assert SubscriberType.subscription_exists(s5.subscription_path)
             s5_path = s5.subscription_path
-
+        log.debug(f"{s5_path}")
         assert not SubscriberType.subscription_exists(s5_path)
             
-        with SubscriberType(f"sub3-test-sub-{id}", private_subscription=False,topic=topic.topic_name) as s6:
+        with SubscriberType(name=f"sub3-test-sub-{id}", topic=topic.topic) as s6:
             assert SubscriberType.subscription_exists(s6.subscription_path)
             s6_path = s6.subscription_path
 
-        assert SubscriberType.subscription_exists(s6_path)
-        SubscriberType.delete_subscription(s6_path)
+        assert SubscriberType.subscription_exists(s6_path), f"Expected {s6_path} to exist"
+        s.do_delete_subscription(s6_path)

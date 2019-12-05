@@ -20,13 +20,11 @@ import threading
 from uuid import uuid4 as uuid
 import pytz
 
-from .CloudServices import DS, PubSub, BlobStore
-    
-from .Runner import build_submission, run_submission_locally, Submission
- 
+from .CloudServices import DS, BlobStore
+from .PubSub import Publisher, Subscriber
 
-from .GooglePubSub import get_publisher, ensure_topic, compute_topic_path
-from .GooglePubSub import get_subscriber, ensure_subscription_exists, compute_subscription_path
+from .Runner import build_submission, run_submission_locally, Submission
+
 import google.api_core
 
 status = "IDLE"
@@ -54,10 +52,7 @@ def set_status(new_status, message=None):
     
 class Heart(object):
     def __init__(self):
-        self.topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-events"
-        ensure_topic(self.topic)
-        self.publisher = get_publisher()
-        self.topic_path = compute_topic_path(self.topic)
+        self.publisher = Publisher(topic="host-events")
         try:
             with open(f"{os.environ['RUNLAB_STATUS_DIRECTORY']}/archlab_version", "r") as f:
                 self.git_hash = f.read()
@@ -74,8 +69,7 @@ class Heart(object):
                     sw_git_hash=self.git_hash,
                     status=status)
         
-        self.publisher.publish(self.topic_path,
-                               json.dumps(data).encode('utf8'))
+        self.publisher.publish(json.dumps(data))
         log.info(f"Heartbeat sent: {data}")
 
     @classmethod
@@ -85,47 +79,32 @@ class Heart(object):
             time.sleep(30)
 
 class CommandListener(object):
-    def __init__(self):
-        topic = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-host-commands"        
-        ensure_topic(topic)
-        self.subscriber = get_subscriber()
-        self.subscription_name = f"host-command-listener-{my_id}"
-        self.subscription_path = compute_subscription_path(self.subscription_name)
-        ensure_subscription_exists(topic, self.subscription_name)
-
     def listen(self):
-        log.info(f"Heading listening on {self.subscription_path}")
-        while True:
-            try:
-                r = self.subscriber.pull(self.subscription_path, max_messages=5, timeout=10)
-            except google.api_core.exceptions.DeadlineExceeded as e: 
-                pass
-            else:
-                global keep_running
-                for r in r.received_messages:
-                    log.info(f"Received command: {r.message.data.decode('utf8')}")
-                    command = json.loads(r.message.data.decode('utf8'))
-                    if command['command'] == "exit":
-                        keep_running = False
-                    if command['command'] == "reload-python":
-                        keep_running = False
-                        set_status("RELOAD_PYTHON")
-                    if command['command'] == "reload-docker":
-                        keep_running = False
-                        set_status("RELOAD_DOCKER")
-                    if command['command'] == "shutdown":
-                        keep_running = False
-                        set_status("SHUTDOWN")
-                    elif command['command'] == "send-heartbeat":
-                        global heart
-                        heart.send_beat()
-                    self.subscriber.acknowledge(self.subscription_path, [r.ack_id])
-                        
-    def teardown(self):
-        try:
-            delete_subscription(self.subscription_path)
-        except:
-            pass
+        with Subscriber(topic="host-commands") as subscriber:
+            while True:
+                try:
+                    r = subscriber.pull(max_messages=5, timeout=10)
+                except DeadlineExceeded: 
+                    pass
+                else:
+                    global keep_running
+                    for r in r.received_messages:
+                        log.info(f"Received command: {r.message.data.decode('utf8')}")
+                        command = json.loads(r.message.data.decode('utf8'))
+                        if command['command'] == "exit":
+                            keep_running = False
+                        if command['command'] == "reload-python":
+                            keep_running = False
+                            set_status("RELOAD_PYTHON")
+                        if command['command'] == "reload-docker":
+                            keep_running = False
+                            set_status("RELOAD_DOCKER")
+                        if command['command'] == "shutdown":
+                            keep_running = False
+                            set_status("SHUTDOWN")
+                        elif command['command'] == "send-heartbeat":
+                            global heart
+                            heart.send_beat()
 
     
 def run_job(job_submission_json, in_docker, docker_image):
@@ -162,20 +141,22 @@ def main(argv=None):
     log.debug(f"args={args}")
 
     ds = DS()
-    pubsub = PubSub()
     blobstore = BlobStore("jobs")
-    
+    subscriber = Subscriber(name=os.environ['PUBSUB_SUBSCRIPTION'],
+                            topic=os.environ['PUBSUB_TOPIC'])
+
     global heart
+    global keep_running
+
     heart = Heart()
     head = CommandListener()
     set_status("IDLE")    
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
-    global keep_running
     while keep_running:
         time.sleep(1)
         try:
-            job_id = pubsub.pull()
+            job_id = subscriber.pull()
 
             if len(job_id):
                 job_id = job_id[0]

@@ -9,8 +9,49 @@ import datetime
 import platform
 import pytz
 
-class LocalDataStore(object):
+class BaseDataStore(object):
+    def alloc_job(self, job_id):
+        raise NotImplemented
+    
+    def get_job(self, job_id):
+        raise NotImplemented
+    
+    def put_job(self,job):
+        raise NotImplemented
+    
+    def push(self,
+	     job_id,
+	     job_submission_json, 
+	     output,
+	     status
+    ):
+        job = self.alloc_job(job_id)
+
+        job['job_submission_json'] = job_submission_json
+        job['status'] = status
+        job['submission_status'] = ""
+        job['submitted_utc'] = datetime.datetime.now(pytz.utc)
+        job['started_utc'] = ""
+        job['completed_utc'] = ""
+        job['submitted_host'] = platform.node()
+        job['runner_host'] = ""
+
+        self.put_job(job)
+
+    def update(self,
+	       job_id,
+	       **kwargs):
+        job = self.pull(job_id)
+        job.update(**kwargs)
+        self.put_job(job)
+
+    def pull(self, job_id):
+        return self.get_job(job_id)
+                
+
+class LocalDataStore(BaseDataStore):
     def __init__(self, directory = None):
+        super(LocalDataStore, self).__init__()
         if directory == None:
             if "EMULATION_DIR" in os.environ:
                 directory = os.environ["EMULATION_DIR"]
@@ -38,8 +79,11 @@ class LocalDataStore(object):
                 else:
                     log.debug("It didn't match")
         return r
+
+    def alloc_job(self, job_id):
+        return dict(job_id=job_id)
     
-    def pull(self, job_id):
+    def get_job(self, job_id):
         path = os.path.join(self.directory, str(job_id))
         try:
             with open(path, "rb") as f:
@@ -47,33 +91,8 @@ class LocalDataStore(object):
         except:
             return None
 
-    def push(self,
-             job_id,
-             job_submission_json, 
-	     output,
-	     status
-    ):
-        job={}
-        job['job_id'] = job_id
-        job['job_submission_json'] = job_submission_json
-        job['status'] = status
-        job['submission_status'] = ""
-        job['submitted_utc'] = datetime.datetime.now(pytz.utc)
-        job['started_utc'] = ""
-        job['completed_utc'] = ""
-        job['submitted_host'] = platform.node()
-        job['runner_host'] = ""
-        
-        path = os.path.join(self.directory, str(job_id))
-        with open(path, "wb") as f:
-            pickle.dump(job, f)
-
-    def update(self,
-	       job_id,
-	       **kwargs):
-        job = self.pull(job_id)
-        job.update(**kwargs)
-        path = os.path.join(self.directory, str(job_id))
+    def put_job(self, job):
+        path = os.path.join(self.directory, job['job_id'])
         with open(path, "wb") as f:
             pickle.dump(job, f)
 

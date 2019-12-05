@@ -4,10 +4,14 @@ import logging as log
 if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
     from .LocalDataStore import LocalDataStore as DS
     from .LocalPubSub import LocalPubSub as PubSub
+    from .LocalPubSub import LocalPublisher as Publisher
+    from .LocalPubSub import LocalSubscriber as Subscriber
     from .LocalBlobStore import LocalBlobStore as BlobStore
 else:
     from .GoogleDataStore import GoogleDataStore as DS
     from .GooglePubSub import GooglePubSub as PubSub
+    from .GooglePubSub import GooglePublisher as Publisher
+    from .GooglePubSub import GoogleSubscriber as Subscriber
     from .GoogleBlobStore import GoogleBlobStore as BlobStore
 
 def GetDS():

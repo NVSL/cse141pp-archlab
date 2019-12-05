@@ -43,9 +43,9 @@ class LocalPubSubAgent(object):
     
 class LocalPublisher(LocalPubSubAgent, BasePublisher):
 
-    def __init__(self, topic_name, private_topic=False, **kwargs):
+    def __init__(self, topic, private_topic=False, **kwargs):
         LocalPubSubAgent.__init__(self)
-        BasePublisher.__init__(self, topic_name, private_topic=private_topic, **kwargs)
+        BasePublisher.__init__(self, topic, private_topic=private_topic, **kwargs)
          
     @classmethod
     def topic_exists(cls, path):
@@ -82,30 +82,27 @@ class LocalPublisher(LocalPubSubAgent, BasePublisher):
         shutil.rmtree(os.path.join(self.topics_root, path))
         
 class LocalSubscriber(LocalPubSubAgent, BaseSubscriber):
-    def __init__(self, subscription_name, topic, private_subscription=False, **kwargs):
+    def __init__(self, topic, name=None, **kwargs):
         LocalPubSubAgent.__init__(self)
-        BaseSubscriber.__init__(self, subscription_name, topic, private_subscription=private_subscription, **kwargs)
+        BaseSubscriber.__init__(self, topic=topic, name=name, **kwargs)
     
     @classmethod
     def subscription_exists(cls, sub_path):
-        for subscription in os.listdir(LocalPubSubAgent.get_subscriptions_root()):
-            subscription = os.path.join(LocalPubSubAgent.get_subscriptions_root(), subscription)
-            if os.path.isdir(subscription):
-                return True
-        return False
-
+        return os.path.isdir(os.path.join(LocalPubSubAgent.get_subscriptions_root(), sub_path))
         
     def create_subscriber(self):
         return None
 
     def create_subscription(self, sub_path, topic_path, **kwargs):
-        try:
-            os.mkdir(os.path.join(self.subscriptions_root, sub_path))
-            with open(os.path.join(self.subscriptions_root, sub_path, "topic"), "w") as f:
+        p = os.path.join(self.subscriptions_root, sub_path)
+        log.debug(f"looking for {p}")
+        if not os.path.isdir(p):
+            os.mkdir(p)
+            log.debug(f"Creating subscription {sub_path}")
+            with open(os.path.join(p, "topic"), "w") as f:
                 f.write(topic_path)
-        except OSError as e:
-            raise AlreadyExists(str(e))
-    
+        else:
+            raise AlreadyExists
     
     PulledMessage = namedtuple("PulledMessage",  "data ack_id")
     def do_pull(self, path, max_messages=1, **kwargs):
@@ -120,12 +117,14 @@ class LocalSubscriber(LocalPubSubAgent, BaseSubscriber):
                 log.debug(f"Grabbing {i} moving to {t}")
                 os.rename(os.path.join(sub, i),
                           os.path.join(sub, t)) # atomically remove it
+                assert not os.path.exists(os.path.join(sub, i))
             except:
                 log.debug(f"Missed!")
                 continue # someone else might have got to it first.
             log.debug(f"Got it! reading {t}")
             with open(os.path.join(sub, t), "rb") as f:
                 r.append(LocalSubscriber.PulledMessage(f.read(), None))
+            log.debug(f"Removing {t}")
             os.remove(os.path.join(sub, t))
             c += 1
             if c == max_messages:

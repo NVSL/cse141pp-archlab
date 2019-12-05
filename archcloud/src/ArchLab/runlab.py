@@ -51,33 +51,36 @@ def main(argv=None):
     Useful options include:
     
     * '--no-validate' to run your code without committing it.
-    * '--info' to see the parameters for the current lab.
     * '--pristine' to (as near as possible) exactly mimic how the autograder runs code.
     
     """),
                                      epilog=f"Information about this lab:\n\n{show_info()}",
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     
-    parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
-    parser.add_argument('--info', action="store_true", help="Print information about this lab an exit")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
-    
-    if not student_mode:
-        parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
-        parser.add_argument('--nop', action='store_true', default=False, help="Don't actually run anything.")
-        parser.add_argument('--native', action='store_false', dest='devel', help="Don't check for edited files and set DEVEL_MODE=yes in environment.")
-        parser.add_argument('--docker', action='store_true', default=False, help="Run in a docker container.")
-        parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help="Docker image to use")
-        parser.add_argument('--json', default=False, action='store_true', help="Dump json version of submission and response.")
-        parser.add_argument('--directory', default=".", help="Lab root")
-        parser.add_argument('--run-json', nargs="*", default=None, help="Read json submission spec from file.   With no arguments, read from stdin")
-        parser.add_argument('--remote', action='store_true', default=False, help="Run remotely")
-        parser.add_argument('--solution', default=None, help="Subdirectory to fetch inputs from")
-        parser.add_argument('--lab-override', nargs='+', default=[], help="Override lab.py parameters.")
-        parser.add_argument('--debug', action="store_true", help="Be more verbose about errors.")
-        parser.add_argument('--verify-repo', action="store_true", help="Check that repo in lab.py is on the whitelist")
+
+    def sm(s):
+        if 'STUDENT_MODE' in os.environ:
+            return argparse.SUPPRESS
+        else:
+            return s
+        
+    parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
+    parser.add_argument('--nop', action='store_true', default=False, help=sm("Don't actually run anything."))
+    parser.add_argument('--native', action='store_false', dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
+    parser.add_argument('--docker', action='store_true', default=False, help=sm("Run in a docker container."))
+    parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help=sm("Docker image to use"))
+    parser.add_argument('--json', default=False, action='store_true', help=sm("Dump json version of submission and response."))
+    parser.add_argument('--directory', default=".", help=sm("Lab root"))
+    parser.add_argument('--run-json', nargs="*", default=None, help=sm("Read json submission spec from file.   With no arguments, read from stdin"))
+    parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
+    parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
+    parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
+    parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
+    parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
 
 
     if argv == None:
@@ -85,15 +88,11 @@ def main(argv=None):
         
     args = parser.parse_args(argv)
 
-              
-    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if args.verbose else log.INFO)
+    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if True else "%(levelname)-8s %(message)s",
+                    level=log.DEBUG if True else log.INFO)
 
     log.debug(f"Command line args: {args}")
 
-    if args.info:
-        return show_info(args)
-    
     if args.run_json is not None:
         args.pristine = True
         log.info("Enabling pristine modern for json run")

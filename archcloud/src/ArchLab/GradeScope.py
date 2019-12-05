@@ -72,6 +72,8 @@ from .Runner import run_submission_remotely, build_submission
 import sys
 import logging as log
 import platform
+import dateutil.parser
+import datetime
 
 def main(argv=sys.argv[1:]):
         parser = argparse.ArgumentParser(description='Run a lab.')
@@ -92,50 +94,64 @@ def main(argv=sys.argv[1:]):
 
         manifest = 'one file from student repo'
 
-        start_time = time.time()
-        submission = build_submission(submission_dir, ".", None, metadata=metadata, username=metadata['users'][0]["email"])
-        result = run_submission_remotely(submission)
+        recent_submissions = 0
+        latest_submission = None
 
-        files = []
+#        for p in metadata['previous_submissions']:
+#                t = dateutil.parser.parse(p['submission_time'])
+#                if t > datetime.datetime.now() - datetime.timedelta(hours=1):
+#                        recent_submissions += 1
+#if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
+#                        latest_submission = p
+                        
+        if recent_submissions > 1:
+                log.info("Too many recent submissions.  Copying old results to current results.")
+                output = latest_submission['results']
+        else:
+                start_time = time.time()
+                submission = build_submission(submission_dir, ".", None, metadata=metadata, username=metadata['users'][0]["email"])
+                result = run_submission_remotely(submission)
 
-        for filename in result.files:
-                files.append(
-                        {
-                                "score": 0.0, # optional, but required if not on top level submission
-                                "max_score": 0.0, # optional
-                                "name": filename, # optional
-                                "output": result.get_file(filename), # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
-                                "visibility": "visible", # Optional visibility setting
-                                "extra_data": {} # Optional extra data to be stored
-                        }
-                )
+                files = []
 
-        # this script needs to write out the score/time etc...
-        end_time = time.time()
+                for filename in result.files:
+                        files.append(
+                                {
+                                        "score": 0.0, # optional, but required if not on top level submission
+                                        "max_score": 0.0, # optional
+                                        "name": filename, # optional
+                                        "output": result.get_file(filename), # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
+                                        "visibility": "visible", # Optional visibility setting
+                                        "extra_data": {} # Optional extra data to be stored
+                                }
+                        )
 
-        output = { 
-                "score": (60.0*5.0) - float(end_time - start_time), # optional, but required if not on each test case below. Overrides total of tests if specified.
-                "execution_time": float(end_time - start_time), # optional, seconds
-                "output": str(result._asdict),
-                "visibility": "after_due_date", # Optional visibility setting
-                "stdout_visibility": "visible", # Optional stdout visibility setting
-                "extra_data": {}, # Optional extra data to be stored
-                "tests": files, # Optional, but required if no top-level score
-                # [
-                #     {
-                #         "score": 2.0, # optional, but required if not on top level submission
-                #         "max_score": 2.0, # optional
-                #         "name": "Your name here", # optional
-                #         "number": "1.1", # optional (will just be numbered in order of array if no number given)
-                #         "output": "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
-                #         "tags": ["tag1", "tag2", "tag3"], # optional
-                #         "visibility": "visible", # Optional visibility setting
-                #         "extra_data": {} # Optional extra data to be stored
-                #     },
-                #     # and more test cases...
-                # ],
-                "leaderboard": result.results['figures_of_merit'] # Optional, will set up leaderboards for these values
-        }
+                # this script needs to write out the score/time etc...
+                end_time = time.time()
+
+                output = { 
+                        "score": (60.0*5.0) - float(end_time - start_time), # optional, but required if not on each test case below. Overrides total of tests if specified.
+                        "execution_time": float(end_time - start_time), # optional, seconds
+                        "output": str(result._asdict),
+                        "visibility": "after_due_date", # Optional visibility setting
+                        "stdout_visibility": "visible", # Optional stdout visibility setting
+                        "extra_data": {}, # Optional extra data to be stored
+                        "tests": files, # Optional, but required if no top-level score
+                        # [
+                        #     {
+                        #         "score": 2.0, # optional, but required if not on top level submission
+                        #         "max_score": 2.0, # optional
+                        #         "name": "Your name here", # optional
+                        #         "number": "1.1", # optional (will just be numbered in order of array if no number given)
+                        #         "output": "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
+                        #         "tags": ["tag1", "tag2", "tag3"], # optional
+                        #         "visibility": "visible", # Optional visibility setting
+                        #         "extra_data": {} # Optional extra data to be stored
+                        #     },
+                        #     # and more test cases...
+                        # ],
+                        "leaderboard": result.results['figures_of_merit'] # Optional, will set up leaderboards for these values
+                }
 
         with open(results_fn, 'w') as f:
                 f.write(json.dumps(output))

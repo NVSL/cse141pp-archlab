@@ -39,8 +39,8 @@ class GooglePublisher(BasePublisher):
         else:
             return True
     
-    def __init__(self, topic_name, private_topic=False, **kwargs):
-        super(GooglePublisher, self).__init__(topic_name, private_topic=private_topic, **kwargs)
+    def __init__(self, topic, private_topic=False, **kwargs):
+        super(GooglePublisher, self).__init__(topic, private_topic=private_topic, **kwargs)
 
     def create_publisher(self ):
         return GooglePublisher.get_publisher()
@@ -85,9 +85,9 @@ class GoogleSubscriber(BaseSubscriber):
         else:
             return True
 
-    def __init__(self, subscription_name, topic, private_subscription=False, **kwargs):
-        super(GoogleSubscriber, self).__init__(subscription_name, topic, private_subscription=private_subscription, **kwargs)
-        
+    def __init__(self, topic, name=None, **kwargs):
+        super(GoogleSubscriber, self).__init__(topic, name=name, **kwargs)
+
     def create_subscriber(self):
         self.credentials = get_credentials()
         return pubsub_v1.SubscriberClient(credentials=self.credentials)

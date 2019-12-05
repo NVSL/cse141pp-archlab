@@ -23,7 +23,10 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .CloudServices import DS, PubSub, BlobStore
+from .CloudServices import DS, BlobStore
+
+from .PubSub import Publisher
+
 from .Columnize import columnize
 import datetime
 import pytz
@@ -366,7 +369,8 @@ class SubmissionResult(object):
 def run_submission_remotely(submission):
 
     ds = DS()
-    pubsub = PubSub()
+
+    publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
     
     job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
@@ -382,10 +386,7 @@ def run_submission_remotely(submission):
         status,
     )
 
-    time.sleep(1.0)
-
-    log.debug(f"Pushing job to pubsub")
-    pubsub.push(job_id=str(job_id))
+    publisher.publish(str(job_id))
 
     start_time = time.time()
     status = 'SUBMITTED'
