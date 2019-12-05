@@ -51,14 +51,15 @@ def main(argv=None):
     Useful options include:
     
     * '--no-validate' to run your code without committing it.
+    * '--info' to see the parameters for the current lab.
     * '--pristine' to (as near as possible) exactly mimic how the autograder runs code.
     
     """),
-                                     epilog=f"Information about this lab:\n\n{show_info()}",
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
+    parser.add_argument('--info', action="store_true", help="Print information about this lab an exit")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
 
@@ -92,6 +93,10 @@ def main(argv=None):
                     level=log.DEBUG if True else log.INFO)
 
     log.debug(f"Command line args: {args}")
+
+    if args.info:
+        sys.stdout.write(show_info())
+        return 
 
     if args.run_json is not None:
         args.pristine = True
