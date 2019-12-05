@@ -1,14 +1,12 @@
 from google.cloud import storage
 import google.cloud
 import os
-
-class NotFound(Exception):
-    pass
-
+from .BaseBlobStore import BaseBlobStore, do_test_blob_store, NotFound
+    
 class GoogleBlobStore(object):
     def __init__(self, bucket):
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
-        self.client = storage.client.Client(self.project)#, credentials=os.environ['GOOGLE_CREDENTIALS'])
+        self.client = storage.client.Client(self.project)
         self.bucket_name = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-{bucket}"
         try:
             self.bucket = self.client.get_bucket(self.bucket_name)
@@ -28,15 +26,6 @@ class GoogleBlobStore(object):
         return blob.download_as_string().decode("utf8")
 
 
-def _test_blob_store(bs):
-    import pytest
-    bs.write_file("test", "hello")
-    assert "hello" == bs.read_file("test")
-
-    with pytest.raises(NotFound):
-        bs.read_file("fail")
                  
 def test_google_blob_store():
-
-    bs = GoogleBlobStore("test-bucket")
-    _test_blob_store(bs)
+    do_test_blob_store(GoogleBlobStore)

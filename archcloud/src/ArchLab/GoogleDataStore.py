@@ -9,9 +9,9 @@ import pytz
 from .BaseDataStore import BaseDataStore, do_test_datastore
 
 class GoogleDataStore(BaseDataStore):
-    def __init__(self):
+    def __init__(self, namespace=None):
         super(GoogleDataStore, self).__init__()
-        self.namespace =  os.environ['GOOGLE_RESOURCE_PREFIX']
+        self.namespace = namespace if namespace is not None else os.environ['GOOGLE_RESOURCE_PREFIX']
         self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         log.debug(f"opening {self.credentials_path}")

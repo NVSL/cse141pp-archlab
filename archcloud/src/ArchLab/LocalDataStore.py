@@ -5,12 +5,12 @@ import pickle
 from .BaseDataStore import BaseDataStore, do_test_datastore
 
 class LocalDataStore(BaseDataStore):
-    def __init__(self):
+    def __init__(self, namespace=None):
         super(LocalDataStore, self).__init__()
         self.directory = os.path.join(os.environ["EMULATION_DIR"],
                                       os.environ['GOOGLE_CLOUD_PROJECT'],
                                       "datastore",
-                                      os.environ["GOOGLE_RESOURCE_PREFIX"])
+                                      namespace if namespace is not None else os.environ["GOOGLE_RESOURCE_PREFIX"])
         os.makedirs(self.directory, exist_ok=True)
 
     def query(self, **kwargs):

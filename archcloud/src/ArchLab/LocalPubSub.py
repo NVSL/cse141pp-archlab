@@ -27,10 +27,10 @@ class LocalPubSubAgent(object):
 
     @classmethod
     def get_topics_root(cls):
-        return os.path.join(os.environ['EMULATION_DIR'], "pubsub", "topics")
+        return os.path.join(os.environ['EMULATION_DIR'], os.environ['GOOGLE_CLOUD_PROJECT'], "pubsub", "topics")
     @classmethod
     def get_subscriptions_root(cls):
-        return os.path.join(os.environ['EMULATION_DIR'], "pubsub", "subscriptions")
+        return os.path.join(os.environ['EMULATION_DIR'], os.environ['GOOGLE_CLOUD_PROJECT'], "pubsub", "subscriptions")
         
     def compose_subscription_path(self, project, name):
         return f"{project}-{name}"

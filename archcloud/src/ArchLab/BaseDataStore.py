@@ -43,7 +43,7 @@ class BaseDataStore(object):
         return self.get_job(job_id)
                 
 def do_test_datastore(DataStoreType):
-    ds = DataStoreType()
+    ds = DataStoreType(namespace="testing-junk")
 
     from uuid import uuid4 as uuid
     import json
