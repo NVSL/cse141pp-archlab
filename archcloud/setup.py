@@ -13,7 +13,8 @@ setup(
         "google-cloud-datastore",
         "google-cloud-storage",
         "docker",
-        "pytest"
+        "pytest",
+        "dateutil"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
