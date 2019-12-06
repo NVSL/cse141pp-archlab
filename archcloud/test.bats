@@ -1,5 +1,11 @@
 #!/bin/sh
 
+if check-deployed; then
+    export MODES=EMULATION
+else
+    export MODES=EMULATION CLOUD
+fi
+
 @test "ls" {
     labtool --help
     labtool ls
@@ -23,7 +29,7 @@
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    for CLOUD_MODE in CLOUD EMULATION; do
+    for CLOUD_MODE in $MODES; do
 	reconfig
 	(runlab.d --just-once -v & sleep 10; kill $!) &
 	sleep 3
@@ -42,9 +48,7 @@
     . config.sh
     popd
 
-    [ -v EMULATION_DIR ]
-    [ -v DEPLOYMENT_MODE ]
-    for CLOUD_MODE in CLOUD EMULATION; do
+    for CLOUD_MODE in $MODES; do
 	reconfig
 	(runlab.d -v --heart-rate 0.5 --id foobar & sleep 10; kill $!) &
 	sleep 1
@@ -65,7 +69,7 @@
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    for DEPLOYMENT_MODE in TESTING EMULATION; do
+    for CLOUD_MODE in $MODES; do
 	reconfig
 	(runlab.d --just-once -v & sleep 10; kill $!) &
 	sleep 3
@@ -97,26 +101,28 @@
 }
 
 @test "labtool" {
-    export DEPLOYMENT_MODE=TESTING
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
     
-    ! labtool # should fail without arguments
-    labtool --help
-    labtool ls
-    labtool top --once
+    for CLOUD_MODE in $MODES; do
+	! labtool # should fail without arguments
+	labtool --help
+	labtool ls
+	labtool top --once
+    done
 }
 
 @test "hosttool" {
-    export DEPLOYMENT_MODE=TESTING
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    
-    ! hosttool # should fail without arguments
-    hosttool --help
-    hosttool top --once 
-    hosttool ls
-    hosttool cmd send-heartbeat
+
+    for CLOUD_MODE in $MODES; do
+	! hosttool # should fail without arguments
+	hosttool --help
+	hosttool top --once 
+	hosttool ls
+	hosttool cmd send-heartbeat
+    done
 }

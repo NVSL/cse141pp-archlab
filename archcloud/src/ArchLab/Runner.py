@@ -37,6 +37,8 @@ class BadOptionException(RunnerException):
     pass
 class ConfigException(Exception):
     pass
+class MalformedObject(Exception):
+    pass
 
 @contextmanager
 def environment(**kwds):
@@ -245,7 +247,10 @@ class LabSpec(object):
         
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
+        try:
+            t = cls(**j)
+        except TypeError:
+            raise MalformedObject
         return t
 
     @classmethod
@@ -278,9 +283,13 @@ class Submission(object):
 
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
-        t.lab_spec = LabSpec(**t.lab_spec)
-        return t
+        try:
+            t = cls(**j)
+            t.lab_spec = LabSpec(**t.lab_spec)
+        except TypeError:
+            raise MalformedObject
+        else:
+            return t
 
     def apply_options(self):
         if subprocess.call(['which', 'cpupower']) != 0:
@@ -361,9 +370,13 @@ class SubmissionResult(object):
 
     @classmethod
     def _fromdict(cls, j):
-        j['submission'] = Submission._fromdict(j['submission'])
-        t = cls(**j)
-        return cls(**j)
+        try:
+            j['submission'] = Submission._fromdict(j['submission'])
+            return cls(**j)
+        except TypeError:
+            raise MalformedObject
+
+
 
 def run_submission_remotely(submission):
 

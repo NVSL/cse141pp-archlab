@@ -3,6 +3,8 @@ import logging as log
 from pathlib import Path
 import pickle
 from .BaseDataStore import BaseDataStore, do_test_datastore
+import datetime
+import pytz
 
 class LocalDataStore(BaseDataStore):
     def __init__(self, namespace=None):
@@ -43,6 +45,15 @@ class LocalDataStore(BaseDataStore):
         path = os.path.join(self.directory, job['job_id'])
         with open(path, "wb") as f:
             pickle.dump(job, f)
+
+    def get_recently_completed_jobs(self, seconds_ago):
+        r = []
+        for obj in os.listdir(self.directory):
+            with open(os.path.join(self.directory, obj), "rb") as f:
+                o = pickle.load(f)
+            if o['submitted_utc'] > datetime.datetime.now(pytz.utc) - datetime.timedelta(seconds = seconds_ago) and o['status'] == "COMPLETED":
+                r.append(o)
+        return r
 
 def test_local_data_store():
     do_test_datastore(LocalDataStore)

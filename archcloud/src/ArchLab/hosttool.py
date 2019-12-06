@@ -87,7 +87,7 @@ class PacketCreate(PacketCommand):
             'per_page': 50
         }
         current_devices = self.manager.list_devices(project_id=self.project, params=params)
-        basename="node"
+        basename=os.environ['GOOGLE_RESOURCE_PREFIX']
         maxn = 0
         for d in current_devices:
             log.debug(f"Found device: {d['hostname']}")
@@ -198,7 +198,7 @@ class HostTop(PacketCommand):
 
                     if not args.verbose:
                         os.system("clear")
-                    sys.stdout.write(f"Namespace: {os.environ['DEPLOYMENT_MODE']}\n")
+                    sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}\n")
                     sys.stdout.write(columnize(rows, divider=" "))
                     sys.stdout.flush()
                     countdown -= 1
@@ -233,7 +233,7 @@ def main(argv=None):
         sys.exit(1)
     
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if args.verbose else log.INFO)
+                    level=log.DEBUG if args.verbose else log.WARN)
 
     return args.func(args)
 
