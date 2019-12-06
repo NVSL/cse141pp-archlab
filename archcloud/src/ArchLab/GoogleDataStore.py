@@ -12,13 +12,9 @@ class GoogleDataStore(BaseDataStore):
     def __init__(self, namespace=None):
         super(GoogleDataStore, self).__init__()
         self.namespace = namespace if namespace is not None else os.environ['GOOGLE_RESOURCE_PREFIX']
-        self.credentials_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
-        log.debug(f"opening {self.credentials_path}")
-        self.credentials = google.oauth2.service_account.Credentials.from_service_account_file(self.credentials_path)
         self.datastore_client = datastore.Client(project=self.project,
-                                                 namespace=self.namespace,
-                                                 credentials=self.credentials)
+                                                 namespace=self.namespace)
         self.kind = "ArchLabJob"
 
     def alloc_job(self, job_id):
@@ -56,6 +52,4 @@ class GoogleDataStore(BaseDataStore):
 
         
 def test_google_data_store():
-    if os.environ.get('DEPLOYMENT_MODE', "EMULATION") in ["EMULATION", ""]:
-        pytest.skip("In emulation mode")
     do_test_datastore(GoogleDataStore)

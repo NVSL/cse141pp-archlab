@@ -19,15 +19,8 @@ def test_publisher():
 class GooglePublisher(BasePublisher):
 
     @classmethod
-    def get_credentials(cls):
-        credentials_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-        assert os.path.exists(credentials_path)
-        log.debug(f"pubsub credentials path={credentials_path}")
-        return google.oauth2.service_account.Credentials.from_service_account_file(credentials_path)
-
-    @classmethod
     def get_publisher(cls):
-        return pubsub_v1.PublisherClient(credentials=cls.get_credentials())
+        return pubsub_v1.PublisherClient()
 
     @classmethod
     def topic_exists(cls, path):
@@ -64,16 +57,10 @@ class GooglePublisher(BasePublisher):
         
             
 class GoogleSubscriber(BaseSubscriber):
-    @classmethod
-    def get_credentials(cls):
-        credentials_path = os.environ['GOOGLE_CREDENTIALS']
-        assert os.path.exists(credentials_path)
-        log.debug(f"pubsub credentials path={credentials_path}")
-        return google.oauth2.service_account.Credentials.from_service_account_file(credentials_path)
 
     @classmethod
     def get_subscriber(cls):
-        return pubsub_v1.SubscriberClient(credentials=cls.get_credentials())
+        return pubsub_v1.SubscriberClient()
 
     @classmethod
     def subscription_exists(cls, path):
@@ -89,8 +76,7 @@ class GoogleSubscriber(BaseSubscriber):
         super(GoogleSubscriber, self).__init__(topic, name=name, **kwargs)
 
     def create_subscriber(self):
-        self.credentials = GoogleSubscriber.get_credentials()
-        return pubsub_v1.SubscriberClient(credentials=self.credentials)
+        return pubsub_v1.SubscriberClient()
 
     def compose_subscription_path(self, project, name):
         return self.subscriber.subscription_path(project, name)
