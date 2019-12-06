@@ -29,7 +29,6 @@ run_tests.exe: run_tests.o
 %.exe : $(BUILD)%.o main.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
 CXX=g++-9

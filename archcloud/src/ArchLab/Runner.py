@@ -263,13 +263,12 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command, metadata, username=None):
+    def __init__(self, lab_spec, files, env, command, username=None):
         self.lab_spec = lab_spec
         with collect_fields_of(self):
             self.files = files
             self.env = env
             self.command = command
-            self.metadata = metadata
             self.username = username if username else "unknown"
             
     def _asdict(self):
@@ -597,11 +596,9 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None, metadata=None, username=None):
+def build_submission(directory, input_dir, command, config_file=None, username=None):
     spec = LabSpec.load(directory)
     files = {}
-    if metadata is None:
-        metadata = {}
     if config_file is None:
         config_file = spec.config_file
 
@@ -644,7 +641,7 @@ def build_submission(directory, input_dir, command, config_file=None, metadata=N
         
     from_env.update(from_config)
 
-    s = Submission(spec, files, from_env, command,metadata, username)
+    s = Submission(spec, files, from_env, command, username)
 
     return s
 

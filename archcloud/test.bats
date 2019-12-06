@@ -23,7 +23,7 @@
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    for DEPLOYMENT_MODE in TESTING EMULATION; do
+    for CLOUD_MODE in CLOUD EMULATION; do
 	reconfig
 	(runlab.d --just-once -v & sleep 10; kill $!) &
 	sleep 3
@@ -44,7 +44,7 @@
 
     [ -v EMULATION_DIR ]
     [ -v DEPLOYMENT_MODE ]
-    for DEPLOYMENT_MODE in TESTING EMULATION; do
+    for CLOUD_MODE in CLOUD EMULATION; do
 	reconfig
 	(runlab.d -v --heart-rate 0.5 --id foobar & sleep 10; kill $!) &
 	sleep 1

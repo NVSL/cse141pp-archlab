@@ -1,6 +1,6 @@
 import os
 
-if os.environ["DEPLOYMENT_MODE"] == "EMULATION":
+if os.environ["CLOUD_MODE"] == "EMULATION":
     from .LocalPubSub import LocalPublisher as Publisher
     from .LocalPubSub import LocalSubscriber as Subscriber
 else:

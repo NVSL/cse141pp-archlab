@@ -20,7 +20,7 @@ class GooglePublisher(BasePublisher):
 
     @classmethod
     def get_credentials(cls):
-        credentials_path = os.environ['GOOGLE_CREDENTIALS']
+        credentials_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         assert os.path.exists(credentials_path)
         log.debug(f"pubsub credentials path={credentials_path}")
         return google.oauth2.service_account.Credentials.from_service_account_file(credentials_path)

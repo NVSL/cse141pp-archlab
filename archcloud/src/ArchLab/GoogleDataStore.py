@@ -12,7 +12,7 @@ class GoogleDataStore(BaseDataStore):
     def __init__(self, namespace=None):
         super(GoogleDataStore, self).__init__()
         self.namespace = namespace if namespace is not None else os.environ['GOOGLE_RESOURCE_PREFIX']
-        self.credentials_path = os.environ['GOOGLE_CREDENTIALS']
+        self.credentials_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         log.debug(f"opening {self.credentials_path}")
         self.credentials = google.oauth2.service_account.Credentials.from_service_account_file(self.credentials_path)
