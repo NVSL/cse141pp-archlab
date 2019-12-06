@@ -80,6 +80,7 @@ class GoogleSubscriber(BaseSubscriber):
 
     def compose_subscription_path(self, project, name):
         return self.subscriber.subscription_path(project, name)
+
     def compose_topic_path(self, project, name):
         return self.subscriber.topic_path(project, name)
 
@@ -90,6 +91,12 @@ class GoogleSubscriber(BaseSubscriber):
             raise NotFound
 
     def create_subscription(self, sub_path, topic_path, **kwargs):
+
+        try:
+            GooglePublisher.get_publisher().create_topic(topic_path)
+        except google.api_core.exceptions.AlreadyExists:
+            pass
+        
         return self.subscriber.create_subscription(sub_path, topic_path, **kwargs)
 
     

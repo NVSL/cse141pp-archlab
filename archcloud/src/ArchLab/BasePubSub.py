@@ -161,6 +161,11 @@ def do_test_publisher(PublisherType):
 
 def do_test_subscriber(SubscriberType, PublisherType):
     import copy
+
+    with SubscriberType(topic=str(uuid())): # this topic doesn't
+                                            # exist, but this should
+                                            # still succeed.
+        pass
     
     id = str(uuid())
     with PublisherType(f"sub-test-topic-{id}", private_topic=True) as topic:
@@ -216,4 +221,4 @@ def do_test_subscriber(SubscriberType, PublisherType):
             s6_path = s6.subscription_path
 
         assert SubscriberType.subscription_exists(s6_path), f"Expected {s6_path} to exist"
-        s.do_delete_subscription(s6_path)
+        s.do_delete_subscription(s6_path, force=True)
