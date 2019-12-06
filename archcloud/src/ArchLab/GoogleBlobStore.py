@@ -7,7 +7,7 @@ class GoogleBlobStore(object):
     def __init__(self, bucket):
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         self.client = storage.client.Client(self.project)
-        self.bucket_name = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-{bucket}"
+        self.bucket_name = f"{os.environ['GOOGLE_RESOURCE_PREFIX']}-{bucket}".lower()
         try:
             self.bucket = self.client.get_bucket(self.bucket_name)
         except google.cloud.exceptions.NotFound:
