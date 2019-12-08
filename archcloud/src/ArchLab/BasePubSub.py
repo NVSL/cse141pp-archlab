@@ -221,4 +221,4 @@ def do_test_subscriber(SubscriberType, PublisherType):
             s6_path = s6.subscription_path
 
         assert SubscriberType.subscription_exists(s6_path), f"Expected {s6_path} to exist"
-        s.do_delete_subscription(s6_path, force=True)
+        s.do_delete_subscription(s6_path)

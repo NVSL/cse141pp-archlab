@@ -109,7 +109,7 @@ def main(argv=sys.argv[1:]):
                 output = latest_submission['results']
         else:
                 start_time = time.time()
-                submission = build_submission(submission_dir, ".", None, metadata=metadata, username=metadata['users'][0]["email"])
+                submission = build_submission(submission_dir, ".", None, username=metadata['users'][0]["email"])
                 result = run_submission_remotely(submission)
 
                 files = []
