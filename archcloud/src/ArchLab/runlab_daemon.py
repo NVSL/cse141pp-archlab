@@ -72,8 +72,9 @@ class Heart(object):
                     node=platform.node(),
                     time=repr(datetime.datetime.utcnow()),
                     sw_git_hash=self.git_hash,
+                    docker_image=os.environ.get("THIS_DOCKER_IMAGE", "unknown"),
                     status=status)
-        
+                
         self.publisher.publish(json.dumps(data))
         log.info(f"Heartbeat sent: {data}")
 

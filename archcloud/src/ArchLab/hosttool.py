@@ -126,14 +126,15 @@ class HostTop(PacketCommand):
 
         
         class Host(object):
-            def __init__(self,id, name, status, sw_hash, ipaddr):
+            def __init__(self,id, name, status, git_hash, ipaddr, docker_image):
                 self.id=id
                 self.name = name
                 self.last_heart_beat = datetime.datetime.utcnow()
                 self.status = status
                 self.last_status_change = datetime.datetime.utcnow()
-                self.sw_hash = sw_hash
+                self.git_hash = git_hash
                 self.ipaddr = ipaddr
+                self.docker_image =docker_image
 
             def touch(self, when):
                 self.last_heart_beat = max(when, self.last_heart_beat)
@@ -143,8 +144,9 @@ class HostTop(PacketCommand):
                     self.last_status_change = datetime.datetime.utcnow()
                     self. status = status
 
-            def update_software(self, sw_hash):
-                self.sw_hash = sw_hash
+            def update_software(self, git_hash, docker_image):
+                self.git_hash = git_hash
+                self.docker_image = docker_image
 
         countdown = 3
             
@@ -176,29 +178,33 @@ class HostTop(PacketCommand):
                                     hosts[d['id']] = Host(id=d['id'],
                                                           name=d['node'],
                                                           status=d['status'],
-                                                          sw_hash=d.get('sw_git_hash', " "*8),
-                                                          ipaddr=ip_addr)
+                                                          git_hash=d.get('sw_git_hash', " "*8),
+                                                          ipaddr=ip_addr,
+                                                          docker_image=d.get('docker_image', "unknown"))
                                 else:
                                     host = hosts[d['id']]
                                     stamp = eval(d['time'])
                                     if stamp > host.last_heart_beat:
                                         host.touch(stamp)
                                         host.update_status(d['status'])
-                                        host.update_software(d.get('sw_git_hash', " "*8))
+                                        host.update_software(git_hash=d.get('sw_git_hash', " "*8),
+                                                             docker_image=d.get('docker_image', "unknown"))
                             except KeyError as e:
                                 log.warning(f"Got strange message: {d} ({e})")
                                 raise
-                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW"]]
+                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker"]]
                     for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
                         rows.append([h.name, h.ipaddr, h.id[:8],
                                      format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
                                      h.status,
                                      format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
-                                     h.sw_hash[:8]])
+                                     h.git_hash[:8],
+                                     h.docker_image
+                        ])
 
                     if not args.verbose:
                         os.system("clear")
-                    sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}\n")
+                    sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
                     sys.stdout.write(columnize(rows, divider=" "))
                     sys.stdout.flush()
                     countdown -= 1
