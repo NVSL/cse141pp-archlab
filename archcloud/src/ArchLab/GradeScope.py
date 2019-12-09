@@ -74,6 +74,7 @@ import logging as log
 import platform
 import dateutil.parser
 import datetime
+import copy
 
 def main(argv=sys.argv[1:]):
         parser = argparse.ArgumentParser(description='Run a lab.')
@@ -115,45 +116,44 @@ def main(argv=sys.argv[1:]):
                 files = []
 
                 for filename in result.files:
+                        log.debug(f"output file {filename}")
+                        try:
+                                contents = result.get_file(filename)
+                        except UnicodeDecodeError:
+                                contents = "<couldn't decode file.  Is it binary>"
+                                
                         files.append(
                                 {
                                         "score": 0.0, # optional, but required if not on top level submission
                                         "max_score": 0.0, # optional
                                         "name": filename, # optional
-                                        "output": result.get_file(filename), # "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
+                                        "output": contents,
                                         "visibility": "visible", # Optional visibility setting
                                         "extra_data": {} # Optional extra data to be stored
                                 }
                         )
-
-                # this script needs to write out the score/time etc...
                 end_time = time.time()
 
-                output = { 
+                default = {
                         "score": (60.0*5.0) - float(end_time - start_time), # optional, but required if not on each test case below. Overrides total of tests if specified.
-                        "execution_time": float(end_time - start_time), # optional, seconds
-                        "output": str(result._asdict),
                         "visibility": "after_due_date", # Optional visibility setting
                         "stdout_visibility": "visible", # Optional stdout visibility setting
-                        "extra_data": {}, # Optional extra data to be stored
-                        "tests": files, # Optional, but required if no top-level score
-                        # [
-                        #     {
-                        #         "score": 2.0, # optional, but required if not on top level submission
-                        #         "max_score": 2.0, # optional
-                        #         "name": "Your name here", # optional
-                        #         "number": "1.1", # optional (will just be numbered in order of array if no number given)
-                        #         "output": "Giant multiline string that will be placed in a <pre> tag and collapsed by default", # optional
-                        #         "tags": ["tag1", "tag2", "tag3"], # optional
-                        #         "visibility": "visible", # Optional visibility setting
-                        #         "extra_data": {} # Optional extra data to be stored
-                        #     },
-                        #     # and more test cases...
-                        # ],
-                        "leaderboard": result.results['figures_of_merit'] # Optional, will set up leaderboards for these values
+                        "tests": []
                 }
 
+                # this script needs to write out the score/time etc...
+
+                output = result.results.get('gradescope_test_output', default)
+                output["execution_time"] = float(end_time - start_time)
+                d = copy.deepcopy(result)
+                d.files = None # this is rendudant and large
+                d.submission.files = None #this too
+                output['output'] = str(d._asdict())
+                output['tests'] = files + output['tests'] # merge in tests
+                output['leaderboard'] = result.results['figures_of_merit']
+
         with open(results_fn, 'w') as f:
+                log.debug(f"Gradescope output (without files): {d}")
                 f.write(json.dumps(output))
 
         

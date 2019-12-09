@@ -24,6 +24,7 @@ class GoogleDataStore(BaseDataStore):
         return job
 
     def put_job(self, job):
+        log.debug(f"Putting job {job['job_id']}: {job}")
         self.datastore_client.put(job)
 
     def get_job(self, job_id):
@@ -31,6 +32,7 @@ class GoogleDataStore(BaseDataStore):
         query.add_filter('job_id', '=', job_id)
         query_iter = query.fetch()
         for entity in query_iter:
+            log.debug(f"Getting job {job_id}: {entity}")
             return entity        
 
 

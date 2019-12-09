@@ -29,17 +29,20 @@ fi
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    for CLOUD_MODE in $MODES; do
-	reconfig
-	(runlab.d --just-once -v & sleep 10; kill $!) &
-	sleep 3
-	pushd test_inputs/gradescope/
-	rm -rf submission
-	mkdir -p submission
-	cp -r $LABS_ROOT/$TESTING_LAB/* submission/
-	gradescope -v --root .
-	[ -f results/results.json ]
-	grep 'Some data' results/results.json
+    export MODES=EMULATION
+    for LAB in CSE141pp-Lab-Test; do 
+	for CLOUD_MODE in $MODES; do
+	    reconfig
+	    (runlab.d --just-once -v & sleep 15; kill $!) &
+	    sleep 3
+	    pushd test_inputs/gradescope/
+	    rm -rf submission
+	    mkdir -p submission
+	    cp -r $LABS_ROOT/$LAB/* submission/
+	    gradescope -v --root .
+	    [ "$(jextract score  < results/results.json)" == "0.0" ]
+	    jextract tests -1 name  < results/results.json | grep GradedRegressions
+	done
     done
 }
 

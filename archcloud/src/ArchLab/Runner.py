@@ -27,6 +27,8 @@ from .BlobStore import BlobStore
 from .DataStore import DataStore
 from .PubSub import Publisher
 
+from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
+
 from .Columnize import columnize
 import datetime
 import pytz
@@ -95,6 +97,12 @@ class LabSpec(object):
             self.clean_cmd = ['make', 'clean']
         
         assert self.lab_name is not None, "You must name your lab"
+
+    def run_gradescope_tests(self, result, Class):
+        out =io.StringIO()
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        JSONTestRunner(visibility='visible', stream=out).run(suite)
+        result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
     def get_help(self):
         rows = [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
@@ -517,6 +525,7 @@ def run_submission_locally(sub,
         with directory_or_tmp(root if not run_pristine else None) as dirname:
             if run_pristine:
                 repo = sub.lab_spec.repo
+                log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
                 if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                     raise Exception(f"Repo {repo} is not valid")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:

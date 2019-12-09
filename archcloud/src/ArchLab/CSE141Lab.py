@@ -1,5 +1,6 @@
 from .Runner import LabSpec
 
+
 class CSE141Lab(LabSpec):
     def __init__(self,
                  lab_name,
@@ -39,10 +40,3 @@ class CSE141Lab(LabSpec):
             repo = repo,
             reference_tag = reference_tag,
             time_limit = timeout)
-
-    def run_gradescope_tests(self, result, Class):
-        out =io.StringIO()
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
-        JSONTestRunner(visibility='visible', stream=out).run(suite)
-        result.results['gradescope_test_output'] = json.loads(out.getvalue())
-
