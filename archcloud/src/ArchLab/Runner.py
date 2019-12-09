@@ -598,7 +598,7 @@ def run_submission_locally(sub,
         result = SubmissionResult(sub, result_files, status)
         result = sub.lab_spec.post_run(result)
     except Exception as e:
-        result = SubmissionResult(sub, {}, SubmissionResult.ERROR)
+        result = SubmissionResult(sub, dict(exception=repr(e)), SubmissionResult.ERROR)
         
     return result
     
