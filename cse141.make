@@ -15,7 +15,7 @@ include $(BUILD)config.env
 # -O4 breaks google test sometimes.
 run_tests.o: C_OPTS=-O0
 run_tests.o: $(BUILD)opt_cnn.hpp
-
+default:
 regression.out: run_tests.exe
 	./run_tests.exe --gtest_output=json:regression.json > $@ || true
 
@@ -44,7 +44,8 @@ lab-clean:
 #  lab test suite.
 TESTS?=.*
 .PHONY: test
-test: 
-	bats test.bats  -f '$(TESTS)'
+test:
+	test-lab
+	[ -f test.bats ] && bats test.bats  -f '$(TESTS)'
 
 ###############

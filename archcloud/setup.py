@@ -14,7 +14,8 @@ setup(
         "google-cloud-storage",
         "docker",
         "pytest",
-        "dateutils"
+        "dateutils",
+        "parameterized"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -27,7 +28,8 @@ setup(
             'jextract=ArchLab.jextract:main',
             'get-cpu-freqs=ArchLab.CPUFreq:get_freqs_cli',
             'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli',
-            'hosttool=ArchLab.hosttool:main'
+            'hosttool=ArchLab.hosttool:main',
+            'test-lab=ArchLab.testlab:main'
         ]
     }
 )

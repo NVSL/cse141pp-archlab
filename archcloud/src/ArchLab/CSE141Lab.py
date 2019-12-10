@@ -1,5 +1,5 @@
-from .Runner import LabSpec
-
+from .Runner import LabSpec, build_submission, run_submission_locally
+import unittest
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -40,3 +40,15 @@ class CSE141Lab(LabSpec):
             repo = repo,
             reference_tag = reference_tag,
             time_limit = timeout)
+        
+    class MetaRegressions(unittest.TestCase):
+
+        def run_solution(self, solution):
+            submission = build_submission(".",
+                                          solution,
+                                          None,
+                                          username="metatest")
+            result = run_submission_locally(submission,
+                                            root=".",
+                                            run_pristine=False)
+            return result

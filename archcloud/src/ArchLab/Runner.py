@@ -98,12 +98,25 @@ class LabSpec(object):
         
         assert self.lab_name is not None, "You must name your lab"
 
-    def run_gradescope_tests(self, result, Class):
+    class GradedRegressions(unittest.TestCase):
+        pass
+    
+    class MetaRegressions(unittest.TestCase):
+        pass
+    
+    def run_gradescope_tests(self, result):
         out =io.StringIO()
+        Class = type(self).GradedRegressions
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
         JSONTestRunner(visibility='visible', stream=out).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
+    def run_meta_regressions(self):
+        Class = type(self).MetaRegressions
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        runner = unittest.TextTestRunner()
+        runner.run(suite)
+        
     def get_help(self):
         rows = [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
         return columnize(rows, headers=None, divider=" : " )
@@ -552,15 +565,6 @@ def run_submission_locally(sub,
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                  timeout=sub.lab_spec.time_limit)
             else:
-                if run_pristine:
-                    for f in sub.files:
-                        path = os.path.join(dirname, f)
-                        with open(path, "wb") as of:
-                            log.debug("Writing input file {}".format(path))
-                            of.write(base64.b64decode(sub.files[f]))
-
-                
-                log.debug(f"Executing submission\n{sub._asdict()}")
 
                 # filter the environment with the clean lab_spec
                 log.debug(f"Incomming env: {sub.env}")
@@ -568,17 +572,30 @@ def run_submission_locally(sub,
                 good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
                 if not good_command:
                     raise Exception(f"Disallowed command ({error}): {sub.command}")
-                
+                log.debug(f"Filtered env: {sub.env}")
+
                 if run_pristine:
                     # we just dumped the files in '.' so, look for them there.
-                    sub.env['LAB_SUBMISSION_DIR'] = "." 
-                log.debug(f"Filtered env: {sub.env}")
+                    sub.env['LAB_SUBMISSION_DIR'] = "."
+                else:
+                    os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
+                    sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
+                                                                 
+
+                for f in sub.files:
+                    path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
+                    with open(path, "wb") as of:
+                        log.debug("Writing input file {}".format(path))
+                        of.write(base64.b64decode(sub.files[f]))
+                
+                log.debug(f"Executing submission\n{sub._asdict()}")
+                
                 with environment(**sub.env):
                     log_run(sub.lab_spec.clean_cmd, cwd=dirname)
                     status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
-                log.debug(f"Searching for output files matchi '{f}'")
+                log.debug(f"Searching for output files matching '{f}'")
                 for filename in Path(dirname).glob(f):
                     if os.path.isfile(filename):
                         with open(filename, "rb") as r:
@@ -605,9 +622,14 @@ def run_submission_locally(sub,
         log.debug("STDERR_ENDS")
         log.debug(result_files['STDOUT'])
         result = SubmissionResult(sub, result_files, status)
+        sub.lab_spec.run_gradescope_tests(result)
         result = sub.lab_spec.post_run(result)
     except Exception as e:
-        result = SubmissionResult(sub, dict(exception=repr(e)), SubmissionResult.ERROR)
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+        log.error(repr(e))
+        result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
+        result = SubmissionResult(sub, result_files, SubmissionResult.ERROR)
         
     return result
     
