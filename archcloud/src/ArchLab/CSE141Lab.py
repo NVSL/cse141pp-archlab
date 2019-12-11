@@ -1,5 +1,6 @@
 from .Runner import LabSpec, build_submission, run_submission_locally
 import unittest
+import logging as log
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -27,7 +28,8 @@ class CSE141Lab(LabSpec):
             "DEBUG": "",
             "OPTIMIZE": "",
             "COMPILER": "",
-            'DEVEL_MODE':  ""
+            'DEVEL_MODE':  "",
+
         })
         
         super(CSE141Lab, self).__init__(
@@ -36,7 +38,9 @@ class CSE141Lab(LabSpec):
             output_files = output_files,
             input_files = input_files,
             default_cmd = default_cmd,
+            valid_options= valid_options,
             clean_cmd = clean_cmd,
+            config_file="config.env",
             repo = repo,
             reference_tag = reference_tag,
             time_limit = timeout)
@@ -51,4 +55,5 @@ class CSE141Lab(LabSpec):
             result = run_submission_locally(submission,
                                             root=".",
                                             run_pristine=False)
+            log.info(f"results={result.results}")
             return result
