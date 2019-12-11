@@ -25,7 +25,7 @@ def main(argv=None):
     The assumption is that the local directory has a clone of a lab repo.  Lab repos have `lab.py` in them.  The possible fields in a `lab.py` are described in `Runner.LabSpec`
 
     You can then do:
-    1. `./runlab` To run the lab in the loecal directory.
+    1. `./runlab` To run the lab in the local directory.
     2. `./runlab --pristine` To run the lab in a fresh clone of the lab's repo with the local input files (specified in lab.py) copied in.
     3. `./runlab --pristine --docker` to run the lab in docker container.
     4. `./runlab --json` to dump the json version of the lab submission and response to stdout.
@@ -90,7 +90,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if True else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if True else log.INFO)
+                    level=log.DEBUG if args.verbose else log.INFO)
 
     log.debug(f"Command line args: {args}")
 
@@ -140,7 +140,6 @@ def main(argv=None):
                                           input_dir,
                                           args.command,
                                           username=os.environ.get("USER"))
-            
 
             for i in args.lab_override:
                 k, v = i.split("=")

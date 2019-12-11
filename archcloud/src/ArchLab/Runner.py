@@ -108,7 +108,8 @@ class LabSpec(object):
         out =io.StringIO()
         Class = type(self).GradedRegressions
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
-        JSONTestRunner(visibility='visible', stream=out).run(suite)
+        with environment(**result.submission.env):
+            JSONTestRunner(visibility='visible', stream=out).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
     def run_meta_regressions(self):
@@ -125,13 +126,17 @@ class LabSpec(object):
         return {f:getattr(self, f) for f in self._fields}
 
     # there no reason for these to be methods of this class
-    
+
     def csv_extract_by_line(self, file_contents, field, line=0):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         if len(d) < line + 1:
             return None
-        return float(d[line][field])
+        try:
+            return float(d[line][field])
+        except:
+            return d[line][field]
+    
 
     def csv_extract_by_lookup(self, file_contents, field, column, value):
         reader = csv.DictReader(StringIO(file_contents))
@@ -140,14 +145,22 @@ class LabSpec(object):
         for l in d:
             if l[column] == value:
                 if r == None:
-                    r = float(l[field])
+                    try:
+                        return float(l[field])
+                    except:
+                        return l[field]
                 else:
                     raise Exception(f"Multiple lines in output have {column}=={value}")
         return r
     
     def csv_column_values(self, file_contents, field):
         reader = csv.DictReader(StringIO(file_contents))
-        return map(lambda x: x[field], reader)
+        def parse(x):
+            try:
+                return float(x)
+            except:
+                return x
+        return map(lambda x: parse(x[field]), reader)
     
     def post_run(self, result):
         return result
@@ -200,7 +213,7 @@ class LabSpec(object):
 
         
     def safe_env_value(self, v):
-        safe_env = r"[a-zA-Z0-9_\-\. \"\']"
+        safe_env = r"[a-zA-Z0-9_\-\. =\"\'\/]"
         if not re.match(fr"^{safe_env}*$", v):
             return False
         else:
@@ -209,8 +222,13 @@ class LabSpec(object):
     def parse_config(self, f):
         r = dict()
         for l in f.readlines():
+            orig=l
             l = re.sub(r"#.*", "", l)
+            log.debug(f"stripped: {l}")
+            l = re.sub(r'"|\'', "", l)
+            log.debug(f"stripped: {l}")
             l = l.strip()
+            log.debug(f"stripped: {l}")
             if not l:
                 continue
 
@@ -223,6 +241,7 @@ class LabSpec(object):
                 if not self.safe_env_value(m.group(2)):
                     raise ConfigException(f"Unsafe value in this line.  Values cannot contain special characters.: {l}")
 
+            log.debug(f"Parsed '{orig}' as '{m.group(1)}' = '{m.group(2)}'")
             r[m.group(1)] = m.group(2)
         return r
     
@@ -576,14 +595,17 @@ def run_submission_locally(sub,
 
                 if run_pristine:
                     # we just dumped the files in '.' so, look for them there.
-                    sub.env['LAB_SUBMISSION_DIR'] = "."
+                    sub.env['LAB_SUBMISSION_DIR'] = dirname
                 else:
+                    with environment(**sub.env):
+                        log_run(sub.lab_spec.clean_cmd, cwd=dirname)
                     os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
                     sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
-                                                                 
+
 
                 for f in sub.files:
                     path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
+                    os.makedirs(os.path.dirname(path),exist_ok=True)
                     with open(path, "wb") as of:
                         log.debug("Writing input file {}".format(path))
                         of.write(base64.b64decode(sub.files[f]))
@@ -591,7 +613,6 @@ def run_submission_locally(sub,
                 log.debug(f"Executing submission\n{sub._asdict()}")
                 
                 with environment(**sub.env):
-                    log_run(sub.lab_spec.clean_cmd, cwd=dirname)
                     status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
@@ -656,7 +677,11 @@ def build_submission(directory, input_dir, command, config_file=None, username=N
         
     for f in spec.input_files:
         full_path = os.path.join(directory, input_dir)
+        log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
         for filename in Path(full_path).glob(f):
+            if not  os.path.isfile(filename):
+                log.debug(f"Skipping '{filename}' since it's a directory")
+                continue
             log.debug(f"Found file '{filename}' matching '{f}'.")
             try:
                 with open(filename, "rb") as o:
@@ -668,24 +693,28 @@ def build_submission(directory, input_dir, command, config_file=None, username=N
             except Exception:
                 raise Exception(f"Couldn't open input file '{filename}'.")
 
-    from_env = spec.filter_env(os.environ)
-    for i in from_env:
-        log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
-        
     if config_file:
         path = os.path.join(directory,
                             input_dir,
                             config_file)
         with open(path) as config:
+            log.debug(f"Parsing config file: '{path}'")
             from_config = spec.parse_config(config)
             for i in from_config:
                 log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
     else:
+        log.debug("No config file")
         from_config = {}
-        
-    from_env.update(from_config)
 
-    s = Submission(spec, files, from_env, command, username)
+    from_env = spec.filter_env(os.environ)
+    
+    for i in from_env:
+        from_env[i] = re.sub(r'"|\'', "", from_env[i])
+        log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
+        
+    from_config.update(from_env)
+
+    s = Submission(spec, files, from_config, command, username)
 
     return s
 
@@ -780,9 +809,7 @@ def test_configs_validation():
         spec = LabSpec.load("test_inputs")
         for f in [
                 """
-                USER_CMD_LINE=hello
                 USER_CMD_LINE2=hello
-                USER_CMD_LINE=--stat foo bar "baoeu aoue"
                 GPROF=yes
                 DEBUG=no
                 DEBUG2=
@@ -791,7 +818,6 @@ def test_configs_validation():
             s = io.StringIO(f)
             env = spec.parse_config(s)
             assert dict(USER_CMD_LINE2="hello",
-                        USER_CMD_LINE='--stat foo bar "baoeu aoue"',
                         GPROF="yes",
                         DEBUG="no",
                         DEBUG2=""

@@ -26,7 +26,7 @@ $(BUILD)%.inp: $(LAB_SUBMISSION_DIR)/%.inp
 clean: _lab-clean
 .PHONY: _lab-clean
 _lab-clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) .tmp
 
 # The build infrastructure wants a install target.
 .PHONY: install

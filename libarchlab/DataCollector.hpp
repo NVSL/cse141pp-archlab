@@ -8,7 +8,8 @@ using json = nlohmann::json;
 class Measurement {
 public:
 	double time;
-	virtual void measure() { time = wall_time();}; 
+	int MHz;
+	virtual void measure() ;
 	virtual ~Measurement() {}
 };
 
@@ -47,6 +48,7 @@ public:
 
 class DataCollector {
 	friend MeasurementInterval;
+	friend Measurement;
 	std::vector<MeasurementInterval* > stored_intervals;
 	std::string stats_filename;
 	const std::string collector_name;

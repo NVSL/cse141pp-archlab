@@ -10,7 +10,7 @@ USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUIL
 
 
 # load user config
-include $(BUILD)config.env
+#include $(BUILD)config.env
 
 # -O4 breaks google test sometimes.
 run_tests.o: C_OPTS=-O0
@@ -45,7 +45,7 @@ lab-clean:
 TESTS?=.*
 .PHONY: test
 test:
-	test-lab
+	(unset LAB_SUBMISSION_DIR; test-lab)
 	[ -f test.bats ] && bats test.bats  -f '$(TESTS)'
 
 ###############

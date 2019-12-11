@@ -149,7 +149,7 @@ json MeasurementInterval::build_json()
 		if (s == "ARCHLAB_WALL_TIME") 
 			kv["ARCHLAB_WALL_TIME"] = _end->time - _start->time;
 		else if (s == "ARCHLAB_CLOCK_SPEED_MHZ")
-			kv["ARCHLAB_CLOCK_SPEED_MHZ"] = theDataCollector->current_nominal_mhz;
+			kv["ARCHLAB_CLOCK_SPEED_MHZ"] = _start->MHz;
 		else
 			assert(0);
 	}
@@ -164,6 +164,12 @@ void MeasurementInterval::add_string(char * name, char * value)
 void MeasurementInterval::add_double(char * name, double value)
 {
 	add_field<double>(name, value);
+}
+
+void Measurement::measure()
+{
+	time = wall_time();
+	MHz = theDataCollector->current_nominal_mhz;
 }
 
 void MeasurementInterval::start()
