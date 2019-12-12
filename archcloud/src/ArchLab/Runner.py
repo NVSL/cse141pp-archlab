@@ -107,9 +107,11 @@ class LabSpec(object):
     def run_gradescope_tests(self, result):
         out =io.StringIO()
         Class = type(self).GradedRegressions
+        log.debug(f"Running regressions for {Class}")
+#        unittest.defaultTestLoader.sortTestMethodsUsing=None
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
         with environment(**result.submission.env):
-            JSONTestRunner(visibility='visible', stream=out).run(suite)
+            JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
     def run_meta_regressions(self):

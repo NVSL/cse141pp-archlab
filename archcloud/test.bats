@@ -29,7 +29,7 @@ fi
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    export MODES=EMULATION
+    export MODES=EMULATION CLOUD
     for LAB in CSE141pp-Lab-Test; do 
 	for CLOUD_MODE in $MODES; do
 	    reconfig
@@ -77,7 +77,7 @@ fi
 	(runlab.d --just-once -v & sleep 10; kill $!) &
 	sleep 3
 	pushd $LABS_ROOT/$TESTING_LAB
-	runlab --remote --pristine
+	runlab --remote --pristine --no-validate
 	popd
     done
 }

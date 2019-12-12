@@ -1,69 +1,3 @@
-"""
-This program should send the submission metadata (in /autograder/submission_metadata.json) to the job queue.
-Then it should wait for a response and write the response to /autograder/results/results.json
-
-
-Output format:
-{ "score": 44.0, // optional, but required if not on each test case below. Overrides total of tests if specified.
-  "execution_time": 136, // optional, seconds
-  "output": "Text relevant to the entire submission", // optional
-  "visibility": "after_due_date", // Optional visibility setting
-  "stdout_visibility": "visible", // Optional stdout visibility setting
-  "extra_data": {}, // Optional extra data to be stored
-  "tests": // Optional, but required if no top-level score
-    [
-        {
-            "score": 2.0, // optional, but required if not on top level submission
-            "max_score": 2.0, // optional
-            "name": "Your name here", // optional
-            "number": "1.1", // optional (will just be numbered in order of array if no number given)
-            "output": "Giant multiline string that will be placed in a <pre> tag and collapsed by default", // optional
-            "tags": ["tag1", "tag2", "tag3"], // optional
-            "visibility": "visible", // Optional visibility setting
-            "extra_data": {} // Optional extra data to be stored
-        },
-        // and more test cases...
-    ],
-  "leaderboard": // Optional, will set up leaderboards for these values
-    [
-      {"name": "Accuracy", "value": .926},
-      {"name": "Time", "value": 15.1, "order": "asc"},
-      {"name": "Stars", "value": "*****"}
-    ]
-}
-
-
-metadata format:
-
-{
-  "created_at": "2018-07-01T14:22:32.365935-07:00", // Submission time
-  "assignment": { // Assignment details
-    "due_date": "2018-07-31T23:00:00.000000-07:00",
-    "group_size": 4, // Maximum group size, or null if not set
-    "group_submission": true, // Whether group submission is allowed
-    "id": 25828, // Gradescope assignment ID
-    "late_due_date": null, // Late due date, if set
-    "release_date": "2018-07-02T00:00:00.000000-07:00",
-    "title": "Programming Assignment 1",
-    "total_points": "20.0" // Total point value, including any manual grading portion
-  },
-  "users": [
-    {
-      "email": "student@example.com",
-      "id": 1234,
-      "name": "Student User"
-    }, ... // Multiple users will be listed in the case of group submissions
-  ],
-  "previous_submissions": [
-    {
-       "submission_time": "2017-04-06T14:24:48.087023-07:00",// previous submission time
-      "score": 0.0, // Previous submission score
-      "results": { ... } // Previous submission results object
-    }, ...
-  ]
-}
-"""
-
 import json
 import time
 import os
@@ -129,15 +63,14 @@ def main(argv=sys.argv[1:]):
                                         "name": filename, # optional
                                         "output": contents,
                                         "visibility": "visible", # Optional visibility setting
-                                        "extra_data": {} # Optional extra data to be stored
                                 }
                         )
                 end_time = time.time()
 
                 default = {
-                        "score": (60.0*5.0) - float(end_time - start_time), # optional, but required if not on each test case below. Overrides total of tests if specified.
-                        "visibility": "after_due_date", # Optional visibility setting
-                        "stdout_visibility": "visible", # Optional stdout visibility setting
+                        "score": 0,
+                        "visibility": "after_due_date", 
+                        "stdout_visibility": "visible", 
                         "tests": []
                 }
 
@@ -148,9 +81,8 @@ def main(argv=sys.argv[1:]):
                 d = copy.deepcopy(result)
                 d.files = None # this is rendudant and large
                 d.submission.files = None #this too
-                output['output'] = str(d._asdict())
+                output['output'] = json.dumps(d._asdict(), indent=4, sort_keys=True)
                 output['tests'] = files + output['tests'] # merge in tests
-                output['leaderboard'] = result.results['figures_of_merit']
 
         with open(results_fn, 'w') as f:
                 log.debug(f"Gradescope output (without files): {d}")
