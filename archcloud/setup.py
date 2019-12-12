@@ -15,7 +15,8 @@ setup(
         "docker",
         "pytest",
         "dateutils",
-        "parameterized"
+        "parameterized",
+        "gradescope_utils"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
