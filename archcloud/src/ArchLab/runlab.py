@@ -11,10 +11,13 @@ import subprocess
 import base64
 import textwrap
 
-def show_info():
+def show_info(directory, fields=None):
     try:
-        spec=LabSpec.load(".")
-        return spec.get_help()
+        spec=LabSpec.load(directory)
+        if fields == None:
+            return spec.get_help()
+        else:
+            return f"{getattr(spec, fields)}\n"
     except :
         raise
         return "Not a lab directory\n"
@@ -60,7 +63,7 @@ def main(argv=None):
     
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
-    parser.add_argument('--info', action="store_true", help="Print information about this lab an exit")
+    parser.add_argument('--info', nargs="?", default=None, help="Print information about this lab an exit.  With an argument print that field of lab structure.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
 
@@ -95,13 +98,9 @@ def main(argv=None):
 
     log.debug(f"Command line args: {args}")
 
-    if args.info:
-        sys.stdout.write(show_info())
+    if args.info != None:
+        sys.stdout.write(show_info(args.directory, args.info))
         return 
-
-    if args.run_json is not None:
-        args.pristine = True
-        log.info("Enabling pristine modern for json run")
 
     if args.devel:
         log.debug("Entering devel mode")

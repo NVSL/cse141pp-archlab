@@ -15,12 +15,15 @@ def crossproduct(a,b):
 
 
 # These are the flag settings we check
-#              pristine devel gprof
-test_flags = [(False, False, False),
-              (True, False, False),
-              (False, True, False),
-              (False, False, True),
-              (True, True, True)]
+#              pristine devel gprof docker
+test_flags = [(False, False, False, False),
+              (True,  False, False, False),
+              (False, True,  False, False),
+              (False, False, True,  False),
+              (True,  False, False, True ), # docker requires pristine
+              (False, True,  True,  False), # Local perf tuning
+              (True , False, True,  True ), # typical autograder run
+              (True,  True,  True,  True )]
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -128,7 +131,7 @@ class CSE141Lab(LabSpec):
 
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
-        def run_solution(self, solution, pristine=False, devel=False, gprof=False):
+        def run_solution(self, solution, pristine=False, devel=False, gprof=False, docker=False):
             env = {}
             if devel:
                 env['DEVEL_MODE'] = 'yes'
@@ -146,6 +149,8 @@ class CSE141Lab(LabSpec):
                                               username="metatest")
                 result = run_submission_locally(submission,
                                                 root=".",
+                                                run_in_docker=docker,
+                                                docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
                                                 run_pristine=pristine)
             log.info(f"results={result.results}")
             return result
