@@ -38,7 +38,7 @@ fi
 	    pushd test_inputs/gradescope/
 	    rm -rf submission
 	    mkdir -p submission
-	    cp -r $LABS_ROOT/$LAB/* submission/
+	    cp -a $LABS_ROOT/$LAB/* submission/
 	    gradescope -v --root .
 	    [ "$(jextract score  < results/results.json)" == "0.0" ]
 	    jextract tests -1 name  < results/results.json | grep GradedRegressions

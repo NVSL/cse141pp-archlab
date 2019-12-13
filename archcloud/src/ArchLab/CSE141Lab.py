@@ -101,32 +101,35 @@ class CSE141Lab(LabSpec):
             self.currentResult = result # remember result for use in tearDown
             unittest.TestCase.run(self, result) # call superclass run method
             
-        def go_run_tests(self, label):
+        def go_run_tests(self, label, cwd=None):
             self.regression_count += 1
             log.debug(f"Runing regression {label} {self.regression_count}")
             try:
                 timedout = False
+                log.debug(f"PWD={os.getcwd()}")
                 cmd = ["./run_tests.exe", f"--gtest_filter=*{label}*"]
                 try:
                     p = subprocess.run(cmd, timeout=30, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 except OSError as e:
                     self.assertTrue(False, "Something went wrong running the regressions.  If run_tests.exe runs for you locally, this is probably a bug in the autograder: {repr(e)}.")
+                    p = None
                 except subprocess.TimeoutExpired:
                     p.kill()
                     sys.stderr.write(f"===========Execution timed out after 30 seconds.================")
                     timedout= True
+                    self.assertTrue(False, f"Tests for {label} failed due to timeout")
                 else:
                     self.regressions_passed += 1
                     log.debug(f"Passed {self.regressions_passed}")
-                finally:
-                    sys.stdout.write(f"To reproduce: make run_test.exe; {' '.join(cmd)}\n")
-                    sys.stdout.write(p.stdout.decode('utf8'))
-                    sys.stderr.write(p.stderr.decode('utf8'))
-                    if p.returncode != 0 or timedout:
-                        self.assertTrue(False, f"Tests for {label} failed")
-                    else:
-                        self.assertTrue(True)
-                            
+        
+                sys.stdout.write(f"To reproduce: make run_test.exe; {' '.join(cmd)}\n")
+                sys.stdout.write(p.stdout.decode('utf8'))
+                sys.stderr.write(p.stderr.decode('utf8'))
+                if p.returncode != 0:
+                    self.assertTrue(False, f"Tests for {label} did not pass.")
+                else:
+                    self.assertTrue(True)
+                                    
             except Exception as e:
                 log.exception(e)
                 self.assertTrue(False, f"Got an exception: {repr(e)}")

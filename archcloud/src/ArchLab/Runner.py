@@ -42,6 +42,19 @@ class ConfigException(RunnerException):
 class MalformedObject(RunnerException):
     pass
 
+
+class cd:
+    """Context manager for changing the current working directory"""
+    def __init__(self, newPath):
+        self.newPath = os.path.expanduser(newPath)
+        
+    def __enter__(self):
+        self.savedPath = os.getcwd()
+        os.chdir(self.newPath)
+        
+    def __exit__(self, etype, value, traceback):
+        os.chdir(self.savedPath)
+                
 @contextmanager
 def environment(**kwds):
     env = copy.deepcopy(os.environ)
@@ -104,13 +117,14 @@ class LabSpec(object):
     class MetaRegressions(unittest.TestCase):
         pass
     
-    def run_gradescope_tests(self, result):
+    def run_gradescope_tests(self, result, dirname):
         out =io.StringIO()
         Class = type(self).GradedRegressions
         log.debug(f"Running regressions for {Class}")
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
-        with environment(**result.submission.env):
-            JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
+        with cd (dirname):
+            with environment(**result.submission.env):
+                JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
     def run_meta_regressions(self, *argc, **kwargs):
@@ -680,7 +694,7 @@ def run_submission_locally(sub,
             log.debug("STDERR_ENDS")
             log.debug(result_files['STDOUT'])
             result = SubmissionResult(sub, result_files, status, reasons)
-            sub.lab_spec.run_gradescope_tests(result)
+            sub.lab_spec.run_gradescope_tests(result, dirname)
             result = sub.lab_spec.post_run(result)
         except Exception as e:
             exc_type, exc_value, exc_tb = sys.exc_info()
