@@ -149,7 +149,8 @@ void PAPIMeasurementInterval::start()
 			exit(1);
 		}
 	}
-  
+
+	
 	_start->measure();
   
 }

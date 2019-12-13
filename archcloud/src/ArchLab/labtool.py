@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult, MalformedObject
 import logging as log
 import json
 import platform
@@ -9,105 +9,167 @@ import sys
 import os
 import subprocess
 import base64
-from  .CloudServices import DS, PubSub
+from  .DataStore import DataStore
+from  .PubSub import Subscriber
+
 import copy
-from .Columnize import columnize
+from .Columnize import columnize, format_time_delta
 from .SubCommand import SubCommand
 from .hosttool import send_command_to_hosts
+import pytz
 
 def cmd_ls(args):
     log.debug(f"Running ls with {args}")
-    ds = DS()
+    ds = DataStore()
     jobs = ds.query()
     sys.stdout.write(f"{len(jobs)} jobs:\n")
     for j in jobs:
-        sys.stdout.write(f"{j['job_id']}: {j['metadata']} \n")
+        sys.stdout.write(f"{j['job_id']}\n")
 
-def cmd_top(args):
-    from google.cloud.pubsub_v1.types import Duration
-    from google.cloud.pubsub_v1.types import ExpirationPolicy
-    import datetime
+class Cleanup(SubCommand):
+    def __init__(self, parent):
+        super(Cleanup, self).__init__(parent,
+                                  name="cleanup",
+                                  help="Cleanup stale jobs")
+        self.parser.add_argument('-n', '--dry-run', action='store_true', default=False, help="Don't actually do anything")
 
-    utcnow = datetime.datetime.utcnow
-    
-    log.debug(f"Running top with {args}")
+    def run(self, args):
+        import datetime
+        ds = DataStore()
+        for i in ds.query(status="SUBMITTED"):
+            now = datetime.datetime.now(pytz.utc)
+            if now - i['submitted_utc'] > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
+                log.info(f"Canceling {i['job_id']}")
+                if not args.dry_run:
+                    ds.update(i['job_id'],
+                              status = "COMPLETED",
+                              completed_utc=datetime.datetime.now(pytz.utc),
+                              submission_status = SubmissionResult.TIMEOUT,
+                    )            
+class Top(SubCommand):
+    def __init__(self, parent):
+        super(Top, self).__init__(parent,
+                                  name="top",
+                                  help="Track lab submission status")
+        self.parser.add_argument('--once', action='store_true', default=False, help="Just collect stats once and exit")
+        self.parser.add_argument('--window', default=30, help="Time window to compute stats (in minutes) (default = 30)")
 
-    ds = DS()
+    def run(self, args):
+        from google.cloud.pubsub_v1.types import Duration
+        from google.cloud.pubsub_v1.types import ExpirationPolicy
+        import datetime
 
-    ps = PubSub(private_subscription=True,
-                subscription_base="top",
-                retain_acked_messages=True,
-                message_retention_duration=Duration(seconds=30*60),
-                expiration_policy=ExpirationPolicy(ttl=Duration(seconds=24*3600)))
+        log.debug(f"Running top with {args}")
 
-    live_jobs=set()
-    for i in ds.query(status="SUBMITTED"):
-        if 'submitted_utc' not in i or i['submitted_utc'] in ["", None]:
-            continue
-        if utcnow() - eval(i['submitted_utc']) > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
-            continue
-        live_jobs.add(i['job_id'])
-    for i in ds.query(status="RUNNING"):
-        live_jobs.add(i['job_id'])
+        args.window = int(args.window)*60
         
-    try: 
-        while True:
-            rows =[["id", "status", "wtime", "rtime", "tot. time", "runner", "lab" ]]
-            for j in copy.copy(live_jobs):
-                job=ds.pull(j)
-                now = utcnow()
-                if job['status'] == "COMPLETED":
-                    try:
-                        since_complete = now - eval(job['completed_utc'])
-                        if since_complete > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
-                            live_jobs.remove(job['job_id'])
-                    except:
-                        live_jobs.remove(job['job_id'])
+        ds = DataStore()
 
-                try:
-                    #log.debug(f"Parsing {job['submitted_utc']}")
-                    if job['status'] == "SUBMITTED":
-                        waiting = now - eval(job['submitted_utc'])
-                    else:
-                        waiting = eval(job['started_utc']) - eval(job['submitted_utc'])
-                except KeyError:
-                    waiting = "k"
-                except SyntaxError:
-                    waiting = "s"
+        with Subscriber(topic=os.environ['PUBSUB_TOPIC']) as subscriber:
 
-                try:
-                    #log.debug(f"Parsing {job['started_utc']}")
-                    if job['status'] == "STARTED":
-                        running = now - eval(job['started_utc'])
-                    elif job['status'] == "COMPLETED":
-                        running = eval(job['completed_utc']) - eval(job['started_utc'])
-                    else:
-                        running = "."
-                except KeyError as e:
-                    log.error(e)
-                    running = "k"
-                except SyntaxError as e:
-                    log.error(e)
-                    running = "s"
 
-                try:
-                    total = running + waiting
-                except:
-                    total = "?"
-                    
-                rows.append([job['job_id'], job.get('status','.'), str(waiting), str(running), str(total), str(job['runner_host']), job['lab_name']])
-                
-            os.system("clear")
-            sys.stdout.write(columnize(rows, divider=" "))
-            sys.stdout.flush()
-            m = ps.pull(timeout=1)
-            if m:
-                live_jobs.add(m)
-            
-    except KeyboardInterrupt:
-        return 0
-    finally:
-        ps.tear_down()
+            live_jobs=set()
+
+            for i in ds.query(status="SUBMITTED"):
+                log.debug(f"Found submitted job: {i['job_id']}")
+                live_jobs.add(i['job_id'])
+            for i in ds.query(status="RUNNING"):
+                log.debug(f"Found running job: {i['job_id']}")
+                live_jobs.add(i['job_id'])
+            for i in ds.get_recently_completed_jobs(args.window):
+                log.debug(f"Found completed job: {i['job_id']}")
+                live_jobs.add(i['job_id'])
+
+            try: 
+                while True:
+                    rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner", "lab", "user" ]]
+                    for j in copy.copy(live_jobs):
+                        job = ds.pull(j)
+                        now = datetime.datetime.now(pytz.utc)
+                        if job['status'] == "COMPLETED":
+                            try:
+                                since_complete = now - job['completed_utc']
+                                if since_complete > datetime.timedelta(seconds=args.window):
+                                    live_jobs.remove(job['job_id'])
+                            except Exception as e:
+                                log.error("Error checking status of job {j}: {e}")
+                                live_jobs.remove(job['job_id'])
+
+                        try:
+
+                            if job['status'] == "SUBMITTED" or not job['started_utc']:
+                                waiting = now - job['submitted_utc']
+                            else:
+                                waiting = job['started_utc'] - job['submitted_utc']
+                        except KeyError:
+                            waiting = "k"
+                        except SyntaxError:
+                            waiting = "s"
+
+                        try:
+
+                            if job['status'] == "STARTED":
+                                running = now - job['started_utc']
+                            elif job['status'] == "COMPLETED" and job['started_utc']:
+                                running = job['completed_utc'] - job['started_utc']
+                            else:
+                                running = "."
+                        except KeyError as e:
+                            log.error(e)
+                            running = "k"
+                        except SyntaxError as e:
+                            log.error(e)
+                            running = "s"
+
+                        try:
+                            total = running + waiting
+                        except:
+                            total = waiting
+
+                            
+                        try:
+                            submission = Submission._fromdict(json.loads(job['job_submission_json']))
+                        except MalformedObject:
+                            continue
+                        
+                        rows.append([job['job_id'][:8],
+                                     job.get('status','.'),
+                                     job.get('submission_status', "."),
+                                     format_time_delta(waiting),
+                                     format_time_delta(running),
+                                     format_time_delta(total),
+                                     str(job['runner_host']),
+                                     submission.lab_spec.short_name,
+                                     submission.username])
+                        
+                    recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
+                    s = datetime.timedelta()
+                    timeout = datetime.timedelta(seconds = int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
+                    overdue = 0
+
+                    for j in recent_jobs:
+                        d = j['completed_utc'] - j['submitted_utc']
+                        if d > timeout:
+                            overdue += 1
+                        s += d
+
+                    if not args.verbose:
+                        os.system("clear")
+                    sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
+                    sys.stdout.write(f"Comp. in the last {args.window}s: {len(recent_jobs)}\n")
+                    sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
+                    sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
+                    sys.stdout.write(columnize(rows, divider=" "))
+                    sys.stdout.flush()
+
+                    for m in subscriber.pull(timeout=5,max_messages=100):
+                        live_jobs.add(m)
+
+                    if args.once:
+                        break
+            except KeyboardInterrupt:
+                return 0
+
 
 def main(argv=None):
     """
@@ -121,9 +183,8 @@ def main(argv=None):
     ls_parser = subparsers.add_parser('ls', help="List jobs")
     ls_parser.set_defaults(func=cmd_ls)
 
-    top_parser = subparsers.add_parser('top', help="Track jobs")
-    top_parser.set_defaults(func=cmd_top)
-    
+    Top(subparsers)
+    Cleanup(subparsers)
 
     if argv == None:
         argv = sys.argv[1:]
@@ -135,7 +196,7 @@ def main(argv=None):
         sys.exit(1)
         
     log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if args.verbose else log.INFO)
+                    level=log.DEBUG if args.verbose else log.WARN)
 
     return args.func(args)
 

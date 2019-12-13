@@ -37,7 +37,7 @@ extern "C" {
 	void pristine_machine();
 	void set_cpu_clock_frequency(int mhz);  
 	void write_csv(const char * filename);
-
+	void load_frequencies();
 	void track_stat(char *event);
 	void clear_tracked_stats();
 

@@ -23,13 +23,23 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .CloudServices import DS, PubSub
+from .BlobStore import BlobStore
+from .DataStore import DataStore
+from .PubSub import Publisher
+
+from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
+
+from .Columnize import columnize
+import datetime
+import pytz
 
 class RunnerException(Exception):
     pass
 class BadOptionException(RunnerException):
     pass
 class ConfigException(Exception):
+    pass
+class MalformedObject(Exception):
     pass
 
 @contextmanager
@@ -54,7 +64,8 @@ class LabSpec(object):
 
     def __init__(self,
                  lab_name=None,
-                 output_files= None,
+                 short_name=None,
+                 output_files=None,
                  input_files=None,
                  repo=None,
                  reference_tag = None,
@@ -67,6 +78,7 @@ class LabSpec(object):
 
         with collect_fields_of(self):
             self.lab_name = lab_name
+            self.short_name = short_name
             self.output_files = output_files
             self.input_files = input_files
             self.repo = repo
@@ -77,6 +89,7 @@ class LabSpec(object):
             self.time_limit = time_limit
             self.solution = solution
             self.config_file = config_file
+
             
         if self.default_cmd is None:
             self.default_cmd = ['make']
@@ -84,18 +97,56 @@ class LabSpec(object):
             self.clean_cmd = ['make', 'clean']
         
         assert self.lab_name is not None, "You must name your lab"
-                
+
+    class GradedRegressions(unittest.TestCase):
+        pass
+    
+    class MetaRegressions(unittest.TestCase):
+        pass
+    
+    def run_gradescope_tests(self, result):
+        out =io.StringIO()
+        Class = type(self).GradedRegressions
+        log.debug(f"Running regressions for {Class}")
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        with environment(**result.submission.env):
+            JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
+        result.results['gradescope_test_output'] = json.loads(out.getvalue())
+
+    def run_meta_regressions(self, *argc, **kwargs):
+        Class = type(self).MetaRegressions
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        runner = unittest.TextTestRunner(*argc, **kwargs)
+        runner.run(suite)
+        
+    def get_help(self):
+        rows = []
+        rows.append(["INFO", ""])
+        rows.append(["=======", ""])
+        rows += [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
+        rows.append(["", ""])
+        rows.append(["OPTIONS", ""])
+        rows.append(["=======", ""])
+        rows += map(list,self.valid_options.items())
+        out = columnize(rows, headers=None, divider=" : " )
+        return out
+        
+    
     def _asdict(self):
         return {f:getattr(self, f) for f in self._fields}
 
     # there no reason for these to be methods of this class
-    
+
     def csv_extract_by_line(self, file_contents, field, line=0):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         if len(d) < line + 1:
             return None
-        return float(d[line][field])
+        try:
+            return float(d[line][field])
+        except:
+            return d[line][field]
+    
 
     def csv_extract_by_lookup(self, file_contents, field, column, value):
         reader = csv.DictReader(StringIO(file_contents))
@@ -104,14 +155,22 @@ class LabSpec(object):
         for l in d:
             if l[column] == value:
                 if r == None:
-                    r = float(l[field])
+                    try:
+                        return float(l[field])
+                    except:
+                        return l[field]
                 else:
                     raise Exception(f"Multiple lines in output have {column}=={value}")
         return r
     
     def csv_column_values(self, file_contents, field):
         reader = csv.DictReader(StringIO(file_contents))
-        return map(lambda x: x[field], reader)
+        def parse(x):
+            try:
+                return float(x)
+            except:
+                return x
+        return map(lambda x: parse(x[field]), reader)
     
     def post_run(self, result):
         return result
@@ -164,7 +223,7 @@ class LabSpec(object):
 
         
     def safe_env_value(self, v):
-        safe_env = r"[a-zA-Z0-9_\-\. \"\']"
+        safe_env = r"[a-zA-Z0-9_\-\. =\"\'\/]"
         if not re.match(fr"^{safe_env}*$", v):
             return False
         else:
@@ -173,8 +232,13 @@ class LabSpec(object):
     def parse_config(self, f):
         r = dict()
         for l in f.readlines():
+            orig=l
             l = re.sub(r"#.*", "", l)
+            log.debug(f"stripped: {l}")
+            l = re.sub(r'"|\'', "", l)
+            log.debug(f"stripped: {l}")
             l = l.strip()
+            log.debug(f"stripped: {l}")
             if not l:
                 continue
 
@@ -187,6 +251,7 @@ class LabSpec(object):
                 if not self.safe_env_value(m.group(2)):
                     raise ConfigException(f"Unsafe value in this line.  Values cannot contain special characters.: {l}")
 
+            log.debug(f"Parsed '{orig}' as '{m.group(1)}' = '{m.group(2)}'")
             r[m.group(1)] = m.group(2)
         return r
     
@@ -232,37 +297,49 @@ class LabSpec(object):
         
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
+        try:
+            t = cls(**j)
+        except TypeError:
+            raise MalformedObject
         return t
 
     @classmethod
     def load(cls, root):
-        log.debug("Importing {}".format(os.path.join(root, "lab.py")))
+        path =  os.path.join(root, "lab.py")
+        log.debug(f"Importing {path}")
         spec = importlib.util.spec_from_file_location("LabInfo", os.path.join(root, "lab.py"))
         lab_info = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(lab_info)
+        try:
+            spec.loader.exec_module(lab_info)
+        except FileNotFoundError as e:
+            raise Exception(f"Couldn't find '{path}'")
 
         return lab_info.ThisLab()
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command):
+    def __init__(self, lab_spec, files, env, command, username=None):
         self.lab_spec = lab_spec
-        self.files = files
-        self.env = env
-        self.command = command
-        
+        with collect_fields_of(self):
+            self.files = files
+            self.env = env
+            self.command = command
+            self.username = username if username else "unknown"
+            
     def _asdict(self):
-        return dict(lab_spec=self.lab_spec._asdict(),
-                    files=self.files,
-                    env=self.env,
-                    command=self.command)
+        t = {f:getattr(self, f) for f in self._fields}
+        t['lab_spec'] = self.lab_spec._asdict()
+        return t
 
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
-        t.lab_spec = LabSpec(**t.lab_spec)
-        return t
+        try:
+            t = cls(**j)
+            t.lab_spec = LabSpec(**t.lab_spec)
+        except TypeError:
+            raise MalformedObject
+        else:
+            return t
 
     def apply_options(self):
         if subprocess.call(['which', 'cpupower']) != 0:
@@ -319,7 +396,7 @@ class SubmissionResult(object):
 
     def __init__(self, submission, files, status, results=None):
         self.submission = submission
-        log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
+        #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
@@ -330,6 +407,7 @@ class SubmissionResult(object):
 
     def get_file(self, name):
         return base64.b64decode(self.files[name]).decode("utf-8")
+    
     def put_file(self, name, contents):
         self.files[name] = base64.b64encode(contents).decode('utf8')
         return base64.b64decode(self.files[name]).decode("utf8")
@@ -342,91 +420,84 @@ class SubmissionResult(object):
 
     @classmethod
     def _fromdict(cls, j):
-        j['submission'] = Submission._fromdict(j['submission'])
-        t = cls(**j)
-        return cls(**j)
+        try:
+            j['submission'] = Submission._fromdict(j['submission'])
+            return cls(**j)
+        except TypeError:
+            raise MalformedObject
 
-def run_submission_remotely(submission,
-                            metadata=None,
-                            manifest=None):
 
-    ds = DS()
-    pubsub = PubSub()
 
-    log.debug(f"Metadata was: {metadata}")
-    if not metadata:
-        metadata = ""
+def run_submission_remotely(submission):
 
-    if not manifest:
-        manifest = ""
-
-    log.debug(f"Metadata is: {metadata}")
-
-    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
+    ds = DataStore()
+    publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
+    
+    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
     job_id = uuid()
-
-    log.debug(f"Writing submission to datastore")
-    log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
 
     output = ''
     status = 'SUBMITTED'
 
     ds.push(
         str(job_id),
-        metadata, 
         job_submission_json, 
-        manifest,
         output,
         status,
-        lab_name=submission.lab_spec.lab_name
     )
 
-    time.sleep(1.0)
-
-    log.debug(f"Pushing job to pubsub")
-    pubsub.push(job_id=str(job_id))
+    publisher.publish(str(job_id))
 
     start_time = time.time()
     status = 'SUBMITTED'
     running_time = time.time() - start_time
 
+    log.info(f"Started job {job_id}.")
     while True:
         running_time = time.time() - start_time
 
-        if running_time > 60*10:
-            status = 'TIME OUT (runtime > 10 minutes)'
-            log.error('Timeout: ' + str(running_time) + 's')
-            break
         job_data = ds.pull(
             job_id=str(job_id)
         )
+
+        if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
+            status = SubmissionResult.TIMEOUT
+            log.error(f'Job timed out after {running_time}s')
+            ds.update(str(job_id),
+                      status="COMPLETED",
+                      completed_utc=datetime.datetime.now(pytz.utc),
+                      submission_status=SubmissionResult.TIMEOUT)
+            break
 
         if job_data is None:
             log.error("Can't find job!")
             raise Exception(f"Couldn't find job: {job_id}")
         else:
-            log.info(f"Job progress: {job_data['status']}.")
+            log.debug(f"Job progress: {str(job_id)[:8]} is {job_data['status']} on host {job_data['runner_host']}")
 
             if job_data['status'] == 'COMPLETED':
-                log.info(f"Job       finished after {running_time} seconds: {job_id}")
-                log.debug(f"job_data['output'] = {job_data['output']}")
+                log.info(f"Job finished after {running_time} seconds: {job_id}")
                 status = 'COMPLETED'
-                r = SubmissionResult._fromdict(json.loads(job_data['output']))
+                blobstore = BlobStore(os.environ['JOBS_BUCKET'])
+                r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
                 log.debug(f"{r}")
                 return r
-
+            elif job_data['status'] == 'ERROR':
+                raise Exception(f"Job failed after {running_time} seconds: {job_id}")
 
         time.sleep(1)
                   
 
-def run_submission_locally(sub, root=".",
+def run_submission_locally(sub,
+                           root=".",
                            run_in_docker=False,
                            run_pristine=False,
                            nop=False,
                            timeout=None,
                            apply_options=False,
-                           docker_image=None):
+                           docker_image=None,
+                           verify_repo=True):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -491,14 +562,17 @@ def run_submission_locally(sub, root=".",
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
-    try:
-        # use the existing directory, if we aren't doing a pristine checkout.
-        with directory_or_tmp(root if not run_pristine else None) as dirname:
+    # use the existing directory, if we aren't doing a pristine checkout.
+    with directory_or_tmp(root if not run_pristine else None) as dirname:
+        try:
             if run_pristine:
                 repo = sub.lab_spec.repo
+                log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
+                if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
+                    raise Exception(f"Repo {repo} is not valid")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
-                r = log_run(cmd=['git', 'clone', repo , dirname])
+                r = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
                 if r != SubmissionResult.SUCCESS:
                     raise Exception("Clone for pristine execution failed.")
 
@@ -506,7 +580,7 @@ def run_submission_locally(sub, root=".",
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                log.debug(f"Executing submission in docker\n{sub._asdict()}")
+                #log.debug(f"Executing submission in docker\n{sub._asdict()}")
                 with open(os.path.join(dirname, "job.json"), "w") as job:
                     json.dump(sub._asdict(), job, sort_keys=True, indent=4)
                 status = log_run(cmd=
@@ -520,15 +594,6 @@ def run_submission_locally(sub, root=".",
                                  (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                  timeout=sub.lab_spec.time_limit)
             else:
-                if run_pristine:
-                    for f in sub.files:
-                        path = os.path.join(dirname, f)
-                        with open(path, "wb") as of:
-                            log.debug("Writing input file {}".format(path))
-                            of.write(base64.b64decode(sub.files[f]))
-
-                
-                log.debug(f"Executing submission\n{sub._asdict()}")
 
                 # filter the environment with the clean lab_spec
                 log.debug(f"Incomming env: {sub.env}")
@@ -536,17 +601,32 @@ def run_submission_locally(sub, root=".",
                 good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
                 if not good_command:
                     raise Exception(f"Disallowed command ({error}): {sub.command}")
-                
+                log.debug(f"Filtered env: {sub.env}")
+
                 if run_pristine:
                     # we just dumped the files in '.' so, look for them there.
-                    sub.env['LAB_SUBMISSION_DIR'] = "." 
-                log.debug(f"Filtered env: {sub.env}")
+                    sub.env['LAB_SUBMISSION_DIR'] = dirname
+                else:
+                    with environment(**sub.env):
+                        log_run(sub.lab_spec.clean_cmd, cwd=dirname)
+                    os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
+                    sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
+
+
+                for f in sub.files:
+                    path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
+                    os.makedirs(os.path.dirname(path),exist_ok=True)
+                    with open(path, "wb") as of:
+                        log.debug("Writing input file {}".format(path))
+                        of.write(base64.b64decode(sub.files[f]))
+                
+                        #log.debug(f"Executing submission\n{sub._asdict()}")
+                
                 with environment(**sub.env):
-                    log_run(sub.lab_spec.clean_cmd, cwd=dirname)
                     status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
-                log.debug(f"Searching for output files matchi '{f}'")
+                log.debug(f"Searching for output files matching '{f}'")
                 for filename in Path(dirname).glob(f):
                     if os.path.isfile(filename):
                         with open(filename, "rb") as r:
@@ -555,29 +635,34 @@ def run_submission_locally(sub, root=".",
                             t = str(key)
                             result_files[t] = base64.b64encode(r.read()).decode('utf8')
 
-    except TypeError:
-        raise
-    except Exception as e:
-        traceback.print_exc(file=err)
-        traceback.print_exc()
-        err.write("# Execution failed\n")
-        out.write("# Execution failed\n")
-        status=SubmissionResult.ERROR
+        except TypeError:
+            raise
+        except Exception as e:
+            traceback.print_exc(file=err)
+            traceback.print_exc()
+            err.write("# Execution failed\n")
+            out.write("# Execution failed\n")
+            status=SubmissionResult.ERROR
 
-    try:
-        result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
-        result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
-        log.debug("STDOUT: \n{}".format(out.getvalue()))
-        log.debug("STDOUT_ENDS")
-        log.debug("STDERR: \n{}".format(err.getvalue()))
-        log.debug("STDERR_ENDS")
-        log.debug(result_files['STDOUT'])
-        result = SubmissionResult(sub, result_files, status)
-        result = sub.lab_spec.post_run(result)
-    except Exception as e:
-        result = SubmissionResult(sub, {}, SubmissionResult.ERROR)
-        
-    return result
+        try:
+            result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+            result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+            log.debug("STDOUT: \n{}".format(out.getvalue()))
+            log.debug("STDOUT_ENDS")
+            log.debug("STDERR: \n{}".format(err.getvalue()))
+            log.debug("STDERR_ENDS")
+            log.debug(result_files['STDOUT'])
+            result = SubmissionResult(sub, result_files, status)
+            sub.lab_spec.run_gradescope_tests(result)
+            result = sub.lab_spec.post_run(result)
+        except Exception as e:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+            log.error(repr(e))
+            result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
+            result = SubmissionResult(sub, result_files, SubmissionResult.ERROR)
+
+        return result
     
 
 
@@ -586,7 +671,7 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None):
+def build_submission(directory, input_dir, command, config_file=None, username=None):
     spec = LabSpec.load(directory)
     files = {}
     if config_file is None:
@@ -602,7 +687,11 @@ def build_submission(directory, input_dir, command, config_file=None):
         
     for f in spec.input_files:
         full_path = os.path.join(directory, input_dir)
+        log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
         for filename in Path(full_path).glob(f):
+            if not  os.path.isfile(filename):
+                log.debug(f"Skipping '{filename}' since it's a directory")
+                continue
             log.debug(f"Found file '{filename}' matching '{f}'.")
             try:
                 with open(filename, "rb") as o:
@@ -614,24 +703,29 @@ def build_submission(directory, input_dir, command, config_file=None):
             except Exception:
                 raise Exception(f"Couldn't open input file '{filename}'.")
 
-    from_env = spec.filter_env(os.environ)
-    for i in from_env:
-        log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
-        
     if config_file:
         path = os.path.join(directory,
                             input_dir,
                             config_file)
         with open(path) as config:
+            log.debug(f"Parsing config file: '{path}'")
             from_config = spec.parse_config(config)
             for i in from_config:
                 log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
     else:
+        log.debug("No config file")
         from_config = {}
-        
-    from_env.update(from_config)
 
-    s = Submission(spec, files, from_env, command)
+    from_env = spec.filter_env(os.environ)
+    
+    for i in from_env:
+        from_env[i] = re.sub(r'"|\'', "", from_env[i])
+        log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
+        
+    from_config.update(from_env)
+
+    s = Submission(spec, files, from_config, command, username)
+
     return s
 
 
@@ -725,9 +819,7 @@ def test_configs_validation():
         spec = LabSpec.load("test_inputs")
         for f in [
                 """
-                USER_CMD_LINE=hello
                 USER_CMD_LINE2=hello
-                USER_CMD_LINE=--stat foo bar "baoeu aoue"
                 GPROF=yes
                 DEBUG=no
                 DEBUG2=
@@ -736,7 +828,6 @@ def test_configs_validation():
             s = io.StringIO(f)
             env = spec.parse_config(s)
             assert dict(USER_CMD_LINE2="hello",
-                        USER_CMD_LINE='--stat foo bar "baoeu aoue"',
                         GPROF="yes",
                         DEBUG="no",
                         DEBUG2=""

@@ -1,0 +1,27 @@
+import os
+from .BaseBlobStore import NotFound, BaseBlobStore, do_test_blob_store
+import pytest
+
+class LocalBlobStore(BaseBlobStore):
+    def __init__(self, bucket):
+        self.directory = os.path.join(os.environ["EMULATION_DIR"],
+                                      os.environ['GOOGLE_CLOUD_PROJECT'],
+                                      "blobstore",
+                                      bucket)
+        os.makedirs(self.directory, exist_ok=True)
+
+    def write_file(self, filename, contents):
+        with open(os.path.join(self.directory, filename), "w") as f:
+            f.write(contents)
+
+    def read_file(self, filename):
+        try:
+            with open(os.path.join(self.directory, filename)) as f:
+                return f.read()
+        except FileNotFoundError:
+            raise NotFound
+
+def test_local_blob_store():
+    if "EMULATION_DIR" not in os.environ:
+        pytest.skip()
+    do_test_blob_store(LocalBlobStore)
