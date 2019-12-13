@@ -91,7 +91,7 @@ def main(argv=sys.argv[1:]):
 
                         # this script needs to write out the score/time etc...
 
-                        output = result.results.get('gradescope_test_output', default)
+                        output = result.results.get('gradescope_test_output', default_output)
                         output["execution_time"] = float(end_time - start_time)
                         output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
                         output['tests'] = files + output['tests'] # merge in tests
