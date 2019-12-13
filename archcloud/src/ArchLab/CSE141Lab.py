@@ -161,7 +161,6 @@ class CSE141Lab(LabSpec):
                     result = run_submission_remotely(submission, daemon=True)
                 else:
                     result = run_submission_locally(submission,
-                                                    root=".",
                                                     run_in_docker=False,
                                                     docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
                                                     run_pristine=pristine)

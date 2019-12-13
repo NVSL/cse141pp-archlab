@@ -79,7 +79,7 @@ def main(argv=None):
     parser.add_argument('--native', action='store_false', dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
     parser.add_argument('--docker', action='store_true', default=False, help=sm("Run in a docker container."))
     parser.add_argument('--docker-image', default=os.environ['DOCKER_RUNNER_IMAGE'], help=sm("Docker image to use"))
-    parser.add_argument('--json', default=False, action='store_true', help=sm("Dump json version of submission and response."))
+    parser.add_argument('--json', default=None, help=sm("Dump json version of submission and response."))
     parser.add_argument('--directory', default=".", help=sm("Lab root"))
     parser.add_argument('--run-json', nargs="*", default=None, help=sm("Read json submission spec from file.   With no arguments, read from stdin"))
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
@@ -159,7 +159,8 @@ def main(argv=None):
 
                     
         if args.json:
-            sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
+            with open(args.json, "w") as f:
+                f.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
         result = None
         if not args.nop:
