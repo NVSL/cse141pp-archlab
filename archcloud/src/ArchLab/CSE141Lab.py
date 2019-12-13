@@ -1,4 +1,4 @@
-from .Runner import LabSpec, build_submission, run_submission_locally, environment
+from .Runner import LabSpec, build_submission, run_submission_locally, run_submission_remotely, environment
 import unittest
 import logging as log
 import os
@@ -15,15 +15,15 @@ def crossproduct(a,b):
 
 
 # These are the flag settings we check
-#              pristine devel gprof docker
+#              pristine devel gprof remote
 test_flags = [(False, False, False, False),
               (True,  False, False, False),
               (False, True,  False, False),
               (False, False, True,  False),
-              (True,  False, False, True ), # docker requires pristine
+              (False, False, False, True ), 
               (False, True,  True,  False), # Local perf tuning
               (True , False, True,  True ), # typical autograder run
-              (True,  True,  True,  True )]
+              (True , True,  True,  True )]
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -131,7 +131,7 @@ class CSE141Lab(LabSpec):
 
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
-        def run_solution(self, solution, pristine=False, devel=False, gprof=False, docker=False):
+        def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False):
             env = {}
             if devel:
                 env['DEVEL_MODE'] = 'yes'
@@ -147,10 +147,14 @@ class CSE141Lab(LabSpec):
                                               solution,
                                               None,
                                               username="metatest")
-                result = run_submission_locally(submission,
-                                                root=".",
-                                                run_in_docker=docker,
-                                                docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
-                                                run_pristine=pristine)
-            log.info(f"results={result.results}")
+                if remote:
+                    result = run_submission_remotely(submission)
+                else:
+                    result = run_submission_locally(submission,
+                                                    root=".",
+                                                    run_in_docker=False,
+                                                    docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
+                                                    run_pristine=pristine)
+                    
+                log.info(f"results={result.results}")
             return result
