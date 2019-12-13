@@ -50,7 +50,8 @@ def main(argv=sys.argv[1:]):
                 #if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
                 #                        latest_submission = p
                 
-                solution = "solution" if os.path.isdir("solution") else "."
+                solution = "solution" if os.path.isdir(os.path.join(submission_dir, "solution")) else "."
+                log.debug(f"Using solution '{solution}'.")
         
                 if recent_submissions > 1:
                         log.info("Too many recent submissions.  Copying old results to current results.")
@@ -95,9 +96,6 @@ def main(argv=sys.argv[1:]):
                                 }
                         )
                         end_time = time.time()
-
-
-                        # this script needs to write out the score/time etc...
 
                         output = result.results.get('gradescope_test_output', default_output)
                         output["execution_time"] = float(end_time - start_time)
