@@ -100,7 +100,6 @@ def main(argv=sys.argv[1:]):
                 output['output'] = f"Something went wrong: {repr(e)}"
         finally:
                 with open(results_fn, 'w') as f:
-                        log.debug(f"Gradescope output (without files): {d}")
                         f.write(json.dumps(output))
 
         
