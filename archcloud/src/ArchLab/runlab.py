@@ -138,37 +138,43 @@ def main(argv=None):
                 log.debug(f"{submission.lab_spec._asdict()}")
             
 
-            c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
-            p = subprocess.Popen(c, cwd=submission.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
-            stdout, stderr = p.communicate()
-            if p.returncode != 0:
+            diff = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
+            update = ['git', 'remote', 'update']
+            unpushed = ['git' , 'status', '-uno']
+            reporter = log.error if args.validate else log.warn
+            
+            try:
+                subprocess.check_call(diff)
+                subprocess.check_call(update)
+                if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
+                    raise Exception
+            except:
+                reporter("You have uncommitted changes and/or there is changes in github that you don't have locally.  This means local behavior won't match what the autograder will do.")
                 if args.validate:
-                    log.warn("You have uncomitted modifications.  These won't have any effect if you submit this code. Pass '--no-validate' to run anyway.")
-                    log.error("\n" + stdout.decode("utf-8"))
-                    sys.exit(1)
-                else:
-                    log.warn("You have uncomitted modifications.  These won't have any effect if you submit this code.")
-                    log.warn("\n" + stdout.decode("utf-8"))
+                    log.error("To run anyway, pass '--no-validate'.  To mimic the autograder as closely as possible, do '--pristine'")
+                    if args.debug:
+                        raise
+                    else:
+                        sys.exit(1)
 
+                    
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
-
-            #log.debug("Submission: {}".format(submission._asdict()))
 
         result = None
         if not args.nop:
 
             if not args.remote:
                 result = run_submission_locally(submission,
-                                                root=submission.directory,
                                                 run_in_docker=args.docker,
                                                 run_pristine=args.pristine,
                                                 docker_image=args.docker_image,
                                                 verify_repo=args.verify_repo)
             else:
-                result = run_submission_remotely(submission, daemon=arg.daemon)
+                result = run_submission_remotely(submission, daemon=args.daemon)
                 
-            #log.debug(f"Got response: {result}")
+            log.debug(f"Got response: {result}")
+            log.debug(f"Got response: {result.results}")
             #log.debug(f"Got response: {result._asdict()}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
@@ -181,13 +187,7 @@ def main(argv=None):
                 elif i == "STDOUT":
                     sys.stdout.write(result.files[i])
                     
-                with open(os.path.join(args.directory, i), "wb") as t:
-                    log.debug(f"Writing data to {i}: {result.files[i][0:100]}")
-                    t.write(base64.b64decode(result.files[i]))
-
-            with open(os.path.join(args.directory, "results.json"), "w") as t:
-                t.write(json.dumps(result.results, sort_keys=True, indent=4))
-                sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
+            sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
                 
     except RunnerException as e: 
         log.error(e)

@@ -191,9 +191,6 @@ class LabSpec(object):
                 return x
         return map(lambda x: parse(x[field]), reader)
     
-    def post_run(self, result):
-        return result
-
     def parse_one_option(self, option, value):
         if option == "cmd_line":
             value = value.strip()
@@ -337,14 +334,15 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command, directory, solution, username=None):
+    def __init__(self, lab_spec, files, env, command, run_directory, user_directory, solution, username=None):
         self.lab_spec = lab_spec
         with collect_fields_of(self):
             self.files = files
             self.env = env
             self.command = command
             self.username = username if username else "unknown"
-            self.directory = directory
+            self.user_directory = user_directory
+            self.run_directory = run_directory
             self.solution = solution
             
     def _asdict(self):
@@ -441,6 +439,17 @@ class SubmissionResult(object):
                     status=self.status,
                     results=self.results,
                     status_reasons=self.status_reasons)
+    
+    def write_outputs(self):
+        for i in self.files:
+            p = os.path.abspath(os.path.join(self.submission.user_directory, i))
+            with open(p, "wb") as t:
+                log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
+                t.write(base64.b64decode(self.files[i]))
+                
+        with open(os.path.join(self.submission.user_directory, "results.json"), "w") as t:
+            log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
+            t.write(json.dumps(self.results, sort_keys=True, indent=4))
 
     @classmethod
     def _fromdict(cls, j):
@@ -529,7 +538,7 @@ def run_submission_remotely(submission, daemon=False):
                     status = 'COMPLETED'
                     blobstore = BlobStore(os.environ['JOBS_BUCKET'])
                     r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
-                    log.debug(f"{r}")
+                    r.write_outputs()
                     return r
                 elif job_data['status'] == 'ERROR':
                     raise Exception(f"Job failed after {running_time} seconds: {job_id}")
@@ -547,7 +556,6 @@ def run_submission_remotely(submission, daemon=False):
                   
 
 def run_submission_locally(sub,
-                           root=".",
                            run_in_docker=False,
                            run_pristine=False,
                            nop=False,
@@ -558,7 +566,8 @@ def run_submission_locally(sub,
     out = StringIO()
     err = StringIO()
     result_files = {}
-
+    root = sub.run_directory
+    
     def log_run(cmd, *args, timeout=None, **kwargs):
         log.debug("# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', ".")))
 
@@ -656,7 +665,7 @@ def run_submission_locally(sub,
                                            "-w", "/runner",
                                            "--privileged",
                                            docker_image,
-                                           "runlab", "--run-json", "job.json"] +
+                                           "runlab", "--run-json", "job.json", '--debug'] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
                 if status != SubmissionResult.SUCCESS:
@@ -723,7 +732,7 @@ def run_submission_locally(sub,
             log.debug(result_files['STDOUT'])
             result = SubmissionResult(sub, result_files, status, reasons)
             sub.lab_spec.run_gradescope_tests(result, dirname)
-            result = sub.lab_spec.post_run(result)
+            result.write_outputs()
         except Exception as e:
             exc_type, exc_value, exc_tb = sys.exc_info()
             log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
@@ -733,10 +742,9 @@ def run_submission_locally(sub,
                                       result_files,
                                       SubmissionResult.ERROR,
                                       ['Something went wrong while preparing the submission response.  This a bug or error in the autograder: {repr(e)}'])
-
-        return result
+            
+    return result
     
-
 
 def remove_outputs(dirname, submission):
     for i in submission.lab_spec.output_files:
@@ -755,20 +763,20 @@ def build_submission(user_directory, solution, command, config_file=None, userna
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
 
     if pristine:
-        directory = tempfile.TemporaryDirectory(dir="/tmp/").name
+        run_directory = tempfile.TemporaryDirectory(dir="/tmp/").name
         try:
             log.info("Cloning user files...")
-            subprocess.check_call(["git", "clone", user_directory, directory])
+            subprocess.check_call(["git", "clone", user_directory, run_directory])
         except Exception as e:
-            log.error(f"Tried to clone `{user_directory}` into '{directory}' for pristine execution, but failed: {repr(e)}")
+            log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
             sys.exit(1)
     else:
-        directory = user_directory
+        run_directory = user_directory
 
     # Make sure it's relative.
-    log.debug(f"Fetching inputs from '{directory}'")
+    log.debug(f"Fetching inputs from '{run_directory}'")
     
-    spec = LabSpec.load(directory)
+    spec = LabSpec.load(run_directory)
     files = {}
     if config_file is None:
         config_file = spec.config_file
@@ -782,7 +790,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         raise Exception(f"This command is not allowed ({error}): {command}")
         
     for f in spec.input_files:
-        full_path = os.path.join(directory, input_dir)
+        full_path = os.path.join(run_directory, input_dir)
         log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
         for filename in Path(full_path).glob(f):
             if not  os.path.isfile(filename):
@@ -800,7 +808,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
                 raise Exception(f"Couldn't open input file '{filename}'.")
 
     if config_file:
-        path = os.path.join(directory,
+        path = os.path.join(run_directory,
                             input_dir,
                             config_file)
         with open(path) as config:
@@ -820,7 +828,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         
     from_config.update(from_env)
 
-    s = Submission(spec, files, from_config, command, username, directory, input_dir)
+    s = Submission(spec, files, from_config, command, run_directory, user_directory, input_dir, username=username)
 
     return s
 
@@ -829,7 +837,6 @@ def test_run():
     sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
 
     result = run_submission_locally(sub,
-                                    "test_inputs",
                                     run_in_docker = False,
                                     run_pristine = False,
                                     docker_image = None)
@@ -846,7 +853,6 @@ def test_run():
     n = SubmissionResult._fromdict(j)
 
     result2 = run_submission_locally(sub,
-                                     "test_inputs",
                                      run_in_docker = False,
                                      run_pristine = False,
                                      docker_image = None)

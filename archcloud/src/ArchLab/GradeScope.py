@@ -14,6 +14,8 @@ def main(argv=sys.argv[1:]):
         parser = argparse.ArgumentParser(description='Run a lab.')
         parser.add_argument('-v', action='store_true', dest="verbose", default=False, help="Be verbose")
         parser.add_argument('--root', default="/autograder", help="Autograder root")
+        parser.add_argument('--debug', action='store_true', help="exit on errors")
+        parser.add_argument('--daemon', action='store_true', default=False, help="Start a local server to run my job")
         args = parser.parse_args(argv)
 
         log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
@@ -30,8 +32,11 @@ def main(argv=sys.argv[1:]):
                 "stdout_visibility": "visible", 
                 "tests": []
         }
+        output=default_output
+        log.debug(f"{output}")
         
         try:
+                log.debug(f"{output}")
                 metadata_fn = os.path.join(args.root, 'submission_metadata.json')
                 results_fn = os.path.join(args.root, 'results/results.json')
                 submission_dir = os.path.join(args.root, 'submission')
@@ -52,17 +57,18 @@ def main(argv=sys.argv[1:]):
                 
                 solution = "solution" if os.path.isdir(os.path.join(submission_dir, "solution")) else "."
                 log.debug(f"Using solution '{solution}'.")
-        
-                if recent_submissions > 1:
+                log.debug(f"{output}")
+                if False and recent_submissions > 1:
                         log.info("Too many recent submissions.  Copying old results to current results.")
                         output = latest_submission['results']
                 else:
+                        log.debug(f"{output}")
                         start_time = time.time()
                         submission = build_submission(submission_dir, solution, None, username=metadata['users'][0]["email"])
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise RunnerException(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
-                        result = run_submission_remotely(submission)
+                        result = run_submission_remotely(submission, daemon=args.daemon)
 
                         files = []
 
@@ -82,7 +88,7 @@ def main(argv=sys.argv[1:]):
                                                 "visibility": "visible", # Optional visibility setting
                                         }
                                 )
-
+                        log.debug(f"{output}")
                         d = copy.deepcopy(result)
                         d.files = None # this is rendudant and large
                         d.submission.files = None #this too
@@ -95,17 +101,23 @@ def main(argv=sys.argv[1:]):
                                         "visibility": "visible", # Optional visibility setting
                                 }
                         )
+                        log.debug(f"{output}")
                         end_time = time.time()
 
                         output = result.results.get('gradescope_test_output', default_output)
                         output["execution_time"] = float(end_time - start_time)
                         output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
                         output['tests'] = files + output['tests'] # merge in tests
+                        log.debug(f"{output}")
         except Exception as e:
                 output = default_output
                 output['output'] = f"Something went wrong: {repr(e)}"
-        finally:
-                with open(results_fn, 'w') as f:
-                        f.write(json.dumps(output))
+                if args.debug:
+                        raise
 
-        
+        log.debug(f"{output}")
+        log.debug(f"Writing to {os.path.abspath(results_fn)}")
+        with open(os.path.abspath(results_fn), 'w') as f:
+                t = json.dumps(output)
+                log.debug(t)
+                f.write(t)

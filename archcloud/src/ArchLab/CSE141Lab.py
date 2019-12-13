@@ -167,6 +167,6 @@ class CSE141Lab(LabSpec):
                                                     run_pristine=pristine)
                     
                 log.info(f"results={result.results}")
-            log.info(f"=========================== Finished {tag} ==========================================")
+            log.info(f"=========================== Finished {tag} in {self.id()} ==========================================")
             return result, tag 
 

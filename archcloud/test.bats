@@ -6,7 +6,28 @@ else
     export MODES=EMULATION CLOUD
 fi
 
+@test "runlab" {
+    
+    
+    pushd $(mktemp -d)
+    echo in $PWD
+    git clone $LABS_ROOT/$TESTING_LAB .
+    runlab
+    runlab --solution .
+    runlab --solution solution
+    runlab --pristine
+    runlab --pristine
+    runlab --pristine --remote --daemon
+    runlab --devel
+    runlab --docker --pristine
+    echo >> code.cpp
+    ! runlab
+    runlab --no-validate
+    popd
+}
+	      
 @test "ls" {
+    skip
     labtool --help
     labtool ls
 
@@ -30,18 +51,20 @@ fi
     . config.sh
     popd
     export MODES=EMULATION CLOUD
-    for LAB in CSE141pp-Lab-Test; do 
+    for LAB in CSE141pp-Lab-Tiny; do 
 	for CLOUD_MODE in $MODES; do
 	    reconfig
-	    (runlab.d --just-once -v & sleep 15; kill $!) &
-	    sleep 3
-	    pushd test_inputs/gradescope/
-	    rm -rf submission
+	    d=$(mktemp -d)
+	    cp ./test_inputs/gradescope/submission_metadata.json $d
+	    pushd $d
 	    mkdir -p submission
+	    mkdir -p results
 	    cp -a $LABS_ROOT/$LAB/* submission/
-	    gradescope -v --root .
-	    [ "$(jextract score  < results/results.json)" == "0.0" ]
-	    jextract tests -1 name  < results/results.json | grep GradedRegressions
+	    find $PWD
+	    gradescope -v --root . --daemon --debug
+	    [ -e  $PWD/results/results.json ]
+	    popd
+	    rm -rf $d
 	done
     done
 }
@@ -66,20 +89,6 @@ fi
 	skip
     fi
     hosttool ls
-}
-
-@test "job flow" {
-    pushd $CONFIG_REPO_ROOT
-    . config.sh
-    popd
-    for CLOUD_MODE in $MODES; do
-	reconfig
-	(runlab.d --just-once -v & sleep 10; kill $!) &
-	sleep 3
-	pushd $LABS_ROOT/$TESTING_LAB
-	runlab --remote --pristine --no-validate
-	popd
-    done
 }
 
 @test "jextract" {
