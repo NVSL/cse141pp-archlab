@@ -1,9 +1,26 @@
-from .Runner import LabSpec, build_submission, run_submission_locally
+from .Runner import LabSpec, build_submission, run_submission_locally, environment
 import unittest
 import logging as log
 import os
 import sys
 import subprocess
+
+# this is for parameterizing tests
+def crossproduct(a,b):
+    r = []
+    for i in a:
+        for j in b:
+            r.append(list(i) + list(j))
+    return r
+
+
+# These are the flag settings we check
+#              pristine devel gprof
+test_flags = [(False, False, False),
+              (True, False, False),
+              (False, True, False),
+              (False, False, True),
+              (True, True, True)]
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -26,12 +43,12 @@ class CSE141Lab(LabSpec):
             valid_options = {}
 
         valid_options.update({
-            "CMD_LINE_ARGS":"",
-            "GPROF": "",
-            "DEBUG": "",
-            "OPTIMIZE": "",
-            "COMPILER": "",
-            'DEVEL_MODE':  "",
+            "CMD_LINE_ARGS":"<cmdline args for the code under test>",
+            "GPROF": "yes|no",
+            "DEBUG": "yes|no",
+            "OPTIMIZE": "<gcc optimization flags>",
+            "COMPILER": "gcc-9",
+            'DEVEL_MODE':  "yes|no",
         })
         
         super(CSE141Lab, self).__init__(
@@ -50,8 +67,10 @@ class CSE141Lab(LabSpec):
     class EasyFileAccess(object):
         
         def open_file(self, name, root=None):
-            if not root:
-                root == os.environ['LAB_SUBMISSION_DIR']
+            if root == None:
+                root = os.environ['LAB_SUBMISSION_DIR']
+            else:
+                root = "."
                 
             path = os.path.join(root, name)
             log.debug(f"Opening {path} for graded regressions")
@@ -60,6 +79,11 @@ class CSE141Lab(LabSpec):
         def read_file(self, name, root=None):
             with self.open_file(name, root) as f:
                 return f.read()
+        def assertFileExists(self, f, tag=""):
+            self.assertTrue(os.path.exists(f), f"Failed on {tag}: looking for '{f}'")
+        def assertNotFileExists(self, f, tag):
+            self.assertFalse(os.path.exists(f), f"Failed on {tag}: looking for the absence of '{f}'")
+        
 
     class GradedRegressions(unittest.TestCase, EasyFileAccess):
 
@@ -102,17 +126,26 @@ class CSE141Lab(LabSpec):
                 log.exception(e)
                 self.assertTrue(False, f"Got an exception: {repr(e)}")
 
-
-
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
-        def run_solution(self, solution):
-            submission = build_submission(".",
-                                          solution,
-                                          None,
-                                          username="metatest")
-            result = run_submission_locally(submission,
-                                            root=".",
-                                            run_pristine=False)
+        def run_solution(self, solution, pristine=False, devel=False, gprof=False):
+            env = {}
+            if devel:
+                env['DEVEL_MODE'] = 'yes'
+            else:
+                env['DEVEL_MODE'] = ''
+            if gprof:
+                env['GPROF'] = 'yes'
+            else:
+                env['GPROF'] = 'no'
+                
+            with environment(**env):
+                submission = build_submission(".",
+                                              solution,
+                                              None,
+                                              username="metatest")
+                result = run_submission_locally(submission,
+                                                root=".",
+                                                run_pristine=pristine)
             log.info(f"results={result.results}")
             return result

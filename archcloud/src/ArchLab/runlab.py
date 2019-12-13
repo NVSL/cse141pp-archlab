@@ -16,7 +16,8 @@ def show_info():
         spec=LabSpec.load(".")
         return spec.get_help()
     except :
-        return "Not a lab directory"
+        raise
+        return "Not a lab directory\n"
 
 def main(argv=None):
     """
@@ -147,19 +148,23 @@ def main(argv=None):
                 setattr(submission.lab_spec, k, v)
                 log.debug(f"{submission.lab_spec._asdict()}")
             
-            if args.validate:
-                c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
-                p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
-                stdout, stderr = p.communicate()
-                if p.returncode != 0:
-                    log.error("You have modified files that won't be submitted.  This is unwise.  '--no-validate' to ignore.")
-                    log.error(stdout.decode("utf-8"))
+
+            c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
+            p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
+            stdout, stderr = p.communicate()
+            if p.returncode != 0:
+                if args.validate:
+                    log.warn("You have uncomitted modifications.  These won't have any effect if you submit this code. Pass '--no-validate' to run anyway.")
+                    log.error("\n" + stdout.decode("utf-8"))
                     sys.exit(1)
-   
+                else:
+                    log.warn("You have uncomitted modifications.  These won't have any effect if you submit this code.")
+                    log.warn("\n" + stdout.decode("utf-8"))
+
         if args.json:
             sys.stdout.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
-        log.debug("Submission: {}".format(submission._asdict()))
+            #log.debug("Submission: {}".format(submission._asdict()))
 
         result = None
         if not args.nop:
@@ -174,8 +179,8 @@ def main(argv=None):
             else:
                 result = run_submission_remotely(submission)
                 
-            log.debug(f"Got response: {result}")
-            log.debug(f"Got response: {result._asdict()}")
+            #log.debug(f"Got response: {result}")
+            #log.debug(f"Got response: {result._asdict()}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
                 log.debug(result.files[i][:1000])

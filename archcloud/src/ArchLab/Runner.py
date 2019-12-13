@@ -108,21 +108,29 @@ class LabSpec(object):
         out =io.StringIO()
         Class = type(self).GradedRegressions
         log.debug(f"Running regressions for {Class}")
-#        unittest.defaultTestLoader.sortTestMethodsUsing=None
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
         with environment(**result.submission.env):
             JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
 
-    def run_meta_regressions(self):
+    def run_meta_regressions(self, *argc, **kwargs):
         Class = type(self).MetaRegressions
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
-        runner = unittest.TextTestRunner()
+        runner = unittest.TextTestRunner(*argc, **kwargs)
         runner.run(suite)
         
     def get_help(self):
-        rows = [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
-        return columnize(rows, headers=None, divider=" : " )
+        rows = []
+        rows.append(["INFO", ""])
+        rows.append(["=======", ""])
+        rows += [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
+        rows.append(["", ""])
+        rows.append(["OPTIONS", ""])
+        rows.append(["=======", ""])
+        rows += map(list,self.valid_options.items())
+        out = columnize(rows, headers=None, divider=" : " )
+        return out
+        
     
     def _asdict(self):
         return {f:getattr(self, f) for f in self._fields}
@@ -388,7 +396,7 @@ class SubmissionResult(object):
 
     def __init__(self, submission, files, status, results=None):
         self.submission = submission
-        log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
+        #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
@@ -554,9 +562,9 @@ def run_submission_locally(sub,
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
-    try:
-        # use the existing directory, if we aren't doing a pristine checkout.
-        with directory_or_tmp(root if not run_pristine else None) as dirname:
+    # use the existing directory, if we aren't doing a pristine checkout.
+    with directory_or_tmp(root if not run_pristine else None) as dirname:
+        try:
             if run_pristine:
                 repo = sub.lab_spec.repo
                 log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
@@ -564,7 +572,7 @@ def run_submission_locally(sub,
                     raise Exception(f"Repo {repo} is not valid")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
-                r = log_run(cmd=['git', 'clone', repo , dirname])
+                r = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
                 if r != SubmissionResult.SUCCESS:
                     raise Exception("Clone for pristine execution failed.")
 
@@ -572,7 +580,7 @@ def run_submission_locally(sub,
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                log.debug(f"Executing submission in docker\n{sub._asdict()}")
+                #log.debug(f"Executing submission in docker\n{sub._asdict()}")
                 with open(os.path.join(dirname, "job.json"), "w") as job:
                     json.dump(sub._asdict(), job, sort_keys=True, indent=4)
                 status = log_run(cmd=
@@ -612,7 +620,7 @@ def run_submission_locally(sub,
                         log.debug("Writing input file {}".format(path))
                         of.write(base64.b64decode(sub.files[f]))
                 
-                log.debug(f"Executing submission\n{sub._asdict()}")
+                        #log.debug(f"Executing submission\n{sub._asdict()}")
                 
                 with environment(**sub.env):
                     status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
@@ -627,34 +635,34 @@ def run_submission_locally(sub,
                             t = str(key)
                             result_files[t] = base64.b64encode(r.read()).decode('utf8')
 
-    except TypeError:
-        raise
-    except Exception as e:
-        traceback.print_exc(file=err)
-        traceback.print_exc()
-        err.write("# Execution failed\n")
-        out.write("# Execution failed\n")
-        status=SubmissionResult.ERROR
+        except TypeError:
+            raise
+        except Exception as e:
+            traceback.print_exc(file=err)
+            traceback.print_exc()
+            err.write("# Execution failed\n")
+            out.write("# Execution failed\n")
+            status=SubmissionResult.ERROR
 
-    try:
-        result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
-        result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
-        log.debug("STDOUT: \n{}".format(out.getvalue()))
-        log.debug("STDOUT_ENDS")
-        log.debug("STDERR: \n{}".format(err.getvalue()))
-        log.debug("STDERR_ENDS")
-        log.debug(result_files['STDOUT'])
-        result = SubmissionResult(sub, result_files, status)
-        sub.lab_spec.run_gradescope_tests(result)
-        result = sub.lab_spec.post_run(result)
-    except Exception as e:
-        exc_type, exc_value, exc_tb = sys.exc_info()
-        log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
-        log.error(repr(e))
-        result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
-        result = SubmissionResult(sub, result_files, SubmissionResult.ERROR)
-        
-    return result
+        try:
+            result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+            result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+            log.debug("STDOUT: \n{}".format(out.getvalue()))
+            log.debug("STDOUT_ENDS")
+            log.debug("STDERR: \n{}".format(err.getvalue()))
+            log.debug("STDERR_ENDS")
+            log.debug(result_files['STDOUT'])
+            result = SubmissionResult(sub, result_files, status)
+            sub.lab_spec.run_gradescope_tests(result)
+            result = sub.lab_spec.post_run(result)
+        except Exception as e:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+            log.error(repr(e))
+            result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
+            result = SubmissionResult(sub, result_files, SubmissionResult.ERROR)
+
+        return result
     
 
 
