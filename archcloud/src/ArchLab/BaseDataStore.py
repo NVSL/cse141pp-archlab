@@ -23,7 +23,9 @@ class BaseDataStore(object):
 
         job['job_submission_json'] = job_submission_json
         job['status'] = status
+        job['status_reasons'] = []
         job['submission_status'] = ""
+        job['submission_status_reasons'] = []
         job['submitted_utc'] = datetime.datetime.now(pytz.utc)
         job['started_utc'] = ""
         job['completed_utc'] = ""

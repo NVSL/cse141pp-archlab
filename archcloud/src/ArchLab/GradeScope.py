@@ -65,6 +65,19 @@ def main(argv=sys.argv[1:]):
                                         "visibility": "visible", # Optional visibility setting
                                 }
                         )
+
+                d = copy.deepcopy(result)
+                d.files = None # this is rendudant and large
+                d.submission.files = None #this too
+                files.append(
+                        {
+                                "score": 0.0, # optional, but required if not on top level submission
+                                "max_score": 0.0, # optional
+                                "name": "full_json_result",
+                                "output": json.dumps(d._asdict(), indent=4, sort_keys=True),
+                                "visibility": "visible", # Optional visibility setting
+                        }
+                )
                 end_time = time.time()
 
                 default = {
@@ -78,10 +91,7 @@ def main(argv=sys.argv[1:]):
 
                 output = result.results.get('gradescope_test_output', default)
                 output["execution_time"] = float(end_time - start_time)
-                d = copy.deepcopy(result)
-                d.files = None # this is rendudant and large
-                d.submission.files = None #this too
-                output['output'] = json.dumps(d._asdict(), indent=4, sort_keys=True)
+                output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
                 output['tests'] = files + output['tests'] # merge in tests
 
         with open(results_fn, 'w') as f:

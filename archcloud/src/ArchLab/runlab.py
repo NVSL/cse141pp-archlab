@@ -201,7 +201,7 @@ def main(argv=None):
                 
     except RunnerException as e: 
         log.error(e)
-        status_str = "Unknown failure: {e}"
+        status_str = f"{repr(e)}"
         exit_code = 1
     except Exception as e:
         if args.debug:
@@ -211,7 +211,7 @@ def main(argv=None):
             sys.exit(1)
     else:
         if result:
-            status_str =  result.status
+            status_str = f"{result.status}\n" + '\n'.join(result.status_reasons)
             if result.status == SubmissionResult.SUCCESS:
                 exit_code = 0
             else:
@@ -223,7 +223,6 @@ def main(argv=None):
     log.info(f"Finished.  Final status: {status_str}")
     log.debug(f"Exit code: {exit_code}")
     sys.exit(exit_code)
-
 
 if __name__ == '__main__':
     main(sys.argv[1:])

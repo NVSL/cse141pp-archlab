@@ -126,8 +126,6 @@ def run_job(job_submission_json, in_docker, docker_image):
                                         docker_image=docker_image,
                                         # this timeout is conservative.  The lab timeout is enforced on the docker process
                                         timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
-        
-    
 
     return result
 
@@ -211,6 +209,7 @@ def main(argv=None):
                             job_id,
                             status='COMPLETED',
                             submission_status=result.status,
+                            submission_status_reasons=result.status_reasons,
                             completed_utc=datetime.datetime.now(pytz.utc)
                         )
                     except Exception as e:
@@ -220,9 +219,10 @@ def main(argv=None):
                         # We probably don't adequately handle "ERROR" as a status.
                         log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
                         ds.update(job_id,
-                                  status='ERROR')
+                                  status='ERROR',
+                                  status_reasons=["Couldn't update the status of the job. Something is wrong with the cloud.  This is not a problem with your code."])
                 else:
-                    log.error(f"Found that job I was runnin completed without me")
+                    log.error(f"Found that job I was running completed without me")
                         
                 set_status("IDLE")
 

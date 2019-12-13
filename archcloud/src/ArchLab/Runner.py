@@ -37,9 +37,9 @@ class RunnerException(Exception):
     pass
 class BadOptionException(RunnerException):
     pass
-class ConfigException(Exception):
+class ConfigException(RunnerException):
     pass
-class MalformedObject(Exception):
+class MalformedObject(RunnerException):
     pass
 
 @contextmanager
@@ -394,12 +394,13 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, results=None):
+    def __init__(self, submission, files, status, status_reasons, results=None):
         self.submission = submission
         #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
+        self.status_reasons = status_reasons
         if results is None:
             self.results = {}
         else:
@@ -416,12 +417,14 @@ class SubmissionResult(object):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
                     status=self.status,
-                    results=self.results)
+                    results=self.results,
+                    status_reasons=self.status_reasons)
 
     @classmethod
     def _fromdict(cls, j):
         try:
-            j['submission'] = Submission._fromdict(j['submission'])
+            if j['submission']:
+                j['submission'] = Submission._fromdict(j['submission'])
             return cls(**j)
         except TypeError:
             raise MalformedObject
@@ -506,38 +509,46 @@ def run_submission_locally(sub,
         log.debug("# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', ".")))
 
         r = SubmissionResult.SUCCESS
-
-        p = subprocess.Popen(cmd, *args, stdin=None,
-                             **kwargs)
-
-        output, errout = b"", b""
-
-        log.debug(f"Timeout is {timeout}")
+        reasons = []
         try:
+            p = subprocess.Popen(cmd, *args, stdin=None,
+                                 **kwargs)
+            
+            output, errout = b"", b""
+            
+            log.debug(f"Timeout is {timeout}")
             output, errout = p.communicate(timeout=timeout)
             log.info(f"Execution completed with result: {p.returncode}")
             if p.returncode != 0:
                 r = SubmissionResult.ERROR
+                reasons.append(f"""Execution of {cmd} completed with result {p.returncode}, which usually indicates failure.  Look at STDERR and STDOUT for more information.""")
                 
         except subprocess.TimeoutExpired:
             log.error(f"Execution timed out after {timeout} seconds.")
 
             # clean up: https://docs.python.org/3/library/subprocess.html
             p.kill()
-            output, errout = p.communicate()
+            output2, errout2 = p.communicate()
+
+            output += output2
+            errout += errout2
             
             r = SubmissionResult.TIMEOUT
+            reaons.append("Execution of {args} timedout after {timeout} seconds.")
             try:
                 subprocess.run(['stty', 'sane']) # Timeouts can leave the terminal in a bad state.  Restore it.
             except:
                 pass  # if it doesn't work, it's not a big deal
-
+        except OSError as e:
+            r = SubmissionResult.ERROR
+            reasons.append(f"An error occcurred while running your program: {repr(e)}.")
+            
         if output:
             out.write(output.decode("utf-8"))
         if errout:
             err.write(errout.decode("utf-8"))
 
-        return r
+        return r, reasons
 
     @contextmanager
     def directory_or_tmp(d=None):
@@ -572,9 +583,9 @@ def run_submission_locally(sub,
                     raise Exception(f"Repo {repo} is not valid")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
-                r = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
+                r, reasons = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
                 if r != SubmissionResult.SUCCESS:
-                    raise Exception("Clone for pristine execution failed.")
+                    raise Exception(f"Clone for pristine execution failed: {reasons}")
 
             sub.lab_spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
 
@@ -583,20 +594,22 @@ def run_submission_locally(sub,
                 #log.debug(f"Executing submission in docker\n{sub._asdict()}")
                 with open(os.path.join(dirname, "job.json"), "w") as job:
                     json.dump(sub._asdict(), job, sort_keys=True, indent=4)
-                status = log_run(cmd=
-                                 ["docker", "run",
-                                  "--hostname", "runner",
-                                  "--volume", f"{dirname}:/runner",
-                                  "-w", "/runner",
-                                  "--privileged",
-                                  docker_image,
-                                  "runlab", "--run-json", "job.json"] +
-                                 (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
-                                 timeout=sub.lab_spec.time_limit)
+                status, reasons = log_run(cmd=
+                                          ["docker", "run",
+                                           "--hostname", "runner",
+                                           "--volume", f"{dirname}:/runner",
+                                           "-w", "/runner",
+                                           "--privileged",
+                                           docker_image,
+                                           "runlab", "--run-json", "job.json"] +
+                                          (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
+                                          timeout=sub.lab_spec.time_limit)
+                if status != SubmissionResult.SUCCESS:
+                    pass
             else:
 
                 # filter the environment with the clean lab_spec
-                log.debug(f"Incomming env: {sub.env}")
+                log.debug(f"Incoming env: {sub.env}")
                 sub.env = sub.lab_spec.filter_env(sub.env)
                 good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
                 if not good_command:
@@ -623,7 +636,7 @@ def run_submission_locally(sub,
                         #log.debug(f"Executing submission\n{sub._asdict()}")
                 
                 with environment(**sub.env):
-                    status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
+                    status, reasons = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
                 log.debug(f"Searching for output files matching '{f}'")
@@ -643,7 +656,8 @@ def run_submission_locally(sub,
             err.write("# Execution failed\n")
             out.write("# Execution failed\n")
             status=SubmissionResult.ERROR
-
+            reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  THis probably a bug or error in the autograder.")
+            
         try:
             result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
             result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
@@ -652,7 +666,7 @@ def run_submission_locally(sub,
             log.debug("STDERR: \n{}".format(err.getvalue()))
             log.debug("STDERR_ENDS")
             log.debug(result_files['STDOUT'])
-            result = SubmissionResult(sub, result_files, status)
+            result = SubmissionResult(sub, result_files, status, reasons)
             sub.lab_spec.run_gradescope_tests(result)
             result = sub.lab_spec.post_run(result)
         except Exception as e:
@@ -660,7 +674,10 @@ def run_submission_locally(sub,
             log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
             log.error(repr(e))
             result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
-            result = SubmissionResult(sub, result_files, SubmissionResult.ERROR)
+            result = SubmissionResult(sub,
+                                      result_files,
+                                      SubmissionResult.ERROR,
+                                      ['Something went wrong while preparing the submission response.  This a bug or error in the autograder: {repr(e)}'])
 
         return result
     
@@ -771,7 +788,7 @@ def test_lab_spec():
 def test_build_result():
     with environment(FOO="BAR", C_OPTS="yes"):
         sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
-        r = SubmissionResult(sub, dict(t="stuff"), SubmissionResult.SUCCESS)
+        r = SubmissionResult(sub, dict(t="stuff"), SubmissionResult.SUCCESS, [])
         d = r._asdict()
         j = json.loads(json.dumps(d))
         n = SubmissionResult._fromdict(j)
