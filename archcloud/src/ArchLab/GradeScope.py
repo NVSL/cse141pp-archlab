@@ -18,6 +18,12 @@ def main(argv=sys.argv[1:]):
 
         log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
                         level=log.DEBUG if args.verbose else log.INFO)
+
+        log.info(f"Running in {os.environ['CLOUD_MODE']}")
+        log.info(f"Running in {os.environ['IN_DEPLOYMENT']}")
+        log.info(f"Running in {os.environ['GOOGLE_RESOURCE_PREFIX']}")
+        log.info(f"Allowed repos: {os.environ['VALID_LAB_STARTER_REPOS']}")
+        
         default_output = {
                 "score": 0,
                 "visibility": "after_due_date", 
