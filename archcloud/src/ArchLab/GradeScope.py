@@ -43,19 +43,21 @@ def main(argv=sys.argv[1:]):
                 recent_submissions = 0
                 latest_submission = None
 
-        #        for p in metadata['previous_submissions']:
-        #                t = dateutil.parser.parse(p['submission_time'])
-        #                if t > datetime.datetime.now() - datetime.timedelta(hours=1):
-        #                        recent_submissions += 1
-        #if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
-        #                        latest_submission = p
-
+                #        for p in metadata['previous_submissions']:
+                #                t = dateutil.parser.parse(p['submission_time'])
+                #                if t > datetime.datetime.now() - datetime.timedelta(hours=1):
+                #                        recent_submissions += 1
+                #if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
+                #                        latest_submission = p
+                
+                solution = "solution" if os.path.isdir("solution") else "."
+        
                 if recent_submissions > 1:
                         log.info("Too many recent submissions.  Copying old results to current results.")
                         output = latest_submission['results']
                 else:
                         start_time = time.time()
-                        submission = build_submission(submission_dir, ".", None, username=metadata['users'][0]["email"])
+                        submission = build_submission(submission_dir, solution, None, username=metadata['users'][0]["email"])
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise RunnerException(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
