@@ -149,6 +149,9 @@ def main(argv=None):
                     level=log.DEBUG if args.verbose else log.INFO)
     log.debug(f"args={args}")
 
+    log.info(f"Running in {os.environ['CLOUD_MODE']}")
+    log.info(f"Running in {os.environ['IN_DEPLOYMENT']}")
+    log.info(f"Running in {os.environ['GOOGLE_RESOURCE_PREFIX']}")
     global my_id
     if args.id != None:
         my_id = args.id

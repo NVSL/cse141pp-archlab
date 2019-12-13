@@ -109,6 +109,8 @@ class CSE141Lab(LabSpec):
                 cmd = ["./run_tests.exe", f"--gtest_filter=*{label}*"]
                 try:
                     p = subprocess.run(cmd, timeout=30, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                except OSError as e:
+                    self.assertTrue(False, "Something went wrong running the regressions.  If run_tests.exe runs for you locally, this is probably a bug in the autograder: {repr(e)}.")
                 except subprocess.TimeoutExpired:
                     p.kill()
                     sys.stderr.write(f"===========Execution timed out after 30 seconds.================")

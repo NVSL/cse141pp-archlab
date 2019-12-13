@@ -452,6 +452,19 @@ def run_submission_remotely(submission):
 
     publisher.publish(str(job_id))
 
+    c = 0
+    while True:
+        log.info("Waiting for job to appear...")
+        job_data = ds.pull(
+            job_id=str(job_id)
+        )
+        if job_data:
+            break
+        c +=1
+        if c > 20:
+            raise RunnerException("I was not able to submit your job.  This is a problem with the autograder.  Try again.")
+        time.sleep(0.5)
+        
     start_time = time.time()
     status = 'SUBMITTED'
     running_time = time.time() - start_time
@@ -580,7 +593,7 @@ def run_submission_locally(sub,
                 repo = sub.lab_spec.repo
                 log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
                 if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
-                    raise Exception(f"Repo {repo} is not valid")
+                    raise RunnerException(f"Repo {repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 r, reasons = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
