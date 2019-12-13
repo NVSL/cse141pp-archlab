@@ -10,6 +10,7 @@ import os
 import subprocess
 import base64
 import textwrap
+import tempfile
 
 def show_info(directory, fields=None):
     try:
@@ -62,7 +63,7 @@ def main(argv=None):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
-    parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new repo")
+    parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new copy of the reference repo.")
     parser.add_argument('--info', nargs="?", default=None, help="Print information about this lab an exit.  With an argument print that field of lab structure.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
@@ -82,6 +83,7 @@ def main(argv=None):
     parser.add_argument('--directory', default=".", help=sm("Lab root"))
     parser.add_argument('--run-json', nargs="*", default=None, help=sm("Read json submission spec from file.   With no arguments, read from stdin"))
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
+    parser.add_argument('--daemon', action='store_true', default=False, help=sm("Start a local server to run my job"))
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
@@ -114,20 +116,7 @@ def main(argv=None):
         log.debug(f"Using command: {args.command}")
     else:
         args.command = None
-        
-    # We default to 'solution' so the autograder will run the solution when we
-    # test it with maste repo. Since we delete 'solution' in the starter repo,
-    # it will use '.' for the students.
-    if args.solution is None:
-        solution = "solution" if os.path.isdir("solution") else "."
-    else:
-        solution = args.solution
 
-    # Make sure it's relative.
-    input_dir=os.path.join(".", solution)
-    log.debug(f"Fetching inputs from '{input_dir}'")
-    os.environ['LAB_SUBMISSION_DIR'] = input_dir
-    
     try:
         if args.run_json is not None:
             if args.run_json == []:
@@ -137,9 +126,10 @@ def main(argv=None):
             log.debug(f"loaded this submission from json:\n" + str(submission._asdict()))
         else:
             submission = build_submission(args.directory,
-                                          input_dir,
+                                          args.solution,
                                           args.command,
-                                          username=os.environ.get("USER"))
+                                          username=os.environ.get("USER"),
+                                          pristine=args.pristine)
 
             for i in args.lab_override:
                 k, v = i.split("=")
@@ -149,7 +139,7 @@ def main(argv=None):
             
 
             c = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
-            p = subprocess.Popen(c, cwd=args.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
+            p = subprocess.Popen(c, cwd=submission.directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=None)
             stdout, stderr = p.communicate()
             if p.returncode != 0:
                 if args.validate:
@@ -170,13 +160,13 @@ def main(argv=None):
 
             if not args.remote:
                 result = run_submission_locally(submission,
-                                                root=args.directory,
+                                                root=submission.directory,
                                                 run_in_docker=args.docker,
                                                 run_pristine=args.pristine,
                                                 docker_image=args.docker_image,
                                                 verify_repo=args.verify_repo)
             else:
-                result = run_submission_remotely(submission)
+                result = run_submission_remotely(submission, daemon=arg.daemon)
                 
             #log.debug(f"Got response: {result}")
             #log.debug(f"Got response: {result._asdict()}")

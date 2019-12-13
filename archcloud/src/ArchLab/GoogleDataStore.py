@@ -24,10 +24,17 @@ class GoogleDataStore(BaseDataStore):
         return job
 
     def put_job(self, job):
+        # import traceback
+        # for line in traceback.format_stack():
+        #     log.debug(line.strip())
         log.debug(f"Putting job {job['job_id']}: {job}")
         self.datastore_client.put(job)
 
     def get_job(self, job_id):
+        # import traceback
+        # for line in traceback.format_stack():
+        #     log.debug(line.strip())
+
         query = self.datastore_client.query(kind=self.kind)
         query.add_filter('job_id', '=', job_id)
         query_iter = query.fetch()

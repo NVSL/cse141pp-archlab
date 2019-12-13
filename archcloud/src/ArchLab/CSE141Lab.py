@@ -4,6 +4,8 @@ import logging as log
 import os
 import sys
 import subprocess
+import time
+import inspect
 
 # this is for parameterizing tests
 def crossproduct(a,b):
@@ -76,7 +78,7 @@ class CSE141Lab(LabSpec):
                 root = "."
                 
             path = os.path.join(root, name)
-            log.debug(f"Opening {path} for graded regressions")
+            log.debug(f"Opening {os.path.abspath(path)} for graded regressions")
             return open(path)
 
         def read_file(self, name, root=None):
@@ -137,6 +139,8 @@ class CSE141Lab(LabSpec):
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
         def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False):
+            tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}"
+            log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
             env = {}
             if devel:
                 env['DEVEL_MODE'] = 'yes'
@@ -151,9 +155,10 @@ class CSE141Lab(LabSpec):
                 submission = build_submission(".",
                                               solution,
                                               None,
-                                              username="metatest")
+                                              username="metatest",
+                                              pristine=pristine)
                 if remote:
-                    result = run_submission_remotely(submission)
+                    result = run_submission_remotely(submission, daemon=True)
                 else:
                     result = run_submission_locally(submission,
                                                     root=".",
@@ -162,4 +167,6 @@ class CSE141Lab(LabSpec):
                                                     run_pristine=pristine)
                     
                 log.info(f"results={result.results}")
-            return result
+            log.info(f"=========================== Finished {tag} ==========================================")
+            return result, tag 
+

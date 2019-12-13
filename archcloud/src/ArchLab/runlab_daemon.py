@@ -152,6 +152,8 @@ def main(argv=None):
     log.info(f"Running in {os.environ['CLOUD_MODE']}")
     log.info(f"Running in {os.environ['IN_DEPLOYMENT']}")
     log.info(f"Running in {os.environ['GOOGLE_RESOURCE_PREFIX']}")
+    log.info(f"I am {platform.node()}")
+    
     global my_id
     if args.id != None:
         my_id = args.id

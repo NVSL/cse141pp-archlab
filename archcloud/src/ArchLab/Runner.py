@@ -116,7 +116,7 @@ class LabSpec(object):
     
     class MetaRegressions(unittest.TestCase):
         pass
-    
+
     def run_gradescope_tests(self, result, dirname):
         out =io.StringIO()
         Class = type(self).GradedRegressions
@@ -129,7 +129,12 @@ class LabSpec(object):
 
     def run_meta_regressions(self, *argc, **kwargs):
         Class = type(self).MetaRegressions
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        if kwargs.get('test_name', None):
+            suite = unittest.defaultTestLoader.loadTestsFromName(kwargs['test_name'])
+        else:
+            suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        del kwargs['test_name']
+            
         runner = unittest.TextTestRunner(*argc, **kwargs)
         runner.run(suite)
         
@@ -321,7 +326,7 @@ class LabSpec(object):
     def load(cls, root):
         path =  os.path.join(root, "lab.py")
         log.debug(f"Importing {path}")
-        spec = importlib.util.spec_from_file_location("LabInfo", os.path.join(root, "lab.py"))
+        spec = importlib.util.spec_from_file_location("lab", os.path.join(root, "lab.py"))
         lab_info = importlib.util.module_from_spec(spec)
         try:
             spec.loader.exec_module(lab_info)
@@ -332,13 +337,15 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command, username=None):
+    def __init__(self, lab_spec, files, env, command, directory, solution, username=None):
         self.lab_spec = lab_spec
         with collect_fields_of(self):
             self.files = files
             self.env = env
             self.command = command
             self.username = username if username else "unknown"
+            self.directory = directory
+            self.solution = solution
             
     def _asdict(self):
         t = {f:getattr(self, f) for f in self._fields}
@@ -415,6 +422,7 @@ class SubmissionResult(object):
         self.files = files
         self.status = status
         self.status_reasons = status_reasons
+        
         if results is None:
             self.results = {}
         else:
@@ -445,78 +453,97 @@ class SubmissionResult(object):
 
 
 
-def run_submission_remotely(submission):
+def run_submission_remotely(submission, daemon=False):
+    the_daemon = None
+    log.info(f"Submitting remotely  {os.environ['IN_DEPLOYMENT']}")
+    log.info(f"Submitting remotely  {os.environ['CLOUD_MODE']}")
+    log.info(f"Submitting remotely  {os.environ['GOOGLE_RESOURCE_PREFIX']}")
+    try:
+        if daemon:
+            log.debug("Starting local daemon")
+            the_daemon = subprocess.Popen(['runlab.d'])
+        else:
+            the_daemon = None
+            
+        ds = DataStore()
+        publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
 
-    ds = DataStore()
-    publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
-    
-    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
+        job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
-    job_id = uuid()
+        job_id = uuid()
 
-    output = ''
-    status = 'SUBMITTED'
+        output = ''
+        status = 'SUBMITTED'
 
-    ds.push(
-        str(job_id),
-        job_submission_json, 
-        output,
-        status,
-    )
-
-    publisher.publish(str(job_id))
-
-    c = 0
-    while True:
-        log.info("Waiting for job to appear...")
-        job_data = ds.pull(
-            job_id=str(job_id)
+        ds.push(
+            str(job_id),
+            job_submission_json, 
+            output,
+            status,
         )
-        if job_data:
-            break
-        c +=1
-        if c > 20:
-            raise RunnerException("I was not able to submit your job.  This is a problem with the autograder.  Try again.")
-        time.sleep(0.5)
-        
-    start_time = time.time()
-    status = 'SUBMITTED'
-    running_time = time.time() - start_time
 
-    log.info(f"Started job {job_id}.")
-    while True:
+        publisher.publish(str(job_id))
+
+        c = 0
+        while True:
+            log.info("Waiting for job to appear...")
+            job_data = ds.pull(
+                job_id=str(job_id)
+            )
+            if job_data:
+                break
+            c +=1
+            if c > 20:
+                raise RunnerException("I was not able to submit your job.  This is a problem with the autograder.  Try again.")
+            time.sleep(0.5)
+
+        start_time = time.time()
+        status = 'SUBMITTED'
         running_time = time.time() - start_time
 
-        job_data = ds.pull(
-            job_id=str(job_id)
-        )
+        log.info(f"Started job {job_id}.")
+        while True:
+            running_time = time.time() - start_time
 
-        if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
-            status = SubmissionResult.TIMEOUT
-            log.error(f'Job timed out after {running_time}s')
-            ds.update(str(job_id),
-                      status="COMPLETED",
-                      completed_utc=datetime.datetime.now(pytz.utc),
-                      submission_status=SubmissionResult.TIMEOUT)
-            break
+            job_data = ds.pull(
+                job_id=str(job_id)
+            )
 
-        if job_data is None:
-            log.error("Can't find job!")
-            raise Exception(f"Couldn't find job: {job_id}")
-        else:
-            log.debug(f"Job progress: {str(job_id)[:8]} is {job_data['status']} on host {job_data['runner_host']}")
+            if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
+                status = SubmissionResult.TIMEOUT
+                log.error(f'Job timed out after {running_time}s')
+                ds.update(str(job_id),
+                          status="COMPLETED",
+                          completed_utc=datetime.datetime.now(pytz.utc),
+                          submission_status=SubmissionResult.TIMEOUT)
+                break
 
-            if job_data['status'] == 'COMPLETED':
-                log.info(f"Job finished after {running_time} seconds: {job_id}")
-                status = 'COMPLETED'
-                blobstore = BlobStore(os.environ['JOBS_BUCKET'])
-                r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
-                log.debug(f"{r}")
-                return r
-            elif job_data['status'] == 'ERROR':
-                raise Exception(f"Job failed after {running_time} seconds: {job_id}")
+            if job_data is None:
+                log.error("Can't find job!")
+                raise Exception(f"Couldn't find job: {job_id}")
+            else:
+                log.debug(f"Job progress: {str(job_id)[:8]} is {job_data['status']} on host {job_data['runner_host'] or '<na>'}")
 
-        time.sleep(1)
+                if job_data['status'] == 'COMPLETED':
+                    log.info(f"Job finished after {running_time} seconds: {job_id}")
+                    status = 'COMPLETED'
+                    blobstore = BlobStore(os.environ['JOBS_BUCKET'])
+                    r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
+                    log.debug(f"{r}")
+                    return r
+                elif job_data['status'] == 'ERROR':
+                    raise Exception(f"Job failed after {running_time} seconds: {job_id}")
+
+
+            time.sleep(1)
+    finally:
+        if the_daemon:
+            log.debug("Killing local daemon")
+            the_daemon.terminate()
+            the_daemon.kill()
+            #p.communicate()
+            the_daemon.wait()
+            log.debug("Local daemon is dead.")
                   
 
 def run_submission_locally(sub,
@@ -610,6 +637,7 @@ def run_submission_locally(sub,
                     raise RunnerException(f"Repo {repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+                log.info("Cloning lab files...")
                 r, reasons = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
                 if r != SubmissionResult.SUCCESS:
                     raise Exception(f"Clone for pristine execution failed: {reasons}")
@@ -715,7 +743,31 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None, username=None):
+def build_submission(user_directory, solution, command, config_file=None, username=None,pristine=False):
+
+    # We default to 'solution' so the autograder will run the solution when we
+    # test it with maste repo. Since we delete 'solution' in the starter repo,
+    # it will use '.' for the students.
+    if solution is None:
+        input_dir = "solution" if os.path.isdir("solution") else "."
+    else:
+        input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
+    os.environ['LAB_SUBMISSION_DIR'] = input_dir
+
+    if pristine:
+        directory = tempfile.TemporaryDirectory(dir="/tmp/").name
+        try:
+            log.info("Cloning user files...")
+            subprocess.check_call(["git", "clone", user_directory, directory])
+        except Exception as e:
+            log.error(f"Tried to clone `{user_directory}` into '{directory}' for pristine execution, but failed: {repr(e)}")
+            sys.exit(1)
+    else:
+        directory = user_directory
+
+    # Make sure it's relative.
+    log.debug(f"Fetching inputs from '{directory}'")
+    
     spec = LabSpec.load(directory)
     files = {}
     if config_file is None:
@@ -768,7 +820,7 @@ def build_submission(directory, input_dir, command, config_file=None, username=N
         
     from_config.update(from_env)
 
-    s = Submission(spec, files, from_config, command, username)
+    s = Submission(spec, files, from_config, command, username, directory, input_dir)
 
     return s
 
