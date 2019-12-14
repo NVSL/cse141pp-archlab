@@ -15,13 +15,11 @@ class BaseDataStore(object):
     
     def push(self,
 	     job_id,
-	     job_submission_json, 
 	     output,
 	     status
     ):
         job = self.alloc_job(job_id)
 
-        job['job_submission_json'] = job_submission_json
         job['status'] = status
         job['status_reasons'] = []
         job['submission_status'] = ""
@@ -55,11 +53,9 @@ def do_test_datastore(DataStoreType):
     junk = str(uuid())
     log.debug(f"Junk = {junk}")
     ds.push(job_id = str(id1),
-            job_submission_json=json.dumps([]),
             output="out",
             status=junk)
     ds.push(job_id = str(id2),
-            job_submission_json=json.dumps({}),
             output="out",
             status=junk)
     time.sleep(1)

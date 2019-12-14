@@ -479,14 +479,17 @@ def run_submission_remotely(submission, daemon=False):
 
         job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
+        
         job_id = uuid()
 
         output = ''
         status = 'SUBMITTED'
 
+        blobstore = BlobStore(os.environ['JOBS_BUCKET'])
+        blobstore.write_file(str(job_id), job_submission_json)
         ds.push(
             str(job_id),
-            job_submission_json, 
+            #job_submission_json, 
             output,
             status,
         )
@@ -536,8 +539,7 @@ def run_submission_remotely(submission, daemon=False):
                 if job_data['status'] == 'COMPLETED':
                     log.info(f"Job finished after {running_time} seconds: {job_id}")
                     status = 'COMPLETED'
-                    blobstore = BlobStore(os.environ['JOBS_BUCKET'])
-                    r = SubmissionResult._fromdict(json.loads(blobstore.read_file(str(job_id))))
+                    r = SubmissionResult._fromdict(json.loads(blobstore.read_file(f"{str(job_id)}-result")))
                     r.write_outputs()
                     return r
                 elif job_data['status'] == 'ERROR':
@@ -560,7 +562,7 @@ def run_submission_locally(sub,
                            run_pristine=False,
                            nop=False,
                            timeout=None,
-                           write_outputs=True, # write outputs locally
+                           write_outputs=True, # write outputs in addition to capturing them
                            apply_options=False,
                            docker_image=None,
                            verify_repo=True,

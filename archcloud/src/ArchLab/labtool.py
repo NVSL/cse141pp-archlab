@@ -127,10 +127,10 @@ class Top(SubCommand):
                             total = waiting
 
                             
-                        try:
-                            submission = Submission._fromdict(json.loads(job['job_submission_json']))
-                        except MalformedObject:
-                            continue
+                        #try:
+                        #    submission = Submission._fromdict(json.loads(job['job_submission_json']))
+                        #except MalformedObject:
+                        #continue
                         
                         rows.append([job['job_id'][:8],
                                      job.get('status','.'),
@@ -138,9 +138,9 @@ class Top(SubCommand):
                                      format_time_delta(waiting),
                                      format_time_delta(running),
                                      format_time_delta(total),
-                                     str(job['runner_host']),
-                                     submission.lab_spec.short_name,
-                                     submission.username])
+                                     str(job['runner_host'])])
+                        #submission.lab_spec.short_name,
+                        #             submission.username])
                         
                     recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
                     s = datetime.timedelta()

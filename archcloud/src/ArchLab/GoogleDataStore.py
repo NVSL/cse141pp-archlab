@@ -19,7 +19,7 @@ class GoogleDataStore(BaseDataStore):
 
     def alloc_job(self, job_id):
         job_key = self.datastore_client.key(self.kind, job_id)
-        job = datastore.Entity(key=job_key, exclude_from_indexes=('job_submission_json',))
+        job = datastore.Entity(key=job_key)
         job['job_id'] = job_id
         return job
 

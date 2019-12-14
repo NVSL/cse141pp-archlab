@@ -115,7 +115,6 @@ class CommandListener(object):
     
 def run_job(job_submission_json, in_docker, docker_image):
 
-    log.info(f"Job json:{job_submission_json}")
 
     submission = Submission._fromdict(json.loads(job_submission_json))
     with tempfile.TemporaryDirectory(dir="/tmp/") as directory:
@@ -188,7 +187,7 @@ def main(argv=None):
                 if job_data['status'] != "SUBMITTED":
                     continue
                 
-                job_submission_json = job_data['job_submission_json']
+                job_submission_json = blobstore.read_file(job_id)
                 set_status("RUNNING", job_data['job_id'][:8])
 
                 ds.update(
@@ -211,7 +210,7 @@ def main(argv=None):
                 job_data = ds.pull(job_id=str(job_id))
                 if job_data['status'] == "STARTED":
                     try:
-                        blobstore.write_file(job_id, json.dumps(result._asdict(), sort_keys=True, indent=4))
+                        blobstore.write_file(f"{job_id}-result", json.dumps(result._asdict(), sort_keys=True, indent=4))
                         ds.update(
                             job_id,
                             status='COMPLETED',
