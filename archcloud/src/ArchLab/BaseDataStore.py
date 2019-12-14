@@ -16,7 +16,8 @@ class BaseDataStore(object):
     def push(self,
 	     job_id,
 	     output,
-	     status
+	     status,
+             username
     ):
         job = self.alloc_job(job_id)
 
@@ -29,12 +30,15 @@ class BaseDataStore(object):
         job['completed_utc'] = ""
         job['submitted_host'] = platform.node()
         job['runner_host'] = ""
-
+        job['username'] = username
+        #job['zip_archive'] = ""
+        
         self.put_job(job)
 
     def update(self,
 	       job_id,
 	       **kwargs):
+        log.debug(f"Updating {job_id} with {kwargs}")
         job = self.pull(job_id)
         job.update(**kwargs)
         self.put_job(job)
@@ -54,10 +58,12 @@ def do_test_datastore(DataStoreType):
     log.debug(f"Junk = {junk}")
     ds.push(job_id = str(id1),
             output="out",
-            status=junk)
+            status=junk,
+            username="foo@bar")
     ds.push(job_id = str(id2),
             output="out",
-            status=junk)
+            status=junk,
+            username="foo@bar")
     time.sleep(1)
     assert ds.pull(str(uuid())) == None
 

@@ -14,12 +14,15 @@ class GoogleBlobStore(object):
             self.bucket = self.client.create_bucket(self.bucket_name)
 
 
-    def write_file(self, filename, contents, owner=None):
+    def write_file(self, filename, contents, content_disposition=None, content_type=None, owner=None):
         blob = self.bucket.blob(filename)
+        if content_disposition:
+            blob.content_disposition = content_disposition
         acl = blob.acl
-        blob.upload_from_string(contents.encode('utf8'))
-        acl.user(owner).grant_read()
-        acl.save()
+        blob.upload_from_string(contents, content_type=content_type)
+        if owner:
+            acl.user(owner).grant_read()
+            acl.save()
         return self.get_url(filename)
     
     def read_file(self, filename):

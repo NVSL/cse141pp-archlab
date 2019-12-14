@@ -10,9 +10,13 @@ class LocalBlobStore(BaseBlobStore):
                                       bucket)
         os.makedirs(self.directory, exist_ok=True)
 
-    def write_file(self, filename, contents):
-        with open(os.path.join(self.directory, filename), "w") as f:
-            f.write(contents)
+    def write_file(self, filename, contents, content_disposition=None, content_type=None, owner=None):
+        try:
+            with open(os.path.join(self.directory, filename), "w") as f:
+                f.write(contents)
+        except TypeError:
+            with open(os.path.join(self.directory, filename), "wb") as f:
+                f.write(contents)
         return self.get_url(filename)
     
     def read_file(self, filename):
@@ -22,7 +26,7 @@ class LocalBlobStore(BaseBlobStore):
         except FileNotFoundError:
             raise NotFound
     def get_url(self, filename):
-        return "file://{os.abspath(os.path.join(self.directory, filename))"
+        return f"file://{os.path.abspath(os.path.join(self.directory, filename))}"
     
 def test_local_blob_store():
     if "EMULATION_DIR" not in os.environ:

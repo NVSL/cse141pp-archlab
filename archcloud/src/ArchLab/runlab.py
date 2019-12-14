@@ -87,9 +87,10 @@ def main(argv=None):
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
+    parser.add_argument('--zip', default=None, help=sm("Generate a zip file of inputs and outputs"))
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
 
-
+    
     if argv == None:
         argv = sys.argv[1:]
         
@@ -128,7 +129,7 @@ def main(argv=None):
             submission = build_submission(args.directory,
                                           args.solution,
                                           args.command,
-                                          username=os.environ.get("USER"),
+                                          username=os.environ.get("USER_EMAIL"),
                                           pristine=args.pristine)
 
             for i in args.lab_override:
@@ -189,7 +190,11 @@ def main(argv=None):
                     sys.stdout.write(result.files[i])
                     
             sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
-                
+
+            if args.zip:
+                with open(args.zip, "wb") as f:
+                    f.write(result.build_file_zip_archive())
+                    log.info(f"Zip archive is at {result.zip_archive}")
     except RunnerException as e: 
         log.error(e)
         status_str = f"{repr(e)}"

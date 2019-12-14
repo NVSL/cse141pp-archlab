@@ -72,23 +72,33 @@ def main(argv=sys.argv[1:]):
 
                         files = []
 
-                        for filename in result.files:
-                                log.debug(f"output file {filename}")
-                                try:
-                                        contents = result.get_file(filename)
-                                except UnicodeDecodeError:
-                                        contents = "<couldn't decode file.  Is it binary>"
+                
+                        # for filename in result.files:
+                        #         log.debug(f"output file {filename}")
+                        #         try:
+                        #                 contents = result.get_file(filename)
+                        #         except UnicodeDecodeError:
+                        #                 contents = "<couldn't decode file.  Is it binary>"
 
-                                files.append(
-                                        {
-                                                "score": 0.0, # optional, but required if not on top level submission
-                                                "max_score": 0.0, # optional
-                                                "name": filename, # optional
-                                                "output": contents,
-                                                "visibility": "visible", # Optional visibility setting
-                                        }
-                                )
-                        log.debug(f"{output}")
+                        #         files.append(
+                        #                 {
+                        #                         "score": 0.0, # optional, but required if not on top level submission
+                        #                         "max_score": 0.0, # optional
+                        #                         "name": filename, # optional
+                        #                         "output": contents,
+                        #                         "visibility": "visible", # Optional visibility setting
+                        #                 }
+                        #         )
+                        # log.debug(f"{output}")
+                        files.append(
+                                {
+                                        "score": 0.0, # optional, but required if not on top level submission
+                                        "max_score": 0.0, # optional
+                                        "name": "zip_output_url",
+                                        "output": result.zip_archive,
+                                        "visibility": "visible", # Optional visibility setting
+                                }
+                        )
                         d = copy.deepcopy(result)
                         d.files = None # this is rendudant and large
                         d.submission.files = None #this too
@@ -101,21 +111,18 @@ def main(argv=sys.argv[1:]):
                                         "visibility": "visible", # Optional visibility setting
                                 }
                         )
-                        log.debug(f"{output}")
                         end_time = time.time()
 
                         output = result.results.get('gradescope_test_output', default_output)
                         output["execution_time"] = float(end_time - start_time)
                         output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
                         output['tests'] = files + output['tests'] # merge in tests
-                        log.debug(f"{output}")
         except Exception as e:
                 output = default_output
                 output['output'] = f"Something went wrong in autograder.  Not your fault.: {repr(e)}"
                 if args.debug:
                         raise
 
-        log.debug(f"{output}")
         log.debug(f"Writing to {os.path.abspath(results_fn)}")
         with open(os.path.abspath(results_fn), 'w') as f:
                 t = json.dumps(output)

@@ -12,7 +12,7 @@
   },
   "users": [
     {
-      "email": "student@example.com",
+	"email": "swanson@eng.ucsd.edu",
       "id": 1234,
       "name": "Student User"
     }

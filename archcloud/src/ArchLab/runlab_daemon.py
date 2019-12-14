@@ -210,13 +210,30 @@ def main(argv=None):
                 job_data = ds.pull(job_id=str(job_id))
                 if job_data['status'] == "STARTED":
                     try:
-                        blobstore.write_file(f"{job_id}-result", json.dumps(result._asdict(), sort_keys=True, indent=4))
+                        blobstore.write_file(f"{job_id}-result",
+                                             json.dumps(result._asdict(), sort_keys=True, indent=4))
+
+                        if job_data['username']:
+                            username = f"{job_data['username'].split('@')[0]}-"
+                        else:
+                            username = ""
+                        
+                        to_zone = pytz.timezone('America/Los_Angeles')
+                        local_time = job_data['submitted_utc'].astimezone(to_zone).strftime('%Y-%m-%d-%H-%M-%S')
+                        download_name=f"{username}submitted-at-{local_time}.zip"
+                        zip_name = f"{job_id}.zip"
+                        archive = blobstore.write_file(zip_name,
+                                                       result.build_file_zip_archive(),
+                                                       content_disposition=f"Attachment; filename={download_name}",
+                                                       owner=job_data['username'],
+                                                       content_type="application/zip")
                         ds.update(
                             job_id,
                             status='COMPLETED',
                             submission_status=result.status,
                             submission_status_reasons=result.status_reasons,
-                            completed_utc=datetime.datetime.now(pytz.utc)
+                            completed_utc=datetime.datetime.now(pytz.utc),
+                            zip_archive=archive
                         )
                     except Exception as e:
                         # if something goes wrong, we still need to notify
@@ -227,6 +244,8 @@ def main(argv=None):
                         ds.update(job_id,
                                   status='ERROR',
                                   status_reasons=["Couldn't update the status of the job. Something is wrong with the cloud.  This is not a problem with your code."])
+                        if args.debug:
+                            raise
                 else:
                     log.error(f"Found that job I was running completed without me")
                         

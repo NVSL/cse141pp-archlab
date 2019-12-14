@@ -26,6 +26,7 @@ import time
 from .BlobStore import BlobStore
 from .DataStore import DataStore
 from .PubSub import Publisher
+from zipfile import ZipFile
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
 
@@ -340,7 +341,7 @@ class Submission(object):
             self.files = files
             self.env = env
             self.command = command
-            self.username = username if username else "unknown"
+            self.username = username
             self.user_directory = user_directory
             self.run_directory = run_directory
             self.solution = solution
@@ -427,12 +428,14 @@ class SubmissionResult(object):
             self.results = results
 
     def get_file(self, name):
-        return base64.b64decode(self.files[name]).decode("utf-8")
+        try: # this seems horribly wrong. We return either bytes or a string...
+            return base64.b64decode(self.files[name]).decode("utf8")
+        except UnicodeDecodeError:
+            return base64.b64decode(self.files[name])
     
     def put_file(self, name, contents):
         self.files[name] = base64.b64encode(contents).decode('utf8')
-        return base64.b64decode(self.files[name]).decode("utf8")
-        
+            
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
@@ -450,6 +453,19 @@ class SubmissionResult(object):
         with open(os.path.join(self.submission.user_directory, "results.json"), "w") as t:
             log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
             t.write(json.dumps(self.results, sort_keys=True, indent=4))
+
+    def build_file_zip_archive(self):
+        out = io.BytesIO()
+        zip_file = ZipFile(out,mode="w")
+        
+        for fn in self.files:
+            zip_file.writestr(fn, self.get_file(fn))
+
+        for fn in self.submission.files:
+            zip_file.writestr(fn, base64.b64decode(self.submission.files[fn]).decode('utf8'))
+        zip_file.close()
+
+        return out.getvalue()
 
     @classmethod
     def _fromdict(cls, j):
@@ -470,7 +486,7 @@ def run_submission_remotely(submission, daemon=False):
     try:
         if daemon:
             log.debug("Starting local daemon")
-            the_daemon = subprocess.Popen(['runlab.d'])
+            the_daemon = subprocess.Popen(['runlab.d', '-v', '--debug'])
         else:
             the_daemon = None
             
@@ -492,6 +508,7 @@ def run_submission_remotely(submission, daemon=False):
             #job_submission_json, 
             output,
             status,
+            username=submission.username
         )
 
         publisher.publish(str(job_id))
@@ -541,6 +558,7 @@ def run_submission_remotely(submission, daemon=False):
                     status = 'COMPLETED'
                     r = SubmissionResult._fromdict(json.loads(blobstore.read_file(f"{str(job_id)}-result")))
                     r.write_outputs()
+                    r.zip_archive = job_data['zip_archive']
                     return r
                 elif job_data['status'] == 'ERROR':
                     raise Exception(f"Job failed after {running_time} seconds: {job_id}")
