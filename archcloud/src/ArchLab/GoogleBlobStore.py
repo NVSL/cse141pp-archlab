@@ -14,17 +14,22 @@ class GoogleBlobStore(object):
             self.bucket = self.client.create_bucket(self.bucket_name)
 
 
-    def write_file(self, filename, contents):
+    def write_file(self, filename, contents, owner=None):
         blob = self.bucket.blob(filename)
+        acl = blob.acl
         blob.upload_from_string(contents.encode('utf8'))
-        pass
-
+        acl.user(owner).grant_read()
+        acl.save()
+        return self.get_url(filename)
+    
     def read_file(self, filename):
         blob = self.bucket.get_blob(filename)
         if not blob:
             raise NotFound
         return blob.download_as_string().decode("utf8")
 
+    def get_url(self, filename):
+        return f"https://storage.cloud.google.com/{self.bucket_name}/{filename}"
 
                  
 def test_google_blob_store():
