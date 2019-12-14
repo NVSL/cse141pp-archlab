@@ -105,7 +105,7 @@ def main(argv=sys.argv[1:]):
                         d = copy.deepcopy(result)
                         d.files = None # this is rendudant and large
                         d.submission.files = None #this too
-                        del d['results'] # this has information about parts of the lab that should not be visible until the due date.
+                        d.results = None
                         tail.append(
                                 {
                                         "score": 0.0, # optional, but required if not on top level submission
