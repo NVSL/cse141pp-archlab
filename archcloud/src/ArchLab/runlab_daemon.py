@@ -121,6 +121,8 @@ def run_job(job_submission_json, in_docker, docker_image):
     with tempfile.TemporaryDirectory(dir="/tmp/") as directory:
         submission.run_directory = directory
         result = run_submission_locally(submission,
+                                        write_outputs=False,
+                                        user_directory_override=submission.user_directory,
                                         run_pristine=True,
                                         run_in_docker=in_docker,
                                         docker_image=docker_image,

@@ -17,6 +17,9 @@ def crossproduct(a,b):
 
 
 # These are the flag settings we check
+# You can add columns, but don't org them.
+# lab.py's refer to these by index
+
 #              pristine devel gprof remote
 test_flags = [(False, False, False, False),
               (True,  False, False, False),

@@ -111,7 +111,7 @@ def main(argv=sys.argv[1:]):
                         log.debug(f"{output}")
         except Exception as e:
                 output = default_output
-                output['output'] = f"Something went wrong: {repr(e)}"
+                output['output'] = f"Something went wrong in autograder.  Not your fault.: {repr(e)}"
                 if args.debug:
                         raise
 

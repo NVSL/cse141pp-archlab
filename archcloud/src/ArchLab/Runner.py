@@ -560,9 +560,11 @@ def run_submission_locally(sub,
                            run_pristine=False,
                            nop=False,
                            timeout=None,
+                           write_outputs=True, # write outputs locally
                            apply_options=False,
                            docker_image=None,
-                           verify_repo=True):
+                           verify_repo=True,
+                           user_directory_override=None):
     out = StringIO()
     err = StringIO()
     result_files = {}
@@ -732,7 +734,8 @@ def run_submission_locally(sub,
             log.debug(result_files['STDOUT'])
             result = SubmissionResult(sub, result_files, status, reasons)
             sub.lab_spec.run_gradescope_tests(result, dirname)
-            result.write_outputs()
+            if write_outputs:
+                result.write_outputs()
         except Exception as e:
             exc_type, exc_value, exc_tb = sys.exc_info()
             log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
