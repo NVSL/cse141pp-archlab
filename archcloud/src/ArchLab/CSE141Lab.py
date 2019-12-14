@@ -158,7 +158,7 @@ class CSE141Lab(LabSpec):
                 submission = build_submission(".",
                                               solution,
                                               None,
-                                              username="metatest",
+                                              username="swanson@eng.ucsd.edu",
                                               pristine=pristine)
                 if remote:
                     result = run_submission_remotely(submission, daemon=True)

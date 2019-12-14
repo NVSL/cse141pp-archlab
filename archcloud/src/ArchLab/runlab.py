@@ -61,7 +61,8 @@ def main(argv=None):
     
     """),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    
+
+    def sm(s): return s
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new copy of the reference repo.")
     parser.add_argument('--info', nargs="?", default=None, help="Print information about this lab an exit.  With an argument print that field of lab structure.")
@@ -69,11 +70,11 @@ def main(argv=None):
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
 
     def sm(s):
-        if 'STUDENT_MODE' in os.environ:
+        if student_mode:
             return argparse.SUPPRESS
         else:
             return s
-        
+
     parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
     parser.add_argument('--nop', action='store_true', default=False, help=sm("Don't actually run anything."))
     parser.add_argument('--native', action='store_false', dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
@@ -85,19 +86,23 @@ def main(argv=None):
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
     parser.add_argument('--daemon', action='store_true', default=False, help=sm("Start a local server to run my job"))
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
+        
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
     parser.add_argument('--zip', default=None, help=sm("Generate a zip file of inputs and outputs"))
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
 
-    
+
     if argv == None:
         argv = sys.argv[1:]
         
     args = parser.parse_args(argv)
 
-    log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if True else "%(levelname)-8s %(message)s",
-                    level=log.DEBUG if args.verbose else log.INFO)
+    if not args.verbose and student_mode:
+        log.basicConfig(format="%(levelname)-8s %(message)s", level=log.WARN)
+    else:
+        log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
+                        level=log.DEBUG if args.verbose else log.INFO)
 
     log.debug(f"Command line args: {args}")
 
@@ -107,7 +112,6 @@ def main(argv=None):
 
     if args.devel:
         log.debug("Entering devel mode")
-        args.validate = False
         os.environ['DEVEL_MODE'] = 'yes'
 
     if args.command and len(args.command) > 0:
@@ -152,7 +156,7 @@ def main(argv=None):
             except:
                 reporter("You have uncommitted changes and/or there is changes in github that you don't have locally.  This means local behavior won't match what the autograder will do.")
                 if args.validate:
-                    log.error("To run anyway, pass '--no-validate'.  To mimic the autograder as closely as possible, do '--pristine'")
+                    log.error("To run anyway, pass '--no-validate'.  Alternately, to mimic the autograder as closely as possible (and require committing your files), do '--pristine'")
                     if args.debug:
                         raise
                     else:
