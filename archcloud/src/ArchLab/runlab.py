@@ -15,12 +15,11 @@ import tempfile
 def show_info(directory, fields=None):
     try:
         spec=LabSpec.load(directory)
-        if fields == None:
+        if fields == []:
             return spec.get_help()
         else:
             return f"{getattr(spec, fields)}\n"
     except :
-        raise
         return "Not a lab directory\n"
 
 def main(argv=None):
@@ -65,7 +64,7 @@ def main(argv=None):
     def sm(s): return s
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new copy of the reference repo.")
-    parser.add_argument('--info', nargs="?", default=None, help="Print information about this lab an exit.  With an argument print that field of lab structure.")
+    parser.add_argument('--info', nargs="?", default=None, const=[],  help="Print information about this lab an exit.  With an argument print that field of lab structure.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
 
