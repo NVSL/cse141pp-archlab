@@ -11,6 +11,7 @@ import subprocess
 import base64
 import textwrap
 import tempfile
+from  .CSE141Lab import CSE141Lab
 
 def show_info(directory, fields=None):
     try:
@@ -108,6 +109,10 @@ def main(argv=None):
     if args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
         return 
+
+    if not CSE141Lab.does_papi_work():
+        log.info("Forcing '--devel' because PAPI doesn't work on this machine")
+        args.devel = True
 
     if args.devel:
         log.debug("Entering devel mode")

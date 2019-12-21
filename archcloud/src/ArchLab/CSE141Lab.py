@@ -6,6 +6,7 @@ import sys
 import subprocess
 import time
 import inspect
+import subprocess
 
 # this is for parameterizing tests
 def crossproduct(a,b):
@@ -72,6 +73,14 @@ class CSE141Lab(LabSpec):
             reference_tag = reference_tag,
             time_limit = timeout)
 
+    @classmethod
+    def does_papi_work(cls):
+        try:
+            subprocess.check_call(['archlab_check', '--engine', 'papi'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return True
+        except:
+            return False
+        
     class EasyFileAccess(object):
         
         def open_file(self, name, root=None):
@@ -144,6 +153,10 @@ class CSE141Lab(LabSpec):
         def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False):
             tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}"
             log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
+
+            if not CSE141Lab.does_papi_work():
+                self.skipTest("Skipping since PAPI doesn't work here.")
+                
             env = {}
             if devel:
                 env['DEVEL_MODE'] = 'yes'
@@ -171,4 +184,3 @@ class CSE141Lab(LabSpec):
                 log.info(f"results={result.results}")
             log.info(f"=========================== Finished {tag} in {self.id()} ==========================================")
             return result, tag 
-

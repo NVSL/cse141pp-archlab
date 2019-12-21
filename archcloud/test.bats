@@ -19,7 +19,7 @@ fi
     runlab --pristine
     runlab --pristine --remote --daemon
     runlab --devel
-    runlab --docker --pristine
+    #runlab --docker --pristine
     echo >> code.cpp
     ! runlab
     runlab --no-validate
