@@ -91,6 +91,7 @@ def main(argv=None):
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
     parser.add_argument('--zip', default=None, help=sm("Generate a zip file of inputs and outputs"))
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
+    parser.add_argument('--public-only', action="store_true", help=sm("Only load the public lab configuration"))
 
 
     if argv == None:
@@ -137,6 +138,7 @@ def main(argv=None):
             submission = build_submission(args.directory,
                                           args.solution,
                                           args.command,
+                                          public_only=args.public_only,
                                           username=os.environ.get("USER_EMAIL"),
                                           pristine=args.pristine)
 
@@ -202,7 +204,7 @@ def main(argv=None):
             if args.zip:
                 with open(args.zip, "wb") as f:
                     f.write(result.build_file_zip_archive())
-                    log.info(f"Zip archive is at {result.zip_archive}")
+
     except RunnerException as e: 
         log.error(e)
         status_str = f"{repr(e)}"

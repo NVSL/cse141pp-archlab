@@ -321,27 +321,31 @@ class LabSpec(object):
         return t
 
     @classmethod
-    def load(cls, root):
+    def load(cls, root, public_only=False):
+        sys.path.insert(0, os.path.abspath(root))
         def load_file(name, f):
             path =  os.path.join(root, f)
-            log.debug(f"Importing {path}")
             spec = importlib.util.spec_from_file_location(name, path)
             info = importlib.util.module_from_spec(spec)
             try:
                 spec.loader.exec_module(info)
+                log.debug(f"Imported {path}")
             except FileNotFoundError as e:
                 raise
             log.debug(f"{dir(info)}")
             return info
 
-        LabType = load_file("lab", "lab.py").ThisLab
-        try:
-            PrivateModule = load_file("private","private.py")
-            LabType.MetaRegressions = PrivateModule.MetaRegressions
-            LabType.GradedRegressions = PrivateModule.GradedRegressions
-        except FileNotFoundError:
-            pass
-        
+        if public_only:
+            log.debug(f"Ignoring private.py")
+            LabType = load_file("lab", "lab.py").ThisLab
+        else:
+            try:
+                log.debug(f"Checking for private.py")
+                LabType = load_file("private", "private.py").ThisLab
+            except FileNotFoundError:
+                log.debug(f"Falling back to lab.py")
+                LabType = load_file("lab", "lab.py").ThisLab
+                
         return LabType()
 
 class Submission(object):
@@ -785,7 +789,7 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(user_directory, solution, command, config_file=None, username=None,pristine=False):
+def build_submission(user_directory, solution, command, config_file=None, username=None,pristine=False, public_only=False):
 
     # We default to 'solution' so the autograder will run the solution when we
     # test it with maste repo. Since we delete 'solution' in the starter repo,
@@ -810,7 +814,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
     # Make sure it's relative.
     log.debug(f"Fetching inputs from '{run_directory}'")
     
-    spec = LabSpec.load(run_directory)
+    spec = LabSpec.load(run_directory, public_only=public_only)
     files = {}
     if config_file is None:
         config_file = spec.config_file

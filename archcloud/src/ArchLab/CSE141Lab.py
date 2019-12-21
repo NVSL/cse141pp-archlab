@@ -21,15 +21,20 @@ def crossproduct(a,b):
 # You can add columns, but don't org them.
 # lab.py's refer to these by index
 
-#              pristine devel gprof remote
-test_flags = [(False, False, False, False),
-              (True,  False, False, False),
-              (False, True,  False, False),
-              (False, False, True,  False),
-              (False, False, False, True ), 
-              (False, True,  True,  False), # Local perf tuning
-              (True , False, True,  True ), # typical autograder run
-              (True , True,  True,  True )]
+
+test_flags = crossproduct(
+#     pristine devel  gprof  remote
+    [(False,  False, False, False ), # everything off
+     (True,   False, False, False ),
+     (False,  True,  False, False ),
+     (False,  False, True,  False ),
+     (False,  False, False, True  ), 
+     (False,  True,  True,  False ), # Local perf tuning
+     (True ,  False, True,  True  ), # typical autograder run
+     (True ,  True, True,   True  ), # everything on
+    ],
+    # public_only
+    [[True], [False]])
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -150,8 +155,8 @@ class CSE141Lab(LabSpec):
 
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
-        def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False):
-            tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}"
+        def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False, public_only=False):
+            tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}-{'s' if public_only else ''}"
             log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
 
             if not CSE141Lab.does_papi_work() and not devel:
@@ -162,12 +167,16 @@ class CSE141Lab(LabSpec):
                 log.warn("Skipping since this docker container can't submit jobs")
                 self.skipTest("Skipping since this docker container can't submit jobs")
 
+            if not os.path.exists(solution):
+                log.warn(f"Skipping since {solution} doesn't exist.")
+                self.skipTest(f"Skipping since {solution} doesn't exist.")
                 
             env = {}
             if devel:
                 env['DEVEL_MODE'] = 'yes'
             else:
                 env['DEVEL_MODE'] = ''
+
             if gprof:
                 env['GPROF'] = 'yes'
             else:
@@ -177,6 +186,7 @@ class CSE141Lab(LabSpec):
                 submission = build_submission(".",
                                               solution,
                                               None,
+                                              public_only=public_only,
                                               username="swanson@eng.ucsd.edu",
                                               pristine=pristine)
                 if remote:
