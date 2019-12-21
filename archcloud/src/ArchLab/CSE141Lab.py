@@ -154,8 +154,9 @@ class CSE141Lab(LabSpec):
             tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}"
             log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
 
-            if not CSE141Lab.does_papi_work():
-                self.skipTest("Skipping since PAPI doesn't work here.")
+            if not CSE141Lab.does_papi_work() and not devel:
+                log.info("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
+                self.skipTest("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
                 
             env = {}
             if devel:
