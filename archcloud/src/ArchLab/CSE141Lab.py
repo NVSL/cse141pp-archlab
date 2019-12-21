@@ -155,8 +155,13 @@ class CSE141Lab(LabSpec):
             log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
 
             if not CSE141Lab.does_papi_work() and not devel:
-                log.info("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
+                log.warn("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
                 self.skipTest("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
+
+            if not os.path.exists(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]) and remote:
+                log.warn("Skipping since this docker container can't submit jobs")
+                self.skipTest("Skipping since this docker container can't submit jobs")
+
                 
             env = {}
             if devel:
