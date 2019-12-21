@@ -42,3 +42,17 @@ install:
 help: lab-help
 
 lab-help:
+	@echo "make build-starter:  Build a starter repo"
+
+.PHONY: build-starter
+build-starter:
+	git clone . starter-repo
+	$(MAKE) -D starter-repo remove-private
+
+PRIVATE_FILES=*solution .git
+
+.PHONY: remove-private
+remove-private:
+	rm -rf $(PRIVATE_FILES)
+	strip-lab lab.py
+	strip-travis .travis.yml

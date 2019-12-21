@@ -322,16 +322,27 @@ class LabSpec(object):
 
     @classmethod
     def load(cls, root):
-        path =  os.path.join(root, "lab.py")
-        log.debug(f"Importing {path}")
-        spec = importlib.util.spec_from_file_location("lab", os.path.join(root, "lab.py"))
-        lab_info = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(lab_info)
-        except FileNotFoundError as e:
-            raise Exception(f"Couldn't find '{path}'")
+        def load_file(name, f):
+            path =  os.path.join(root, f)
+            log.debug(f"Importing {path}")
+            spec = importlib.util.spec_from_file_location(name, path)
+            info = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(info)
+            except FileNotFoundError as e:
+                raise
+            log.debug(f"{dir(info)}")
+            return info
 
-        return lab_info.ThisLab()
+        LabType = load_file("lab", "lab.py").ThisLab
+        try:
+            PrivateModule = load_file("private","private.py")
+            LabType.MetaRegressions = PrivateModule.MetaRegressions
+            LabType.GradedRegressions = PrivateModule.GradedRegressions
+        except FileNotFoundError:
+            pass
+        
+        return LabType()
 
 class Submission(object):
 
@@ -854,6 +865,8 @@ def build_submission(user_directory, solution, command, config_file=None, userna
     s = Submission(spec, files, from_config, command, run_directory, user_directory, input_dir, username=username)
 
     return s
+
+    
 
 
 def test_run():
