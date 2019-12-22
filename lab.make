@@ -49,7 +49,7 @@ starter:
 	rm -rf starter-repo
 	git clone . starter-repo
 	$(MAKE) -C starter-repo remove-private
-	(cd starter-repo; git init .; git add * .travis.yml .gitignore; git commit -m "initial import from $$(cd ..; git remote -v)")
+	(cd starter-repo; git init .; git add * .travis.yml .gitignore; git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$(cd ..; git remote -v)")
 	(cd starter-repo; make test)
 
 PRIVATE_FILES=*solution .git private.py test.py
