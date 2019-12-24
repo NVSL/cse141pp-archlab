@@ -218,6 +218,6 @@ class CSE141Lab(LabSpec):
                                                     docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
                                                     run_pristine=flags.pristine)
                     
-                log.info(f"results={result.results}")
+                log.debug(f"results={result.results}")
             log.info(f"=========================== Finished {tag} in {self.id()} ==========================================")
             return result, tag 
