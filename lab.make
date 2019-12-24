@@ -43,14 +43,32 @@ help: lab-help
 
 lab-help:
 	@echo "make build-starter:  Build a starter repo"
+	@echo "make push-starter :  Create repo and push"
 
 .PHONY: starter
 starter:
+	uptodate
 	rm -rf starter-repo
 	git clone . starter-repo
 	$(MAKE) -C starter-repo remove-private
 	(cd starter-repo; git init .; git add * .travis.yml .gitignore; git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$(cd ..; git remote -v)")
 	(cd starter-repo; make test)
+	@echo "====================================================="
+	@echo "              Starter repo seems to work             "
+	@echo " 'make push-starter' to create repo "
+
+STARTER_REPO_NAME=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
+
+push-starter:
+	curl -H "Authorization: token $(GITHUB_OAUTH_TOKEN)" https://api.github.com/orgs/$(GITHUB_CLASSROOM_ORG)/repos -d "{\"name\":\"$(STARTER_REPO_NAME)\", \"private\":\"true\", \"visibility\": \"private\", \"is_template\":\"true\"}" -X POST > starter.json
+	! jextract errors < starter.json 2>/dev/null || (echo "Repo creation failed:"; cat starter.json; false)
+	(cd starter-repo; git remote add origin https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git)
+	(cd starter-repo; git push -u origin master)
+	git tag -a -m "starter repo: $(STARTER_REPO_NAME)" $(STARTER_REPO_NAME)-$(shell date "+%F-%s")
+	git push origin $(STARTER_REPO_NAME)
+	@echo "Lab Name                     : $$(runlab --info lab_name)"
+	@echo "Repo prefix                  : $(STARTER_REPO_NAME)"
+	@echo "Repo URL For github classroom: $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
 PRIVATE_FILES=*solution .git private.py test.py
 
