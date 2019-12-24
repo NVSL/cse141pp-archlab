@@ -137,7 +137,7 @@ class LabSpec(object):
         del kwargs['test_name']
             
         runner = unittest.TextTestRunner(*argc, **kwargs)
-        runner.run(suite)
+        return runner.run(suite)
         
     def get_help(self):
         rows = []

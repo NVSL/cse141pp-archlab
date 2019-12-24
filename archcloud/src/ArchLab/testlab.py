@@ -18,8 +18,11 @@ def main(argv=None):
                     level=log.DEBUG if args.verbose else log.INFO)
 
     lab = LabSpec.load(".")
-    r = lab.run_meta_regressions(failfast=args.fail_fast, test_name=args.test)
-    return r
+    result = lab.run_meta_regressions(failfast=args.fail_fast, test_name=args.test)
+    if len(result.errors) + len(result.failures) > 0:
+        return 1
+    else:
+        return 0
     
 if __name__ == '__main__':
     main(sys.argv[1:])
