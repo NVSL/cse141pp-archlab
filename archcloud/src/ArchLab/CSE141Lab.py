@@ -7,12 +7,16 @@ import subprocess
 import time
 import inspect
 import subprocess
+from uuid import uuid4 as uuid
 
 # this is for parameterizing tests
 def crossproduct(a,b):
     r = []
+    
     for i in a:
+#        print(i)
         for j in b:
+ #           print(j)
             r.append(list(i) + list(j))
     return r
 
@@ -21,8 +25,18 @@ def crossproduct(a,b):
 # You can add columns, but don't org them.
 # lab.py's refer to these by index
 
+class TestFlags(object):
+    def __init__(self, pristine, devel, gprof, remote, public_lab):
+        self.pristine = pristine
+        self.devel = devel
+        self.gprof = gprof
+        self.remote = remote
+        self.public_lab = public_lab
 
-test_flags = crossproduct(
+    def grades_valid(self):
+        return self.remote or (not self.public_lab and os.path.exists("private.py"))
+
+_test_flags = crossproduct(
 #     pristine devel  gprof  remote
     [(False,  False, False, False ), # everything off
      (True,   False, False, False ),
@@ -35,6 +49,13 @@ test_flags = crossproduct(
     ],
     # public_only
     [[True], [False]])
+
+test_flags = list(map(lambda x: TestFlags(*x), _test_flags))
+
+def test_configs(*solutions):
+    t = crossproduct(list(map(lambda x:[x], solutions)), list(map(lambda x: [x], test_flags)))
+    return t
+
 
 class CSE141Lab(LabSpec):
     def __init__(self,
@@ -154,16 +175,16 @@ class CSE141Lab(LabSpec):
                 self.assertTrue(False, f"Got an exception: {repr(e)}")
 
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
-
-        def run_solution(self, solution, pristine=False, devel=False, gprof=False, remote=False, public_only=False):
-            tag = f"{solution}-{'p' if pristine else ''}-{'d' if devel else ''}-{'g' if gprof else ''}-{'r' if remote else ''}-{'s' if public_only else ''}"
+        
+        def run_solution(self, solution, flags):
+            tag = f"{solution}-{'p' if flags.pristine else ''}-{'d' if flags.devel else ''}-{'g' if flags.gprof else ''}-{'r' if flags.remote else ''}-{'s' if flags.public_lab else ''}"
             log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
 
-            if not CSE141Lab.does_papi_work() and not devel:
+            if not CSE141Lab.does_papi_work() and not flags.devel:
                 log.warn("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
                 self.skipTest("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
 
-            if not os.path.exists(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]) and remote:
+            if not os.path.exists(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]) and flags.remote:
                 log.warn("Skipping since this docker container can't submit jobs")
                 self.skipTest("Skipping since this docker container can't submit jobs")
 
@@ -172,12 +193,12 @@ class CSE141Lab(LabSpec):
                 self.skipTest(f"Skipping since {solution} doesn't exist.")
                 
             env = {}
-            if devel:
+            if flags.devel:
                 env['DEVEL_MODE'] = 'yes'
             else:
                 env['DEVEL_MODE'] = ''
 
-            if gprof:
+            if flags.gprof:
                 env['GPROF'] = 'yes'
             else:
                 env['GPROF'] = 'no'
@@ -186,16 +207,16 @@ class CSE141Lab(LabSpec):
                 submission = build_submission(".",
                                               solution,
                                               None,
-                                              public_only=public_only,
+                                              public_only=flags.public_lab,
                                               username="swanson@eng.ucsd.edu",
-                                              pristine=pristine)
-                if remote:
+                                              pristine=flags.pristine)
+                if flags.remote:
                     result = run_submission_remotely(submission, daemon=True)
                 else:
                     result = run_submission_locally(submission,
                                                     run_in_docker=False,
                                                     docker_image=os.environ['DOCKER_RUNNER_IMAGE'],
-                                                    run_pristine=pristine)
+                                                    run_pristine=flags.pristine)
                     
                 log.info(f"results={result.results}")
             log.info(f"=========================== Finished {tag} in {self.id()} ==========================================")

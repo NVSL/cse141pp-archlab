@@ -57,6 +57,6 @@ TESTS?=.*
 .PHONY: test
 test:
 	(unset LAB_SUBMISSION_DIR; test-lab)
-	[ -f test.bats ] && bats test.bats  -f '$(TESTS)'
+	if [ -f test.bats ]; then bats test.bats -f '$(TESTS)'; else true;fi
 
 ###############

@@ -12,7 +12,16 @@ class DeadlineExceeded(Exception):
 class PubSubAgent(object):
 
     def add_namespace(self, name):
-        return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}-{name}'
+        # This may seem redundant with the GOOGLE_RESOURCE_PREFIX, but
+        # we can't have a new bucket and datastore namespace for every
+        # test.  Deleting them would be too painful.  Google cloud
+        # automatically cleans up stale subscriptions, at least, and
+        # maybe topics too.
+        if 'PRIVATE_PUBSUB_NAMESPACE' in os.environ: 
+            return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}--{os.environ["PRIVATE_PUBSUB_NAMESPACE"]}--{name}'
+        else:
+            return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}-{name}'
+        
 
 class BasePublisher(PubSubAgent):
     def __init__(self, topic, private_topic=False, **kwargs):
@@ -87,7 +96,7 @@ class BaseSubscriber(PubSubAgent):
         self.topic_path = self.compose_topic_path(self.project, self._topic_name)
 
         if self.private_subscription or not type(self).subscription_exists(self.subscription_path):
-            log.debug(f"Creating subscription: {self.subscription_path}")
+            log.debug(f"Creating subscription: {self.subscription_path} on {self.topic_path}")
             self.subscription = self.create_subscription(sub_path=self.subscription_path, topic_path=self.topic_path, **kwargs)
         else:
             log.debug(f"Not creating subscription {self.subscription_path}.  It exists")

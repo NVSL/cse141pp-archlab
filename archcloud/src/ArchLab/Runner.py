@@ -501,6 +501,10 @@ def run_submission_remotely(submission, daemon=False):
     try:
         if daemon:
             log.debug("Starting local daemon")
+            # This should ensure that the daemon processes our
+            # requests.  This prevents interference between testing
+            # instances.
+            #os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
             the_daemon = subprocess.Popen(['runlab.d', '-v', '--debug'])
         else:
             the_daemon = None
@@ -526,6 +530,7 @@ def run_submission_remotely(submission, daemon=False):
             username=submission.username
         )
 
+        log.debug("HERE PUBLISHING")
         publisher.publish(str(job_id))
 
         c = 0
@@ -588,6 +593,10 @@ def run_submission_remotely(submission, daemon=False):
             #p.communicate()
             the_daemon.wait()
             log.debug("Local daemon is dead.")
+            try:
+                del os.environ['PRIVATE_PUBSUB_NAMESPACE']
+            except:
+                pass
                   
 
 def run_submission_locally(sub,
