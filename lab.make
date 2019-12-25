@@ -47,11 +47,15 @@ lab-help:
 
 .PHONY: starter
 starter:
-	uptodate
 	rm -rf starter-repo
 	git clone . starter-repo
 	$(MAKE) -C starter-repo remove-private
-	(cd starter-repo; git init .; git add * .travis.yml .gitignore; git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$(cd ..; git remote -v)")
+	(name=$$(basename $(PWD));\
+	cd starter-repo; \
+	git init .; \
+	git add * .travis.yml .gitignore; \
+	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
+	)
 	(cd starter-repo; make test)
 	@echo "====================================================="
 	@echo "              Starter repo seems to work             "
