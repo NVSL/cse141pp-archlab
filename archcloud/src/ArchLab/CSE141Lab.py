@@ -135,6 +135,20 @@ class CSE141Lab(LabSpec):
             self.regressions_passed = 0
             self.regression_count = 0
 
+    
+        def compute_scores(self, js):
+            # breakdown score into approximate and precise components
+            # for more accurate regression testing.
+            precise = 0
+            approximate = 0
+            for t in js['gradescope_test_output']['tests']:
+                if 'tags' in t and 'approximate' in t['tags']:
+                    approximate += float(t['score'])
+                else:
+                    precise += float(t['score'])
+            return precise, approximate
+        
+
         # this is some magic to let us introspect on what's passed: https://stackoverflow.com/questions/28500267/python-unittest-count-tests
         currentResult = None
         def run(self, result=None):

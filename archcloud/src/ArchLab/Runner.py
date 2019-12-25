@@ -161,6 +161,7 @@ class LabSpec(object):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         if len(d) < line + 1:
+            log.debug(f"Returning None, because there is no line {line}")
             return None
         try:
             return float(d[line][field])
