@@ -140,7 +140,6 @@ def main(argv=None):
     parser.add_argument('--id', default=None,  help="Use this as the server identifier.")
     parser.add_argument('--debug', action='store_true', help="exit on errors")
     parser.add_argument('--heart-rate', default=30, help="seconds between heart beats")
-    
         
     if argv == None:
         argv = sys.argv[1:]
@@ -173,20 +172,25 @@ def main(argv=None):
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
     while keep_running:
+        result = None
         try:
-            job_id = subscriber.pull()
+            try:
+                job_id = subscriber.pull()
+                if len(job_id) == 0:
+                    log.info('No jobs in queue')
+                    time.sleep(1)
+                    continue
 
-            if len(job_id):
                 job_id = job_id[0]
 
                 job_data = ds.pull(
-                    job_id=str(job_id)
+                    job_id=job_id
                 )
-                if not job_data:
+                if not job_data: # job missing?
                     continue
-                if job_data['status'] != "SUBMITTED":
+                if job_data['status'] != "SUBMITTED":  # Someone else grabbed it.
                     continue
-                
+
                 job_submission_json = blobstore.read_file(job_id)
                 set_status("RUNNING", job_data['job_id'][:8])
 
@@ -207,61 +211,72 @@ def main(argv=None):
                 # canceled or completed by someone else.  If it timed
                 # out, we should leave it incomplete, since that's
                 # what effectively happened.
-                job_data = ds.pull(job_id=str(job_id))
-                if job_data['status'] == "STARTED":
-                    try:
-                        blobstore.write_file(f"{job_id}-result",
-                                             json.dumps(result._asdict(), sort_keys=True, indent=4))
-
-                        if job_data['username']:
-                            username = f"{job_data['username'].split('@')[0]}-"
-                        else:
-                            username = ""
-                        
-                        to_zone = pytz.timezone('America/Los_Angeles')
-                        local_time = job_data['submitted_utc'].astimezone(to_zone).strftime('%Y-%m-%d-%H-%M-%S')
-                        download_name=f"{username}submitted-at-{local_time}.zip"
-                        zip_name = f"{job_id}.zip"
-                        archive = blobstore.write_file(zip_name,
-                                                       result.build_file_zip_archive(),
-                                                       content_disposition=f"Attachment; filename={download_name}",
-                                                       owner=job_data['username'],
-                                                       content_type="application/zip")
-                        ds.update(
-                            job_id,
-                            status='COMPLETED',
-                            submission_status=result.status,
-                            submission_status_reasons=result.status_reasons,
-                            completed_utc=datetime.datetime.now(pytz.utc),
-                            zip_archive=archive
-                        )
-                    except Exception as e:
-                        # if something goes wrong, we still need to notify
-                        # the client, so try this simpler request.
-                        #
-                        # We probably don't adequately handle "ERROR" as a status.
-                        log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
-                        ds.update(job_id,
-                                  status='ERROR',
-                                  status_reasons=["Couldn't update the status of the job. Something is wrong with the cloud.  This is not a problem with your code."])
-                        if args.debug:
-                            raise
-                else:
+                job_data = ds.pull(job_id=job_id)
+                if job_data['status'] != "STARTED":
                     log.error(f"Found that job I was running completed without me")
-                        
-                set_status("IDLE")
+                    continue
 
+                blobstore.write_file(f"{job_id}-result",
+                                     json.dumps(result._asdict(), sort_keys=True, indent=4))
+
+                if job_data['username']:
+                    username = f"{job_data['username'].split('@')[0]}-"
+                else:
+                    username = ""
+
+                to_zone = pytz.timezone('America/Los_Angeles')
+                local_time = job_data['submitted_utc'].astimezone(to_zone).strftime('%Y-%m-%d-%H-%M-%S')
+                download_name=f"{username}submitted-at-{local_time}.zip"
+                zip_name = f"{job_id}.zip"
+                archive = blobstore.write_file(zip_name,
+                                               result.build_file_zip_archive(),
+                                               content_disposition=f"Attachment; filename={download_name}",
+                                               owner=job_data['username'],
+                                               content_type="application/zip")
+                ds.update(
+                    job_id,
+                    status='COMPLETED',
+                    submission_status=result.status,
+                    submission_status_reasons=result.status_reasons,
+                    completed_utc=datetime.datetime.now(pytz.utc),
+                    zip_archive=archive
+                )
+            except (ArchlabError, UserError) as e:
+                job_data = ds.pull(job_id=job_id)
+                ds.update(
+                    job_id,
+                    status='ERROR',
+                    status_reasons=job_data['status_reasons'] + [repr(e)],
+                    completed_utc=datetime.datetime.now(pytz.utc),
+                )
+                if args.debug:
+                    raise
+            except Exception as e:
+                # if something goes wrong, we still need to notify the
+                # client, so try this simpler request that only
+                # depends on the Datastore.
+                log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
+                ds.update(job_id,
+                          status='ERROR',
+                          status_reasons=["Couldn't update the status of the job. Something is wrong with the cloud.  This is not a problem with your code."])
+                if args.debug:
+                    raise
+            finally:
+                set_status("IDLE")
                 if args.just_once:
                     sys.exit(0)
-            else:
-                log.info('No jobs in queue')
-                time.sleep(1.0)
-        except Exception as e:
+        # This is to catch exceptions that arise during the processing
+        # of other exceptions, so the daemon doesn't crash.  The
+        # likely cause is some problem with the cloud services.  If
+        # they aren't working, there's not much we can do, so we just
+        # listen pause for a bit and look for a new request.
+        except Exception as e: 
+            log.error(f"Uncaught exception: {e}.")
+            log.error("Sleeping for 10 second and trying again")
             if args.debug:
                 raise
-            log.error(f"Uncaught exception: {e}.")
-            log.error("Sleeping for 1 second and trying again")
-            time.sleep(1.0)
+            time.sleep(10.0)
+            
 
             
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import json
 import time
 import os
 import argparse
-from .Runner import run_submission_remotely, build_submission, RunnerException
+from .Runner import run_submission_remotely, build_submission
 import sys
 import logging as log
 import platform
@@ -34,7 +34,10 @@ def main(argv=sys.argv[1:]):
         }
         output=default_output
         log.debug(f"{output}")
-        
+
+        files = []
+        tail =[]
+        result = None
         try:
                 log.debug(f"{output}")
                 metadata_fn = os.path.join(args.root, 'submission_metadata.json')
@@ -66,7 +69,7 @@ def main(argv=sys.argv[1:]):
                         start_time = time.time()
                         submission = build_submission(submission_dir, solution, None, username=metadata['users'][0]["email"])
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
-                                raise RunnerException(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
+                                raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
                         result = run_submission_remotely(submission, daemon=args.daemon)
 
@@ -89,43 +92,59 @@ def main(argv=sys.argv[1:]):
                         #                 }
                         #         )
                         # log.debug(f"{output}")
-                        files = []
-
-                        files.append(
-                                {
-                                        "score": 0.0, # optional, but required if not on top level submission
-                                        "max_score": 0.0, # optional
-                                        "name": "zip_output_url",
-                                        "output": result.zip_archive,
-                                        "visibility": "visible", # Optional visibility setting
-                                }
-                        )
-
-                        tail =[]
-                        d = copy.deepcopy(result)
-                        d.files = None # this is rendudant and large
-                        d.submission.files = None #this too
-                        d.results = None
-                        tail.append(
-                                {
-                                        "score": 0.0, # optional, but required if not on top level submission
-                                        "max_score": 0.0, # optional
-                                        "name": "full_json_result",
-                                        "output": json.dumps(d._asdict(), indent=4, sort_keys=True),
-                                        "visibility": "visible", # Optional visibility setting
-                                }
-                        )
-                        end_time = time.time()
-
-                        output = result.results.get('gradescope_test_output', default_output)
-                        output["execution_time"] = float(end_time - start_time)
-                        output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
-                        output['tests'] = files + output['tests'] + tail 
-        except Exception as e:
+        except UserError as e:
                 output = default_output
-                output['output'] = f"Something went wrong in autograder.  Not your fault.: {repr(e)}"
+                output['output'] = f"A user error occurred with your job.  There is probably something wrong with your submission: {repr(e)}"
+                files.append(output)
                 if args.debug:
                         raise
+        except ArchlabError as e:
+                output = default_output
+                output['output'] = f"Something unexpected went wrong in autograder.  Probably not your fault.: {repr(e)}"
+                files.append(output)
+                if args.debug:
+                        raise
+        except Exception as e:
+                output = default_output
+                output['output'] = f"An exception occurred.  Probably not your fault: {repr(e)}"
+                files.append(output)
+                if args.debug:
+                        raise
+        else:
+                files.append(
+                        {
+                                "score": 0.0, # optional, but required if not on top level submission
+                                "max_score": 0.0, # optional
+                                "name": "zip_output_url",
+                                "output": result.zip_archive,
+                                "visibility": "visible", # Optional visibility setting
+                        }
+                )
+
+                d = copy.deepcopy(result)
+                d.files = None # this is rendudant and large
+                d.submission.files = None #this too
+                d.results = None
+                tail.append(
+                        {
+                                "score": 0.0, # optional, but required if not on top level submission
+                                "max_score": 0.0, # optional
+                                "name": "full_json_result",
+                                "output": json.dumps(d._asdict(), indent=4, sort_keys=True),
+                                "visibility": "visible", # Optional visibility setting
+                        }
+                )
+
+        finally:
+                end_time = time.time()
+                if result:
+                        output = result.results.get('gradescope_test_output', default_output)
+                        output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
+                else:
+                        output = default_output
+                output["execution_time"] = float(end_time - start_time)
+                output['tests'] = files + output['tests'] + tail 
+
 
         log.debug(f"Writing to {os.path.abspath(results_fn)}")
         with open(os.path.abspath(results_fn), 'w') as f:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult, LabSpec
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, ArchlabError, UserError, SubmissionResult, LabSpec
 import logging as log
 import json
 import platform
@@ -20,9 +20,11 @@ def show_info(directory, fields=None):
             return spec.get_help()
         else:
             return f"{getattr(spec, fields)}\n"
-    except :
+    except FileNotFoundError:
         return "Not a lab directory\n"
-
+    except AttributeError:
+        return f"Unknown field: {fields}\n"
+    
 def main(argv=None):
     """
     This is the command line driver for Runner.py.  It should demonstrate everything you'll need to do with the library.
@@ -83,6 +85,7 @@ def main(argv=None):
     parser.add_argument('--json', default=None, help=sm("Dump json version of submission and response."))
     parser.add_argument('--directory', default=".", help=sm("Lab root"))
     parser.add_argument('--run-json', nargs="*", default=None, help=sm("Read json submission spec from file.   With no arguments, read from stdin"))
+    parser.add_argument('--json-status', help=sm("Write exit status to file"))
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
     parser.add_argument('--daemon', action='store_true', default=False, help=sm("Start a local server to run my job"))
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
@@ -158,7 +161,7 @@ def main(argv=None):
                 subprocess.check_call(diff)
                 subprocess.check_call(update)
                 if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
-                    raise Exception
+                    raise Exception()
             except:
                 reporter("You have uncommitted changes and/or there is changes in github that you don't have locally.  This means local behavior won't match what the autograder will do.")
                 if args.validate:
@@ -186,8 +189,6 @@ def main(argv=None):
                 result = run_submission_remotely(submission, daemon=args.daemon)
                 
             log.debug(f"Got response: {result}")
-            log.debug(f"Got response: {result.results}")
-            #log.debug(f"Got response: {result._asdict()}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
                 log.debug(result.files[i][:1000])
@@ -205,16 +206,24 @@ def main(argv=None):
                 with open(args.zip, "wb") as f:
                     f.write(result.build_file_zip_archive())
 
-    except RunnerException as e: 
-        log.error(e)
+    except UserError as e: 
+        log.error(f"User error (probably your fault): {repr(e)}")
         status_str = f"{repr(e)}"
         exit_code = 1
-    except Exception as e:
         if args.debug:
             raise
-        else:
-            sys.stderr.write(f"{e}\n")
-            sys.exit(1)
+    except ArchlabError as e:
+        log.error(f"System error (probably not your fault): {repr(e)}")
+        status_str = f"{repr(e)}"
+        exit_code = 1
+        if args.debug:
+            raise
+    except Exception as e:
+        log.error(f"Unknown error (probably not your fault): {repr(e)}")
+        status_str = f"{repr(e)}"
+        exit_code = 1
+        if args.debug:
+            raise
     else:
         if result:
             status_str = f"{result.status}\n" + '\n'.join(result.status_reasons)
@@ -228,6 +237,10 @@ def main(argv=None):
         
     log.info(f"Finished.  Final status: {status_str}")
     log.debug(f"Exit code: {exit_code}")
+    if args.json_status:
+        with open(args.json_status, "w") as f:
+            f.write(json.dumps(dict(exit_code=exit_code,
+                                    status_str=status_str)))
     sys.exit(exit_code)
 
 if __name__ == '__main__':

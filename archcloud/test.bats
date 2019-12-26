@@ -46,7 +46,7 @@ fi
     # Test the autograding script
     # This should mimic how our gradescope scripts run it.
     # Tests for the setup stuff is the autograder repo.
-
+    skip
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd

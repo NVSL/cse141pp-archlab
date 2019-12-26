@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, RunnerException, SubmissionResult, MalformedObject
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, SubmissionResult, MalformedObject
 import logging as log
 import json
 import platform
