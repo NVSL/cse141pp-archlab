@@ -509,13 +509,17 @@ def run_submission_remotely(submission, daemon=False):
             the_daemon = subprocess.Popen(['runlab.d', '-v', '--debug'])
         else:
             the_daemon = None
+
+        with environment(**sub.env):
+            # cleanup local outputs.  This is mostly so can reliably
+            # test for the absence of particular outputs.
+            log_run(sub.lab_spec.clean_cmd, cwd=sub.user_directory)
             
         ds = DataStore()
         publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
 
         job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
-        
         job_id = uuid()
 
         output = ''
@@ -531,7 +535,6 @@ def run_submission_remotely(submission, daemon=False):
             username=submission.username
         )
 
-        log.debug("HERE PUBLISHING")
         publisher.publish(str(job_id))
 
         c = 0
@@ -735,7 +738,6 @@ def run_submission_locally(sub,
                         log_run(sub.lab_spec.clean_cmd, cwd=dirname)
                     os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
                     sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
-
 
                 for f in sub.files:
                     path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)

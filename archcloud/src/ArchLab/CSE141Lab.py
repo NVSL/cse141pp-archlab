@@ -136,18 +136,6 @@ class CSE141Lab(LabSpec):
             self.regression_count = 0
 
     
-        def compute_scores(self, js):
-            # breakdown score into approximate and precise components
-            # for more accurate regression testing.
-            precise = 0
-            approximate = 0
-            for t in js['gradescope_test_output']['tests']:
-                if 'tags' in t and 'approximate' in t['tags']:
-                    approximate += float(t['score'])
-                else:
-                    precise += float(t['score'])
-            return precise, approximate
-        
 
         # this is some magic to let us introspect on what's passed: https://stackoverflow.com/questions/28500267/python-unittest-count-tests
         currentResult = None
@@ -189,6 +177,19 @@ class CSE141Lab(LabSpec):
                 self.assertTrue(False, f"Got an exception: {repr(e)}")
 
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
+
+        def compute_scores(self, js):
+            # breakdown score into approximate and precise components
+            # for more accurate regression testing.
+            precise = 0
+            approximate = 0
+            for t in js['gradescope_test_output']['tests']:
+                if 'tags' in t and 'approximate' in t['tags']:
+                    approximate += float(t['score'])
+                else:
+                    precise += float(t['score'])
+            return precise, approximate
+        
         
         def run_solution(self, solution, flags):
             tag = f"{solution}-{'p' if flags.pristine else ''}-{'d' if flags.devel else ''}-{'g' if flags.gprof else ''}-{'r' if flags.remote else ''}-{'s' if flags.public_lab else ''}"
