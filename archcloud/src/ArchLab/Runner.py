@@ -623,6 +623,7 @@ def run_submission_locally(sub,
             if run_in_docker:
                 assert dirname[:4] == "/tmp", f"{dirname} doesn't appear to be a /tmp directory"
                 job_path = os.path.join(dirname, "job.json")
+                status_path = os.path.join(dirname, "status.json")
                 with open(job_path, "w") as job:
                     d = sub._asdict()
                     # we can't be sure where the submission's
@@ -643,12 +644,11 @@ def run_submission_locally(sub,
                                           ["-w", dirname,
                                            "--privileged",
                                            docker_image,
-                                           "runlab", "--run-json", "job.json", '--debug', '--json-status', 'status.json', '--directory', dirname] +
+                                           "runlab", "--run-json", job_path, '--debug', '--json-status', status_path, '--directory', dirname] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
                 log.info("Docker finished")
 
-                status_path = os.path.join(dirname, "status.json")
                 if os.path.exists(status_path):
                     with open(status_path, "r") as s:
                         json_status = json.loads(s.read())

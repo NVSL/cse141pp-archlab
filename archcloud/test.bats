@@ -46,11 +46,10 @@ fi
     # Test the autograding script
     # This should mimic how our gradescope scripts run it.
     # Tests for the setup stuff is the autograder repo.
-    skip
     pushd $CONFIG_REPO_ROOT
     . config.sh
     popd
-    export MODES=EMULATION CLOUD
+    export MODES=CLOUD
     for LAB in CSE141pp-Lab-Tiny; do 
 	for CLOUD_MODE in $MODES; do
 	    reconfig

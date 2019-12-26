@@ -33,13 +33,11 @@ def main(argv=sys.argv[1:]):
                 "tests": []
         }
         output=default_output
-        log.debug(f"{output}")
 
         files = []
         tail =[]
         result = None
         try:
-                log.debug(f"{output}")
                 metadata_fn = os.path.join(args.root, 'submission_metadata.json')
                 results_fn = os.path.join(args.root, 'results/results.json')
                 submission_dir = os.path.join(args.root, 'submission')
@@ -65,15 +63,12 @@ def main(argv=sys.argv[1:]):
                         log.info("Too many recent submissions.  Copying old results to current results.")
                         output = latest_submission['results']
                 else:
-                        log.debug(f"{output}")
                         start_time = time.time()
                         submission = build_submission(submission_dir, solution, None, username=metadata['users'][0]["email"])
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
                         result = run_submission_remotely(submission, daemon=args.daemon)
-
-
                 
                         # for filename in result.files:
                         #         log.debug(f"output file {filename}")
