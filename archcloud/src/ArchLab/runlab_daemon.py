@@ -25,7 +25,7 @@ from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 
 
-from .Runner import build_submission, run_submission_locally, Submission
+from .Runner import build_submission, run_submission_locally, Submission, ArchlabError, UserError
 
 import google.api_core
 

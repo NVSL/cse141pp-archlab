@@ -559,8 +559,8 @@ def run_submission_locally(sub,
             p.kill()
             output2, errout2 = p.communicate()
 
-            output += output2
-            errout += errout2
+            output += output2 or b""
+            errout += errout2 or b""
             
             r = SubmissionResult.TIMEOUT
             reasons.append("Execution of {args} timedout after {timeout} seconds.")
