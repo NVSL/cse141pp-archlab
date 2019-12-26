@@ -305,7 +305,8 @@ class LabSpec(object):
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command, run_directory, user_directory, solution, username=None):
+    def __init__(self, lab_spec, files, env, command, #run_directory,
+                 user_directory, solution, username=None):
         self.lab_spec = lab_spec
         with collect_fields_of(self):
             self.files = files
@@ -313,7 +314,7 @@ class Submission(object):
             self.command = command
             self.username = username
             self.user_directory = user_directory
-            self.run_directory = run_directory
+      #      self.run_directory = run_directory
             self.solution = solution
             
     def _asdict(self):
@@ -531,7 +532,7 @@ def run_submission_locally(sub,
     out = StringIO()
     err = StringIO()
     result_files = {}
-    root = sub.run_directory
+    root = sub.user_directory
     reasons = []
     status = SubmissionResult.ERROR
 
@@ -620,16 +621,19 @@ def run_submission_locally(sub,
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                
-                with open(os.path.join(dirname, "job.json"), "w") as job:
+                assert dirname[:4] == "/tmp", f"{dirname} doesn't appear to be a /tmp directory"
+                job_path = os.path.join(dirname, "job.json")
+                with open(job_path, "w") as job:
                     d = sub._asdict()
-                    # we can't be sure where the submission's run
-                    # directory is, but that's ok.  The submision has
-                    # all the files in it.  What we know for sure is
-                    # that dirname is where copy of the lab we should
-                    # be using resides, so we can safely use that.
-                    d['run_directory'] = dirname 
+                    # we can't be sure where the submission's
+                    # directory is, but that's ok.  The submision
+                    # object has all the files in it.  What we know
+                    # for sure is that dirname is where we cloned the
+                    # lab (since pristine is required for docker) so we can
+                    # safely use that.
+                    d['user_directory'] = dirname 
                     json.dump(d, job, sort_keys=True, indent=4)
+                    log.info(f"Wrote job spec to {job_path}")
                 log.info("Docker starts...")
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
@@ -741,60 +745,60 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
 
-    if pristine:
-        run_directory = tempfile.TemporaryDirectory(dir="/tmp/").name
-        try:
-            log.info("Cloning user files to get the version in github...")
-            subprocess.check_call(["git", "clone", user_directory, run_directory])
-        except Exception as e:
-            log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
-            sys.exit(1)
-    else:
-        run_directory = user_directory
-
-    spec = LabSpec.load(run_directory, public_only=public_only)
-    files = {}
-    if config_file is None:
-        config_file = spec.config_file
-
-    if not command:
-        command = spec.default_cmd
-    # check if the command is ok.  We don't recorded the filtered version
-    # because the filtered result might not, itself, pass through the filter.
-    good_command, error, _ = spec.filter_command(command)
-    if not good_command:
-        raise UserError(f"This command is not allowed ({error}): {command}")
-        
-    for f in spec.input_files:
-        full_path = os.path.join(run_directory, input_dir)
-        log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
-        for filename in Path(full_path).glob(f):
-            if not  os.path.isfile(filename):
-                log.debug(f"Skipping '{filename}' since it's a directory")
-                continue
-            log.debug(f"Found file '{filename}' matching '{f}'.")
+    with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
+        if pristine:
             try:
-                with open(filename, "rb") as o:
-                    log.debug(f"Reading input file '{filename}'")
-                    key = filename.relative_to(full_path)
-                    log.debug(f"Storing as '{str(key)}'")
-                    files[str(key)] = base64.b64encode(o.read()).decode('utf8')
-                    log.info(f"Found input file '{filename}'")
-            except Exception:
-                raise UserError(f"Couldn't open input file '{filename}'.")
+                log.info("Cloning user files to get the version in github...")
+                subprocess.check_call(["git", "clone", user_directory, run_directory])
+            except Exception as e:
+                log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                raise UserError("Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+        else:
+            run_directory = user_directory
 
-    if config_file:
-        path = os.path.join(run_directory,
-                            input_dir,
-                            config_file)
-        with open(path) as config:
-            log.debug(f"Parsing config file: '{path}'")
-            from_config = spec.parse_config(config)
-            for i in from_config:
-                log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
-    else:
-        log.debug("No config file")
-        from_config = {}
+        spec = LabSpec.load(run_directory, public_only=public_only)
+        files = {}
+        if config_file is None:
+            config_file = spec.config_file
+
+        if not command:
+            command = spec.default_cmd
+        # check if the command is ok.  We don't recorded the filtered version
+        # because the filtered result might not, itself, pass through the filter.
+        good_command, error, _ = spec.filter_command(command)
+        if not good_command:
+            raise UserError(f"This command is not allowed ({error}): {command}")
+
+        for f in spec.input_files:
+            full_path = os.path.join(run_directory, input_dir)
+            log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
+            for filename in Path(full_path).glob(f):
+                if not  os.path.isfile(filename):
+                    log.debug(f"Skipping '{filename}' since it's a directory")
+                    continue
+                log.debug(f"Found file '{filename}' matching '{f}'.")
+                try:
+                    with open(filename, "rb") as o:
+                        log.debug(f"Reading input file '{filename}'")
+                        key = filename.relative_to(full_path)
+                        log.debug(f"Storing as '{str(key)}'")
+                        files[str(key)] = base64.b64encode(o.read()).decode('utf8')
+                        log.info(f"Found input file '{filename}'")
+                except Exception:
+                    raise UserError(f"Couldn't open input file '{filename}'.")
+
+        if config_file:
+            path = os.path.join(run_directory,
+                                input_dir,
+                                config_file)
+            with open(path) as config:
+                log.debug(f"Parsing config file: '{path}'")
+                from_config = spec.parse_config(config)
+                for i in from_config:
+                    log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
+        else:
+            log.debug("No config file")
+            from_config = {}
 
     from_env = spec.filter_env(os.environ)
     
@@ -804,7 +808,8 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         
     from_config.update(from_env)
 
-    s = Submission(spec, files, from_config, command, run_directory, user_directory, input_dir, username=username)
+    s = Submission(spec, files, from_config, command, 
+                   user_directory, input_dir, username=username)
 
     return s
 
