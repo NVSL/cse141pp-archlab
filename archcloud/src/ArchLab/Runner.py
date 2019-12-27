@@ -622,8 +622,10 @@ def run_submission_locally(sub,
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
                 assert dirname[:4] == "/tmp", f"{dirname} doesn't appear to be a /tmp directory"
-                job_path = os.path.join(dirname, "job.json")
-                status_path = os.path.join(dirname, "status.json")
+                id = str(uuid())
+                os.makedirs(os.path.join("/staging", id), exist_ok=True)
+                job_path = os.path.join("/staging", id, "job.json")
+                status_path = os.path.join("/staging",id, "status.json")
                 with open(job_path, "w") as job:
                     d = sub._asdict()
                     # we can't be sure where the submission's
@@ -635,10 +637,15 @@ def run_submission_locally(sub,
                     d['user_directory'] = dirname 
                     json.dump(d, job, sort_keys=True, indent=4)
                     log.info(f"Wrote job spec to {job_path}")
+
+                my_container_id = subprocess.check_output("head -1 /proc/self/cgroup".split()).decode("utf8").split("/")[-1]
+
+                log.info(f"my container id is: {my_container_id}")
                 log.info("Docker starts...")
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
                                            "--hostname", "runner",
+                                           "--volumes-from", my_container_id.strip(),
                                            "--volume", f"{dirname}:{dirname}"] + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
                                           ["-w", dirname,

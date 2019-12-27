@@ -69,7 +69,7 @@ push-starter:
 	(cd starter-repo; git remote add origin https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git)
 	(cd starter-repo; git push -u origin master)
 	git tag -a -m "starter repo: $(STARTER_REPO_NAME)" $(STARTER_REPO_NAME)-$(shell date "+%F-%s")
-	git push origin $(STARTER_REPO_NAME)
+	git push origin $(STARTER_REPO_NAME)-$(shell date "+%F-%s")
 	@echo "Lab Name                     : $$(runlab --info lab_name)"
 	@echo "Repo prefix                  : $(STARTER_REPO_NAME)"
 	@echo "Repo URL For github classroom: $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
