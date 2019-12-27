@@ -2,7 +2,8 @@ import json
 import time
 import os
 import argparse
-from .Runner import run_submission_remotely, build_submission
+from .Runner import run_submission_remotely, build_submission, UserError, ArchlabError
+
 import sys
 import logging as log
 import platform
