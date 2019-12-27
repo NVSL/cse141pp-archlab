@@ -38,7 +38,7 @@ def main(argv=sys.argv[1:]):
 
         output={
                         "score": 0,
-                        "visibility": "after_due_date", 
+                        "visibility": "visible", 
                         "stdout_visibility": "visible", 
                         "tests": []
                 }
