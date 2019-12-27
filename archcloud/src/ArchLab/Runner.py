@@ -752,7 +752,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
 
-    with tempfile.TemporaryDirectory(dir="/staging/") as run_directory:
+    with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
         if pristine:
             try:
                 log.info("Cloning user files to get the version in github...")
