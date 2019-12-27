@@ -2,7 +2,8 @@ import json
 import time
 import os
 import argparse
-from .Runner import run_submission_remotely, build_submission
+from .Runner import run_submission_remotely, build_submission, UserError, ArchlabError
+
 import sys
 import logging as log
 import platform
@@ -25,14 +26,16 @@ def main(argv=sys.argv[1:]):
         log.info(f"Running in {os.environ['IN_DEPLOYMENT']}")
         log.info(f"Running in {os.environ['GOOGLE_RESOURCE_PREFIX']}")
         log.info(f"Allowed repos: {os.environ['VALID_LAB_STARTER_REPOS']}")
+
+        def default_output():
+                return {
+                        "score": 0,
+                        "visibility": "after_due_date", 
+                        "stdout_visibility": "visible", 
+                        "tests": []
+                }
         
-        default_output = {
-                "score": 0,
-                "visibility": "after_due_date", 
-                "stdout_visibility": "visible", 
-                "tests": []
-        }
-        output=default_output
+        output=default_output()
 
         files = []
         tail =[]
@@ -88,19 +91,19 @@ def main(argv=sys.argv[1:]):
                         #         )
                         # log.debug(f"{output}")
         except UserError as e:
-                output = default_output
+                output = default_output()
                 output['output'] = f"A user error occurred with your job.  There is probably something wrong with your submission: {repr(e)}"
                 files.append(output)
                 if args.debug:
                         raise
         except ArchlabError as e:
-                output = default_output
+                output = default_output()
                 output['output'] = f"Something unexpected went wrong in autograder.  Probably not your fault.: {repr(e)}"
                 files.append(output)
                 if args.debug:
                         raise
         except Exception as e:
-                output = default_output
+                output = default_output()
                 output['output'] = f"An exception occurred.  Probably not your fault: {repr(e)}"
                 files.append(output)
                 if args.debug:
@@ -133,10 +136,10 @@ def main(argv=sys.argv[1:]):
         finally:
                 end_time = time.time()
                 if result:
-                        output = result.results.get('gradescope_test_output', default_output)
+                        output = result.results.get('gradescope_test_output', default_output())
                         output['output'] = result.files.get("STDOUT","") + result.files.get("STDERR","")
                 else:
-                        output = default_output
+                        output = default_output()
                 output["execution_time"] = float(end_time - start_time)
                 output['tests'] = files + output['tests'] + tail 
 

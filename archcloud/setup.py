@@ -16,7 +16,8 @@ setup(
         "pytest",
         "dateutils",
         "parameterized",
-        "gradescope_utils"
+        "gradescope_utils",
+        "packet-python"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
