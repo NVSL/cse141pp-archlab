@@ -1,3 +1,4 @@
+import math
 
 def columnize(data, divider="|", headers=1):
     r = ""
@@ -12,3 +13,20 @@ def columnize(data, divider="|", headers=1):
     return r
 
     
+
+def format_time_delta(t):
+    if isinstance(t, str):
+        return t
+    seconds = t.days * 24*60*60 + t.seconds
+    minutes = math.floor(seconds/60)
+    hours = math.floor(minutes/60)
+    return f"{hours}:{minutes % 60:02}:{seconds%60:02}"
+
+def test_format_time_delta():
+    import datetime
+    assert format_time_delta("hello") == "hello"
+    assert format_time_delta(datetime.timedelta(seconds=34)) == "0:00:34"
+    assert format_time_delta(datetime.timedelta(seconds=3)) ==  "0:00:03"
+    assert format_time_delta(datetime.timedelta(seconds=34, minutes=35)) == "0:35:34"
+    assert format_time_delta(datetime.timedelta(seconds=34, minutes=61)) == "1:01:34"
+    assert format_time_delta(datetime.timedelta(days=1)) == "24:00:00"

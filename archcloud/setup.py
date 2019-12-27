@@ -11,8 +11,12 @@ setup(
         "docopt",
         "pyasn1",
         "google-cloud-datastore",
+        "google-cloud-storage",
         "docker",
-        "pytest"
+        "pytest",
+        "dateutils",
+        "parameterized",
+        "gradescope_utils"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -25,7 +29,9 @@ setup(
             'jextract=ArchLab.jextract:main',
             'get-cpu-freqs=ArchLab.CPUFreq:get_freqs_cli',
             'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli',
-            'hosttool=ArchLab.hosttool:main'
+            'hosttool=ArchLab.hosttool:main',
+            'test-lab=ArchLab.testlab:main',
+            'pretty-csv=ArchLab.csvpretty:main'
         ]
     }
 )

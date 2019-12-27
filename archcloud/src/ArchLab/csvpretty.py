@@ -24,7 +24,7 @@ def fmt(x):
     except:
         return x
     else:
-        return f"{x:.2}"
+        return f"{x:.3}"
     
         
         
@@ -32,11 +32,12 @@ def main():
     parser = argparse.ArgumentParser(description='Perform calculation on CSV files.')
     parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
     parser.add_argument('--out', default="-", dest="output",help="output file")
-    parser.add_argument('--in', default="-", dest="input", help="input file")
+    parser.add_argument('input', default="-", nargs=1, help="input file")
+    
     cmdline = parser.parse_args()
     log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
     
-    infile = open(cmdline.input) if cmdline.input != "-" else sys.stdin
+    infile = open(cmdline.input[0]) if cmdline.input != "-" else sys.stdin
     inreader = csv.reader(infile)
 
     r = []

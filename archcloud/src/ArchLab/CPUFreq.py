@@ -39,7 +39,7 @@ def get_freqs():
             log.warning("cpupower utility is not available.  Clock speed setting will not work.")
 
         try:
-            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).decode("utf-8").split("\n")
+            o = subprocess.check_output(["cpupower", "frequency-info", "-s"], stderr=subprocess.PIPE).decode("utf-8").split("\n")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Calling 'cpupower' to extract frequency list failed: {e}")
 

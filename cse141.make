@@ -1,6 +1,17 @@
 ################
 # load lab preliminaries
+ifndef ARCHLAB_ROOT
+$(error ARCHLAB_ROOT is not set.  Have you sourced config.sh?  Maybe do it again.)
+endif
+ifndef PIN_ROOT
+$(error PIN_ROOT is not set.  Have you sourced config.sh?  Maybe do it again.)
+endif
+ifndef CANELA_ROOT
+$(error CANELA_ROOT is not set.  Have you sourced config.sh?  Maybe do it again.)
+endif
+
 include $(ARCHLAB_ROOT)/lab.make
+
 
 DEBUG?=no
 
@@ -10,12 +21,12 @@ USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUIL
 
 
 # load user config
-include $(BUILD)config.env
+#include $(BUILD)config.env
 
 # -O4 breaks google test sometimes.
 run_tests.o: C_OPTS=-O0
 run_tests.o: $(BUILD)opt_cnn.hpp
-
+default:
 regression.out: run_tests.exe
 	./run_tests.exe --gtest_output=json:regression.json > $@ || true
 
@@ -28,7 +39,6 @@ run_tests.exe: run_tests.o
 # build something
 %.exe : $(BUILD)%.o main.o
 	$(CXX) $^ $(LDFLAGS) -o $@
-
 
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
@@ -45,7 +55,8 @@ lab-clean:
 #  lab test suite.
 TESTS?=.*
 .PHONY: test
-test: 
-	bats test.bats  -f '$(TESTS)'
+test:
+	(unset LAB_SUBMISSION_DIR; test-lab)
+	if [ -f test.bats ]; then bats test.bats -f '$(TESTS)'; else true;fi
 
 ###############

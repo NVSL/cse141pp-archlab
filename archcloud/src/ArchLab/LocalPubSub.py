@@ -4,91 +4,138 @@ from pathlib import Path
 import pytest
 import tempfile
 import time
+from uuid import uuid4 as uuid
+from collections import namedtuple
+import shutil
 
-class LocalPubSub(object):
-    def __init__(self, directory=None):
-        if directory == None:
-            if "EMULATION_DIR" in os.environ:
-                log.debug("creating existing directory")
-                directory = os.environ["EMULATION_DIR"]
-            else:
-                log.debug("creating new directory")
-                self.tmp_dir = tempfile.TemporaryDirectory()
-                directory = self.tmp_dir.name
+from .BasePubSub import BasePublisher, BaseSubscriber, AlreadyExists, NotFound, DeadlineExceeded, do_test_publisher, do_test_subscriber
 
-        log.debug(f"Using directory {directory}")
-        self.directory = directory
-        assert os.path.isdir(directory)
+def test_subscriber():
+    do_test_subscriber(LocalSubscriber, LocalPublisher)
+
+def test_publisher():
+    do_test_publisher(LocalPublisher)
+
+class LocalPubSubAgent(object):
+
+    def __init__(self, *argc, **kwargs):
+        log.debug("LocalPubSubAgent Constructor")
+        self.topics_root = LocalPubSubAgent.get_topics_root()
+        os.makedirs(self.topics_root, exist_ok=True)
+        self.subscriptions_root = LocalPubSubAgent.get_subscriptions_root()
+        os.makedirs(self.subscriptions_root, exist_ok=True)
+
+    @classmethod
+    def get_topics_root(cls):
+        return os.path.join(os.environ['EMULATION_DIR'], os.environ['GOOGLE_CLOUD_PROJECT'], "pubsub", "topics")
+    @classmethod
+    def get_subscriptions_root(cls):
+        return os.path.join(os.environ['EMULATION_DIR'], os.environ['GOOGLE_CLOUD_PROJECT'], "pubsub", "subscriptions")
         
-        self.inbox = os.path.join(os.path.join(self.directory, "inbox"))
-        self.outbox = os.path.join(os.path.join(self.directory, "outbox"))
-                               
-        if not os.path.exists(self.inbox):
-            log.debug(f"Creating inbox: {self.inbox}")
-            os.mkdir(self.inbox)
-            
-        if not os.path.exists(self.outbox):
-            log.debug(f"Creating outbox: {self.outbox}")
-            os.mkdir(self.outbox)
-                      
-    def load_inbox(self):
-        p = Path(self.inbox)
-        return list(sorted(p.glob('*')))
+    def compose_subscription_path(self, project, name):
+        return f"{project}-{name}"
+    
+    def compose_topic_path(self, project, name):
+        return f"{project}-{name}"
 
-    def pull(self, max_messages=1, **kwargs):
-        paths = self.load_inbox()
-        if not paths:
-            return None
+    def compose_path(self, project, name):
+        return f"{project}-{name}"
+    
+class LocalPublisher(LocalPubSubAgent, BasePublisher):
+
+    def __init__(self, topic, private_topic=False, **kwargs):
+        LocalPubSubAgent.__init__(self)
+        BasePublisher.__init__(self, topic, private_topic=private_topic, **kwargs)
+         
+    @classmethod
+    def topic_exists(cls, path):
+        return os.path.isdir(os.path.join(LocalPubSubAgent.get_topics_root(), path))
+    
+    def create_publisher(self):
+        return None
+
+    def create_topic(self, topic, **kwargs):
+        try:
+            log.debug(f"Making {os.path.join(self.topics_root, topic)}")
+            return os.mkdir(os.path.join(self.topics_root, topic))
+        except OSError:
+            raise AlreadyExists()
         
-        path = os.path.join(self.inbox, paths[0])
-        log.debug(f"Loading pull from {path}")
-        with open(path, "r") as f:
-            r = f.read()
-            log.debug(f"Data: {r}")
-        log.debug(f"Deleting {path}")
-        os.unlink(path)
+    def do_publish(self, path, message, **kwargs):
+        fn = str(uuid())
+        log.debug(f"Publishing to topic {self.topic_path}")
+        for subscription in os.listdir(self.subscriptions_root):
+            subscription = os.path.join(self.subscriptions_root, subscription)
+            if os.path.isdir(subscription):
+                with open(os.path.join(subscription, "topic")) as out:
+                    topic = out.read()
+                    #log.debug(f"It is for topic '{repr(topic)}'")
+                    if topic== self.topic_path:
+                        #log.debug(f"It is a match.  Writing to {fn}")
+                        log.debug(f"Found matching subscription {subscription}")
+                        with open(os.path.join(subscription, fn), "wb") as out:
+                            out.write(message)
+                    else:
+                        pass
+                        #log.debug(f"It is not a match for '{repr(self.topic_path)}'")
+                                        
+    def do_delete_topic(self, path):
+        shutil.rmtree(os.path.join(self.topics_root, path))
+        
+class LocalSubscriber(LocalPubSubAgent, BaseSubscriber):
+    def __init__(self, topic, name=None, **kwargs):
+        LocalPubSubAgent.__init__(self)
+        BaseSubscriber.__init__(self, topic=topic, name=name, **kwargs)
+    
+    @classmethod
+    def subscription_exists(cls, sub_path):
+        return os.path.isdir(os.path.join(LocalPubSubAgent.get_subscriptions_root(), sub_path))
+        
+    def create_subscriber(self):
+        return None
+
+    def create_subscription(self, sub_path, topic_path, **kwargs):
+        p = os.path.join(self.subscriptions_root, sub_path)
+        log.debug(f"looking for {p}")
+        if not os.path.isdir(p):
+            os.mkdir(p)
+            log.debug(f"Creating subscription {sub_path}")
+            with open(os.path.join(p, "topic"), "w") as f:
+                f.write(topic_path)
+        else:
+            raise AlreadyExists
+    
+    PulledMessage = namedtuple("PulledMessage",  "data ack_id")
+    def do_pull(self, path, max_messages=1, timeout=1, **kwargs):
+        sub = os.path.join(self.subscriptions_root, path)
+        items = list(filter(lambda x: x != "topic", os.listdir(sub)))
+        log.debug(f"Directory contents for {path} {list(items)} ")
+        c = 0
+        r = []
+        for i in items:
+            t = f"tmp_{uuid()}"
+            try:
+                log.debug(f"Grabbing {i} moving to {t}")
+                os.rename(os.path.join(sub, i),
+                          os.path.join(sub, t)) # atomically remove it
+                assert not os.path.exists(os.path.join(sub, i))
+            except:
+                log.debug(f"Missed!")
+                continue # someone else might have got to it first.
+            log.debug(f"Got it! reading {t}")
+            with open(os.path.join(sub, t), "rb") as f:
+                r.append(LocalSubscriber.PulledMessage(f.read(), None))
+            log.debug(f"Removing {t}")
+            os.remove(os.path.join(sub, t))
+            c += 1
+            if c == max_messages:
+                break
+        if len(r) == 0:
+            time.sleep(timeout)
         return r
 
-    def push(self, job_id):
-        paths = self.load_inbox()
-        if not paths:
-            last = 0
-        else:
-            last = int(str(self.load_inbox()[-1].parts[-1]))
-        path = os.path.join(self.inbox, f"{last + 1}")
-        log.debug(f"Writing {job_id} to {path}")
-        with open(path, "w") as f:
-            f.write(job_id)
-
-def do_test(pubsub):
-    to_send = set(map(str, [1 , 2, 3 ,4]))
-
-    for i in to_send:
-        pubsub.push(i)
-
-    time.sleep(1)
-    while len(to_send):
-        r = pubsub.pull()
-        to_send -= {r}
-        
-def test_pub_sub():
-    try:
-        del os.environ['EMULATION_DIR']
-    except:
+    def do_acknowledge(self, path, msg):
         pass
-    os.environ['DEPLOYMENT_MODE'] = "EMULATION"
-    from .CloudServices import GetPubSub
-    PubSub = GetPubSub()
-    
-    assert PubSub == LocalPubSub
 
-    do_test(PubSub())
-    
-    with tempfile.TemporaryDirectory(prefix="ENVIRON") as td:
-        log.debug(f"Created temp directory: {td}")
-        os.environ["EMULATION_DIR"] = td
-        t = PubSub()
-        do_test(t)
-
-
-    
+    def do_delete_subscription(self, path):
+        shutil.rmtree(os.path.join(self.subscriptions_root, path))

@@ -23,15 +23,43 @@ import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .CloudServices import DS, PubSub
+from .BlobStore import BlobStore
+from .DataStore import DataStore
+from .PubSub import Publisher
+from zipfile import ZipFile
 
-class RunnerException(Exception):
+from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
+
+from .Columnize import columnize
+import datetime
+import pytz
+
+class UserError(Exception):
     pass
-class BadOptionException(RunnerException):
-    pass
-class ConfigException(Exception):
+class ArchlabError(Exception):
     pass
 
+class BadOptionException(UserError):
+    pass
+class ConfigException(UserError):
+    pass
+
+class MalformedObject(ArchlabError):
+    pass
+
+
+class cd:
+    """Context manager for changing the current working directory"""
+    def __init__(self, newPath):
+        self.newPath = os.path.expanduser(newPath)
+        
+    def __enter__(self):
+        self.savedPath = os.getcwd()
+        os.chdir(self.newPath)
+        
+    def __exit__(self, etype, value, traceback):
+        os.chdir(self.savedPath)
+                
 @contextmanager
 def environment(**kwds):
     env = copy.deepcopy(os.environ)
@@ -54,7 +82,8 @@ class LabSpec(object):
 
     def __init__(self,
                  lab_name=None,
-                 output_files= None,
+                 short_name=None,
+                 output_files=None,
                  input_files=None,
                  repo=None,
                  reference_tag = None,
@@ -67,6 +96,7 @@ class LabSpec(object):
 
         with collect_fields_of(self):
             self.lab_name = lab_name
+            self.short_name = short_name
             self.output_files = output_files
             self.input_files = input_files
             self.repo = repo
@@ -77,6 +107,7 @@ class LabSpec(object):
             self.time_limit = time_limit
             self.solution = solution
             self.config_file = config_file
+
             
         if self.default_cmd is None:
             self.default_cmd = ['make']
@@ -84,18 +115,63 @@ class LabSpec(object):
             self.clean_cmd = ['make', 'clean']
         
         assert self.lab_name is not None, "You must name your lab"
-                
+
+    class GradedRegressions(unittest.TestCase):
+        pass
+    
+    class MetaRegressions(unittest.TestCase):
+        pass
+
+    def run_gradescope_tests(self, result, dirname):
+        out =io.StringIO()
+        Class = type(self).GradedRegressions
+        log.debug(f"Running regressions for {Class}")
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        with cd (dirname):
+            with environment(**result.submission.env):
+                JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
+        result.results['gradescope_test_output'] = json.loads(out.getvalue())
+
+    def run_meta_regressions(self, *argc, **kwargs):
+        Class = type(self).MetaRegressions
+        if kwargs.get('test_name', None):
+            suite = unittest.defaultTestLoader.loadTestsFromName(kwargs['test_name'])
+        else:
+            suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
+        del kwargs['test_name']
+            
+        runner = unittest.TextTestRunner(*argc, **kwargs)
+        return runner.run(suite)
+        
+    def get_help(self):
+        rows = []
+        rows.append(["INFO", ""])
+        rows.append(["=======", ""])
+        rows += [[k,getattr(self, k)] for k in ["lab_name", "short_name", "input_files", "output_files", "default_cmd", "clean_cmd", "time_limit"]]
+        rows.append(["", ""])
+        rows.append(["OPTIONS", ""])
+        rows.append(["=======", ""])
+        rows += map(list,self.valid_options.items())
+        out = columnize(rows, headers=None, divider=" : " )
+        return out
+        
+    
     def _asdict(self):
         return {f:getattr(self, f) for f in self._fields}
 
     # there no reason for these to be methods of this class
-    
+
     def csv_extract_by_line(self, file_contents, field, line=0):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         if len(d) < line + 1:
+            log.debug(f"Returning None, because there is no line {line}")
             return None
-        return float(d[line][field])
+        try:
+            return float(d[line][field])
+        except:
+            return d[line][field]
+    
 
     def csv_extract_by_lookup(self, file_contents, field, column, value):
         reader = csv.DictReader(StringIO(file_contents))
@@ -104,67 +180,25 @@ class LabSpec(object):
         for l in d:
             if l[column] == value:
                 if r == None:
-                    r = float(l[field])
+                    try:
+                        return float(l[field])
+                    except:
+                        return l[field]
                 else:
                     raise Exception(f"Multiple lines in output have {column}=={value}")
         return r
     
     def csv_column_values(self, file_contents, field):
         reader = csv.DictReader(StringIO(file_contents))
-        return map(lambda x: x[field], reader)
+        def parse(x):
+            try:
+                return float(x)
+            except:
+                return x
+        return map(lambda x: parse(x[field]), reader)
     
-    def post_run(self, result):
-        return result
-
-    def parse_one_option(self, option, value):
-        if option == "cmd_line":
-            value = value.strip()
-            if re.match(r"[\w\.\s]*", value):
-                return True, True, "simple text", dict(USER_CMD_LINE=value)
-            else:
-                return self.parse_one_dict_option(option, value)
-        elif option == "MHz":
-            return True, True, "integer multiples of 100", dict(MHZ=str(int(value)))
-        elif option == "optimize":
-            value = value.strip();
-            if not re.match(r"[\s\w\-]*", value):
-                return True, False, "Compiler optimization flags", {}
-            else:
-                return True, True, "Compiler optimization flags", dict(C_OPTS=value)
-        elif option == "profiler":
-            if value == 'gprof':
-                return True, True, "gprof", dict(GPROF="yes")
-            else:
-                return True, False, "gprof", {}
-        else:
-            return self.parse_one_dict_option(option, value)
-
-    def parse_one_dict_option(self, option, value):
-        if option not in self.valid_options:
-            return False, False, "", {}
-        if value not in self.valid_options[option]:
-            return True, False, ", ".join(self.valid_options[k].keys()), {}
-        return True, True,  ", ".join(self.valid_options[option].keys()), self.valid_options[option][value]
-
-    def parse_options(self, submission):
-        log.debug(f"Parsing options {submission.options}")
-        log.debug(f"Using option spec {self.valid_options}")
-        valid_options = self.valid_options
-
-        for k, v in list(submission.options.items()) + list(self.default_options.items()):
-            valid_option_name, valid_value, valid_option_values, env = self.parse_one_option(k, v)
-            if not valid_option_name:
-                raise Exception(f"Illegal config file option '{k}'")
-            if not valid_value:
-                raise Exception(f"Illegal config file value '{v}' for option '{k}'")
-            log.debug(f"Parsed option {k}={v} and added {env} into environment")
-            submission.env.update(env)
-
-        log.debug(f"New environment {submission.env}.")
-
-        
     def safe_env_value(self, v):
-        safe_env = r"[a-zA-Z0-9_\-\. \"\']"
+        safe_env = r"[a-zA-Z0-9_\-\. =\"\'\/]"
         if not re.match(fr"^{safe_env}*$", v):
             return False
         else:
@@ -173,8 +207,13 @@ class LabSpec(object):
     def parse_config(self, f):
         r = dict()
         for l in f.readlines():
+            orig=l
             l = re.sub(r"#.*", "", l)
+            log.debug(f"stripped: {l}")
+            l = re.sub(r'"|\'', "", l)
+            log.debug(f"stripped: {l}")
             l = l.strip()
+            log.debug(f"stripped: {l}")
             if not l:
                 continue
 
@@ -187,6 +226,7 @@ class LabSpec(object):
                 if not self.safe_env_value(m.group(2)):
                     raise ConfigException(f"Unsafe value in this line.  Values cannot contain special characters.: {l}")
 
+            log.debug(f"Parsed '{orig}' as '{m.group(1)}' = '{m.group(2)}'")
             r[m.group(1)] = m.group(2)
         return r
     
@@ -232,77 +272,65 @@ class LabSpec(object):
         
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
+        try:
+            t = cls(**j)
+        except TypeError:
+            raise MalformedObject()
         return t
 
     @classmethod
-    def load(cls, root):
-        log.debug("Importing {}".format(os.path.join(root, "lab.py")))
-        spec = importlib.util.spec_from_file_location("LabInfo", os.path.join(root, "lab.py"))
-        lab_info = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(lab_info)
+    def load(cls, root, public_only=False):
+        sys.path.insert(0, os.path.abspath(root))
+        def load_file(name, f):
+            path =  os.path.join(root, f)
+            spec = importlib.util.spec_from_file_location(name, path)
+            info = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(info)
+            log.debug(f"Imported {path}")
+            log.debug(f"{dir(info)}")
+            return info
 
-        return lab_info.ThisLab()
+        if public_only:
+            log.debug(f"Ignoring private.py")
+            LabType = load_file("lab", "lab.py").ThisLab
+        else:
+            try:
+                log.debug(f"Checking for private.py")
+                LabType = load_file("private", "private.py").ThisLab
+            except FileNotFoundError:
+                log.debug(f"Falling back to lab.py")
+                LabType = load_file("lab", "lab.py").ThisLab
+                
+        return LabType()
 
 class Submission(object):
 
-    def __init__(self, lab_spec, files, env, command):
+    def __init__(self, lab_spec, files, env, command, #run_directory,
+                 user_directory, solution, username=None):
         self.lab_spec = lab_spec
-        self.files = files
-        self.env = env
-        self.command = command
-        
+        with collect_fields_of(self):
+            self.files = files
+            self.env = env
+            self.command = command
+            self.username = username
+            self.user_directory = user_directory
+      #      self.run_directory = run_directory
+            self.solution = solution
+            
     def _asdict(self):
-        return dict(lab_spec=self.lab_spec._asdict(),
-                    files=self.files,
-                    env=self.env,
-                    command=self.command)
+        t = {f:getattr(self, f) for f in self._fields}
+        t['lab_spec'] = self.lab_spec._asdict()
+        return t
 
     @classmethod
     def _fromdict(cls, j):
-        t = cls(**j)
-        t.lab_spec = LabSpec(**t.lab_spec)
-        return t
-
-    def apply_options(self):
-        if subprocess.call(['which', 'cpupower']) != 0:
-            log.warning("cpupower utility is not available.  Clock speed setting will not work.")
-            return
-
         try:
-            o = subprocess.check_output(["cpupower", "frequency-info", "-s"]).decode("utf-8").split("\n")
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"Calling 'cpupower' to extract frequency list failed: {e}")
-
-        if "analyzing CPU" not in o[0]:
-            raise Exception("Error running cpu power to extract available frequencies")
-
-        fields = o[1].split(", ")
-        frequencies = []
-        for f in fields:
-            m = re.search(r"(\d+):(\d+)", f)
-            if not m:
-                raise Exception(f"Failed to parse output from cpupower: {f}")
-            f = int(int(m.group(1))/1000)
-            if f % 10 == 0: # Sometimes the list includes things like 2001Mhz, but they don't seem to actually valid values, so trim them.
-                frequencies.append(f)
-            
-        self.env["ARCHLAB_AVAILABLE_CPU_FREQUENCIES"] = " ".join(map(str, frequencies))
-
-        if "MHz" in self.env:
-            if int(self.env['MHz']) not in frequencies:
-                raise Exception(f"Unsupported frequency in 'MHz': {self.env['MHz']}")
-            target_MHz = self.env['MHz']
+            t = cls(**j)
+            t.lab_spec = LabSpec(**t.lab_spec)
+        except TypeError:
+            raise MalformedObject
         else:
-            target_MHz = max(frequencies)
-
-        try:
-            subprocess.check_output(["cpupower", "frequency-set", "--freq", f"{target_MHz}MHz"]).decode("utf-8").split("\n")
-            o = subprocess.check_output(["/usr/bin/cpupower", "frequency-info", "-w"]).decode("utf-8").split("\n")
-            if f"{target_MHz}000" not in o[1]:
-                raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {o[1]}.")
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"Calling 'cpupower' to set frequency to {target_MHz}MHz failed: {e}")
+            return t
 
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
@@ -317,156 +345,240 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, results=None):
+    def __init__(self, submission, files, status, status_reasons, results=None):
         self.submission = submission
-        log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
+        #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
+        self.status_reasons = status_reasons
+        
         if results is None:
             self.results = {}
         else:
             self.results = results
 
     def get_file(self, name):
-        return base64.b64decode(self.files[name]).decode("utf-8")
+        try: # this seems horribly wrong. We return either bytes or a string...
+            return base64.b64decode(self.files[name]).decode("utf8")
+        except UnicodeDecodeError:
+            return base64.b64decode(self.files[name])
+    
     def put_file(self, name, contents):
         self.files[name] = base64.b64encode(contents).decode('utf8')
-        return base64.b64decode(self.files[name]).decode("utf8")
-        
+            
     def _asdict(self):
         return dict(submission=self.submission._asdict(),
                     files=self.files,
                     status=self.status,
-                    results=self.results)
+                    results=self.results,
+                    status_reasons=self.status_reasons)
+    
+    def write_outputs(self):
+        for i in self.files:
+            p = os.path.abspath(os.path.join(self.submission.user_directory, i))
+            with open(p, "wb") as t:
+                log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
+                t.write(base64.b64decode(self.files[i]))
+                
+        with open(os.path.join(self.submission.user_directory, "results.json"), "w") as t:
+            log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
+            t.write(json.dumps(self.results, sort_keys=True, indent=4))
+
+    def build_file_zip_archive(self):
+        out = io.BytesIO()
+        zip_file = ZipFile(out,mode="w")
+        
+        for fn in self.files:
+            zip_file.writestr(fn, self.get_file(fn))
+
+        for fn in self.submission.files:
+            zip_file.writestr(fn, base64.b64decode(self.submission.files[fn]).decode('utf8'))
+        zip_file.close()
+
+        return out.getvalue()
 
     @classmethod
     def _fromdict(cls, j):
-        j['submission'] = Submission._fromdict(j['submission'])
-        t = cls(**j)
-        return cls(**j)
+        try:
+            if j['submission']:
+                j['submission'] = Submission._fromdict(j['submission'])
+            return cls(**j)
+        except TypeError:
+            raise MalformedObject
 
-def run_submission_remotely(submission,
-                            metadata=None,
-                            manifest=None):
 
-    ds = DS()
-    pubsub = PubSub()
 
-    log.debug(f"Metadata was: {metadata}")
-    if not metadata:
-        metadata = ""
+def run_submission_remotely(submission, daemon=False):
+    the_daemon = None
+    log.info(f"Submitting remotely  {os.environ['IN_DEPLOYMENT']}")
+    log.info(f"Submitting remotely  {os.environ['CLOUD_MODE']}")
+    log.info(f"Submitting remotely  {os.environ['GOOGLE_RESOURCE_PREFIX']}")
+    try:
+        if daemon:
+            log.debug("Starting local daemon")
+            # This should ensure that the daemon processes our
+            # requests.  This prevents interference between testing
+            # instances.
+            #os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
+            the_daemon = subprocess.Popen(['runlab.d', '-v', '--debug', '--docker'])
+        else:
+            the_daemon = None
 
-    if not manifest:
-        manifest = ""
+        with environment(**submission.env):
+            # cleanup local outputs.  This is mostly so can reliably
+            # test for the absence of particular outputs.
+            subprocess.check_call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
+            
+        ds = DataStore()
+        publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
 
-    log.debug(f"Metadata is: {metadata}")
+        job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
-    job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4) + '\n'
+        job_id = str(uuid())
 
-    job_id = uuid()
+        output = ''
 
-    log.debug(f"Writing submission to datastore")
-    log.debug(f"{job_id}\n{metadata}\n{job_submission_json}\n{manifest}\n")
-
-    output = ''
-    status = 'SUBMITTED'
-
-    ds.push(
-        str(job_id),
-        metadata, 
-        job_submission_json, 
-        manifest,
-        output,
-        status,
-        lab_name=submission.lab_spec.lab_name
-    )
-
-    time.sleep(1.0)
-
-    log.debug(f"Pushing job to pubsub")
-    pubsub.push(job_id=str(job_id))
-
-    start_time = time.time()
-    status = 'SUBMITTED'
-    running_time = time.time() - start_time
-
-    while True:
-        running_time = time.time() - start_time
-
-        if running_time > 60*10:
-            status = 'TIME OUT (runtime > 10 minutes)'
-            log.error('Timeout: ' + str(running_time) + 's')
-            break
-        job_data = ds.pull(
-            job_id=str(job_id)
+        blobstore = BlobStore(os.environ['JOBS_BUCKET'])
+        blobstore.write_file(job_id, job_submission_json)
+        ds.push(
+            job_id,
+            output='',
+            status='SUBMITTED',
+            username=submission.username
         )
 
-        if job_data is None:
-            log.error("Can't find job!")
-            raise Exception(f"Couldn't find job: {job_id}")
-        else:
-            log.info(f"Job progress: {job_data['status']}.")
+        publisher.publish(job_id)
 
-            if job_data['status'] == 'COMPLETED':
-                log.info(f"Job       finished after {running_time} seconds: {job_id}")
-                log.debug(f"job_data['output'] = {job_data['output']}")
-                status = 'COMPLETED'
-                r = SubmissionResult._fromdict(json.loads(job_data['output']))
-                log.debug(f"{r}")
-                return r
+        c = 0
+        while True:
+            log.info("Waiting for job to appear...")
+            job_data = ds.pull(
+                job_id=job_id
+            )
+            if job_data:
+                break
+            c +=1
+            if c > 20:
+                raise ArchlabError("I was not able to submit your job.  This is a problem with the autograder.  Try again.")
+            time.sleep(0.5)
 
+        start_time = time.time()
+        status = 'SUBMITTED'
+        running_time = time.time() - start_time
 
-        time.sleep(1)
+        log.info(f"Started job {job_id}.")
+        while True:
+
+            job_data = ds.pull(
+                job_id=job_id
+            )
+
+            running_time = time.time() - start_time
+
+            if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
+                status = SubmissionResult.TIMEOUT
+                log.error(f'Job timed out after {running_time}s')
+                ds.update(job_id,
+                          status="COMPLETED",
+                          completed_utc=datetime.datetime.now(pytz.utc),
+                          submission_status=SubmissionResult.TIMEOUT)
+                raise UserError(f"Your job ran for more than {os.environ['UNIVERSAL_TIMEOUT_SEC']} seconds, and was canceled")
+
+            if job_data is None:
+                log.error("Can't find job!")
+                raise ArchlabError(f"Couldn't find job: {job_id}")
+            else:
+                log.debug(f"Job progress: {job_id[:8]} is {job_data['status']} on host {job_data['runner_host'] or '<na>'}")
+
+                if job_data['status'] == 'COMPLETED':
+                    log.info(f"Job finished after {running_time} seconds: {job_id}")
+                    status = 'COMPLETED'
+                    r = SubmissionResult._fromdict(json.loads(blobstore.read_file(f"{job_id}-result")))
+                    r.write_outputs()
+                    r.zip_archive = job_data['zip_archive']
+                    return r
+                elif job_data['status'] == 'ERROR':
+                    raise ArchlabError(f"Job failed after {running_time} seconds: {job_id}:\nstatus={job_data['status']}\n{'; '.join(job_data['status_reasons'])}")
+                elif job_data['status'] == 'STARTED':
+                    pass  # keep running...
+                elif job_data['status'] == 'SUBMITTED':
+                    pass  # keep running...
+                else:
+                    raise ArchlabError(f"Job {job_id} in unknown state: '{job_data['status']}'")
+
+            time.sleep(1)
+    finally:
+        if the_daemon:
+            log.debug("Killing local daemon")
+            the_daemon.terminate()
+            the_daemon.wait()
+            log.debug("Local daemon is dead.")
+            try:
+                del os.environ['PRIVATE_PUBSUB_NAMESPACE']
+            except:
+                pass
                   
 
-def run_submission_locally(sub, root=".",
+def run_submission_locally(sub,
                            run_in_docker=False,
                            run_pristine=False,
                            nop=False,
                            timeout=None,
-                           apply_options=False,
-                           docker_image=None):
+                           write_outputs=True, # write outputs in addition to capturing them
+                           docker_image=None,
+                           verify_repo=True,
+                           user_directory_override=None):
     out = StringIO()
     err = StringIO()
     result_files = {}
+    root = sub.user_directory
+    reasons = []
+    status = SubmissionResult.ERROR
 
     def log_run(cmd, *args, timeout=None, **kwargs):
         log.debug("# executing {} in {}\n".format(repr(cmd), kwargs.get('cwd', ".")))
 
         r = SubmissionResult.SUCCESS
-
-        p = subprocess.Popen(cmd, *args, stdin=None,
-                             **kwargs)
-
-        output, errout = b"", b""
-
-        log.debug(f"Timeout is {timeout}")
+        reasons = []
         try:
+            p = subprocess.Popen(cmd, *args, stdin=None,
+                                 **kwargs)
+            
+            output, errout = b"", b""
+            
+            log.debug(f"Timeout is {timeout}")
             output, errout = p.communicate(timeout=timeout)
             log.info(f"Execution completed with result: {p.returncode}")
             if p.returncode != 0:
                 r = SubmissionResult.ERROR
-                
+                reasons.append(f"""Execution of {cmd} completed with result {p.returncode}, which usually indicates failure.  Look at STDERR and STDOUT for more information.""")
         except subprocess.TimeoutExpired:
             log.error(f"Execution timed out after {timeout} seconds.")
 
             # clean up: https://docs.python.org/3/library/subprocess.html
             p.kill()
-            output, errout = p.communicate()
+            output2, errout2 = p.communicate()
+
+            output += output2 or b""
+            errout += errout2 or b""
             
             r = SubmissionResult.TIMEOUT
+            reasons.append("Execution of {args} timedout after {timeout} seconds.")
             try:
                 subprocess.run(['stty', 'sane']) # Timeouts can leave the terminal in a bad state.  Restore it.
             except:
                 pass  # if it doesn't work, it's not a big deal
-
+        except OSError as e:
+            r = SubmissionResult.ERROR
+            reasons.append(f"An error occcurred while running your program: {repr(e)}.")
+            
         if output:
             out.write(output.decode("utf-8"))
         if errout:
             err.write(errout.decode("utf-8"))
 
-        return r
+        return r, reasons
 
     @contextmanager
     def directory_or_tmp(d=None):
@@ -482,7 +594,6 @@ def run_submission_locally(sub, root=".",
             finally:
                 r.cleanup()
 
-    status = SubmissionResult.ERROR
     
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
         # the problem here is that when we spawn the new docker image, it's a symbling to this image, and it needs to
@@ -491,62 +602,97 @@ def run_submission_locally(sub, root=".",
         # to use pristine.
         raise Exception("If you are running in docker, you can only use '--docker' with '--pristine'.  '--local' won't work.")
 
-    try:
-        # use the existing directory, if we aren't doing a pristine checkout.
-        with directory_or_tmp(root if not run_pristine else None) as dirname:
+    # use the existing directory, if we aren't doing a pristine checkout.
+    with directory_or_tmp(root if not run_pristine else None) as dirname:
+        try:
             if run_pristine:
                 repo = sub.lab_spec.repo
+                log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
+                if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
+                    raise UserError(f"Repo {repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
-                r = log_run(cmd=['git', 'clone', repo , dirname])
+                log.info("Cloning lab reference files...")
+                r, reasons = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
                 if r != SubmissionResult.SUCCESS:
-                    raise Exception("Clone for pristine execution failed.")
+                    raise  ArchlabError(f"Clone for pristine execution failed: {reasons}")
 
             sub.lab_spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                log.debug(f"Executing submission in docker\n{sub._asdict()}")
-                with open(os.path.join(dirname, "job.json"), "w") as job:
-                    json.dump(sub._asdict(), job, sort_keys=True, indent=4)
-                status = log_run(cmd=
-                                 ["docker", "run",
-                                  "--hostname", "runner",
-                                  "--volume", f"{dirname}:/runner",
-                                  "-w", "/runner",
-                                  "--privileged",
-                                  docker_image,
-                                  "runlab", "--run-json", "job.json"] +
-                                 (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
-                                 timeout=sub.lab_spec.time_limit)
-            else:
-                if run_pristine:
-                    for f in sub.files:
-                        path = os.path.join(dirname, f)
-                        with open(path, "wb") as of:
-                            log.debug("Writing input file {}".format(path))
-                            of.write(base64.b64decode(sub.files[f]))
+                assert dirname[:4] == "/tmp", f"{dirname} doesn't appear to be a /tmp directory"
+                id = str(uuid())
+                os.makedirs(os.path.join("/staging", id), exist_ok=True)
+                job_path = os.path.join("/staging", id, "job.json")
+                status_path = os.path.join("/staging",id, "status.json")
+                with open(job_path, "w") as job:
+                    d = sub._asdict()
+                    # we can't be sure where the submission's
+                    # directory is, but that's ok.  The submision
+                    # object has all the files in it.  What we know
+                    # for sure is that dirname is where we cloned the
+                    # lab (since pristine is required for docker) so we can
+                    # safely use that.
+                    d['user_directory'] = dirname 
+                    json.dump(d, job, sort_keys=True, indent=4)
+                    log.info(f"Wrote job spec to {job_path}")
 
-                
-                log.debug(f"Executing submission\n{sub._asdict()}")
+                my_container_id = subprocess.check_output("head -1 /proc/self/cgroup".split()).decode("utf8").split("/")[-1]
+
+                log.info(f"my container id is: {my_container_id}")
+                log.info("Docker starts...")
+                status, reasons = log_run(cmd=
+                                          ["docker", "run",
+                                           "--hostname", "runner",
+                                           "--volumes-from", my_container_id.strip(),
+                                           "--volume", f"{dirname}:{dirname}"] + 
+                                          (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
+                                          ["-w", dirname,
+                                           "--privileged",
+                                           docker_image,
+                                           "runlab", "--run-json", job_path, '--debug', '--json-status', status_path, '--directory', dirname] +
+                                          (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
+                                          timeout=sub.lab_spec.time_limit)
+                log.info("Docker finished")
+
+                if os.path.exists(status_path):
+                    with open(status_path, "r") as s:
+                        json_status = json.loads(s.read())
+                        if json_status['exit_code'] != 0:
+                            reasons.append(f"From runlab in docker: {json_status['status_str']}")
+            else:
 
                 # filter the environment with the clean lab_spec
-                log.debug(f"Incomming env: {sub.env}")
+                log.debug(f"Incoming env: {sub.env}")
                 sub.env = sub.lab_spec.filter_env(sub.env)
                 good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
                 if not good_command:
-                    raise Exception(f"Disallowed command ({error}): {sub.command}")
-                
+                    raise UserError(f"Disallowed command ({error}): {sub.command}")
+                log.debug(f"Filtered env: {sub.env}")
+
                 if run_pristine:
                     # we just dumped the files in '.' so, look for them there.
-                    sub.env['LAB_SUBMISSION_DIR'] = "." 
-                log.debug(f"Filtered env: {sub.env}")
+                    sub.env['LAB_SUBMISSION_DIR'] = dirname
+                else:
+                    with environment(**sub.env):
+                        log_run(sub.lab_spec.clean_cmd, cwd=dirname)
+                    os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
+                    sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
+
+                for f in sub.files:
+                    path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
+                    os.makedirs(os.path.dirname(path),exist_ok=True)
+                    with open(path, "wb") as of:
+                        log.debug("Writing input file {}".format(path))
+                        of.write(base64.b64decode(sub.files[f]))
+
+                # Run the job!
                 with environment(**sub.env):
-                    log_run(sub.lab_spec.clean_cmd, cwd=dirname)
-                    status = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
+                    status, reasons = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
             for f in sub.lab_spec.output_files:
-                log.debug(f"Searching for output files matchi '{f}'")
+                log.debug(f"Searching for output files matching '{f}'")
                 for filename in Path(dirname).glob(f):
                     if os.path.isfile(filename):
                         with open(filename, "rb") as r:
@@ -555,91 +701,132 @@ def run_submission_locally(sub, root=".",
                             t = str(key)
                             result_files[t] = base64.b64encode(r.read()).decode('utf8')
 
-    except TypeError:
-        raise
-    except Exception as e:
-        traceback.print_exc(file=err)
-        traceback.print_exc()
-        err.write("# Execution failed\n")
-        out.write("# Execution failed\n")
-        status=SubmissionResult.ERROR
-
-    try:
-        result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
-        result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
-        log.debug("STDOUT: \n{}".format(out.getvalue()))
-        log.debug("STDOUT_ENDS")
-        log.debug("STDERR: \n{}".format(err.getvalue()))
-        log.debug("STDERR_ENDS")
-        log.debug(result_files['STDOUT'])
-        result = SubmissionResult(sub, result_files, status)
-        result = sub.lab_spec.post_run(result)
-    except Exception as e:
-        result = SubmissionResult(sub, {}, SubmissionResult.ERROR)
-        
+        except TypeError:
+            raise
+        except Exception as e:
+            traceback.print_exc(file=err)
+            traceback.print_exc()
+            err.write("# Execution failed\n")
+            out.write("# Execution failed\n")
+            status=SubmissionResult.ERROR
+            reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  THis probably a bug or error in the autograder.")
+            
+        try:
+            result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+            result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+            log.debug("STDOUT: \n{}".format(out.getvalue()))
+            log.debug("STDOUT_ENDS")
+            log.debug("STDERR: \n{}".format(err.getvalue()))
+            log.debug("STDERR_ENDS")
+            log.debug(result_files['STDOUT'])
+            result = SubmissionResult(sub, result_files, status, reasons)
+            sub.lab_spec.run_gradescope_tests(result, dirname)
+            if write_outputs:
+                result.write_outputs()
+        except Exception as e:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            log.error("\n".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+            log.error(repr(e))
+            result_files['exception'] = base64.b64encode(repr(e).encode('utf8')).decode('utf8')
+            result = SubmissionResult(sub,
+                                      result_files,
+                                      SubmissionResult.ERROR,
+                                      [f'Something went wrong while preparing the submission response.  This a bug or error in the autograder: {repr(e)}'])
+            
     return result
     
-
 
 def remove_outputs(dirname, submission):
     for i in submission.lab_spec.output_files:
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(directory, input_dir, command, config_file=None):
-    spec = LabSpec.load(directory)
-    files = {}
-    if config_file is None:
-        config_file = spec.config_file
+def build_submission(user_directory, solution, command, config_file=None, username=None,pristine=False, public_only=False):
 
-    if not command:
-        command = spec.default_cmd
-    # check if the command is ok.  We don't recorded the filtered version
-    # because the filtered result might not, itself, pass through the filter.
-    good_command, error, _ = spec.filter_command(command)
-    if not good_command:
-        raise Exception(f"This command is not allowed ({error}): {command}")
-        
-    for f in spec.input_files:
-        full_path = os.path.join(directory, input_dir)
-        for filename in Path(full_path).glob(f):
-            log.debug(f"Found file '{filename}' matching '{f}'.")
+    # We default to 'solution' so the autograder will run the solution when we
+    # test it with maste repo. Since we delete 'solution' in the starter repo,
+    # it will use '.' for the students.
+    if solution is None:
+        input_dir = "solution" if os.path.isdir("solution") else "."
+    else:
+        input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
+    os.environ['LAB_SUBMISSION_DIR'] = input_dir
+
+    with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
+        if pristine:
             try:
-                with open(filename, "rb") as o:
-                    log.debug(f"Reading input file '{filename}'")
-                    key = filename.relative_to(full_path)
-                    log.debug(f"Storing as '{str(key)}'")
-                    files[str(key)] = base64.b64encode(o.read()).decode('utf8')
-                    log.info(f"Found input file '{filename}'")
-            except Exception:
-                raise Exception(f"Couldn't open input file '{filename}'.")
+                log.info("Cloning user files to get the version in github...")
+                subprocess.check_call(["git", "clone", user_directory, run_directory])
+            except Exception as e:
+                log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                raise UserError("Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+        else:
+            run_directory = user_directory
+
+        spec = LabSpec.load(run_directory, public_only=public_only)
+        files = {}
+        if config_file is None:
+            config_file = spec.config_file
+
+        if not command:
+            command = spec.default_cmd
+        # check if the command is ok.  We don't recorded the filtered version
+        # because the filtered result might not, itself, pass through the filter.
+        good_command, error, _ = spec.filter_command(command)
+        if not good_command:
+            raise UserError(f"This command is not allowed ({error}): {command}")
+
+        for f in spec.input_files:
+            full_path = os.path.join(run_directory, input_dir)
+            log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
+            for filename in Path(full_path).glob(f):
+                if not  os.path.isfile(filename):
+                    log.debug(f"Skipping '{filename}' since it's a directory")
+                    continue
+                log.debug(f"Found file '{filename}' matching '{f}'.")
+                try:
+                    with open(filename, "rb") as o:
+                        log.debug(f"Reading input file '{filename}'")
+                        key = filename.relative_to(full_path)
+                        log.debug(f"Storing as '{str(key)}'")
+                        files[str(key)] = base64.b64encode(o.read()).decode('utf8')
+                        log.info(f"Found input file '{filename}'")
+                except Exception:
+                    raise UserError(f"Couldn't open input file '{filename}'.")
+
+        if config_file:
+            path = os.path.join(run_directory,
+                                input_dir,
+                                config_file)
+            with open(path) as config:
+                log.debug(f"Parsing config file: '{path}'")
+                from_config = spec.parse_config(config)
+                for i in from_config:
+                    log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
+        else:
+            log.debug("No config file")
+            from_config = {}
 
     from_env = spec.filter_env(os.environ)
+    
     for i in from_env:
+        from_env[i] = re.sub(r'"|\'', "", from_env[i])
         log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
         
-    if config_file:
-        path = os.path.join(directory,
-                            input_dir,
-                            config_file)
-        with open(path) as config:
-            from_config = spec.parse_config(config)
-            for i in from_config:
-                log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
-    else:
-        from_config = {}
-        
-    from_env.update(from_config)
+    from_config.update(from_env)
 
-    s = Submission(spec, files, from_env, command)
+    s = Submission(spec, files, from_config, command, 
+                   user_directory, input_dir, username=username)
+
     return s
+
+    
 
 
 def test_run():
     sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
 
     result = run_submission_locally(sub,
-                                    "test_inputs",
                                     run_in_docker = False,
                                     run_pristine = False,
                                     docker_image = None)
@@ -656,7 +843,6 @@ def test_run():
     n = SubmissionResult._fromdict(j)
 
     result2 = run_submission_locally(sub,
-                                     "test_inputs",
                                      run_in_docker = False,
                                      run_pristine = False,
                                      docker_image = None)
@@ -677,7 +863,7 @@ def test_lab_spec():
 def test_build_result():
     with environment(FOO="BAR", C_OPTS="yes"):
         sub = build_submission("test_inputs", ".", config_file = "config-good", command=["true"])
-        r = SubmissionResult(sub, dict(t="stuff"), SubmissionResult.SUCCESS)
+        r = SubmissionResult(sub, dict(t="stuff"), SubmissionResult.SUCCESS, [])
         d = r._asdict()
         j = json.loads(json.dumps(d))
         n = SubmissionResult._fromdict(j)
@@ -725,9 +911,7 @@ def test_configs_validation():
         spec = LabSpec.load("test_inputs")
         for f in [
                 """
-                USER_CMD_LINE=hello
                 USER_CMD_LINE2=hello
-                USER_CMD_LINE=--stat foo bar "baoeu aoue"
                 GPROF=yes
                 DEBUG=no
                 DEBUG2=
@@ -736,7 +920,6 @@ def test_configs_validation():
             s = io.StringIO(f)
             env = spec.parse_config(s)
             assert dict(USER_CMD_LINE2="hello",
-                        USER_CMD_LINE='--stat foo bar "baoeu aoue"',
                         GPROF="yes",
                         DEBUG="no",
                         DEBUG2=""
