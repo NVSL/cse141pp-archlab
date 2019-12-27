@@ -421,7 +421,7 @@ def run_submission_remotely(submission, daemon=False):
             # requests.  This prevents interference between testing
             # instances.
             #os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
-            the_daemon = subprocess.Popen(['runlab.d', '-v', '--debug', '--docker'])
+            the_daemon = subprocess.Popen(['runlab.d', '--debug', '--docker'] + (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []))
         else:
             the_daemon = None
 
