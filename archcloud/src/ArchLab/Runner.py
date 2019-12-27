@@ -588,7 +588,7 @@ def run_submission_locally(sub,
             finally:
                 pass
         else:
-            r = tempfile.TemporaryDirectory(dir="/tmp/")
+            r = tempfile.TemporaryDirectory(dir="/staging/")
             try:
                 yield r.name
             finally:
@@ -621,7 +621,7 @@ def run_submission_locally(sub,
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
-                assert dirname[:4] == "/tmp", f"{dirname} doesn't appear to be a /tmp directory"
+                assert dirname[:8] == "/staging", f"{dirname} doesn't appear to be a /staging directory"
                 id = str(uuid())
                 os.makedirs(os.path.join("/staging", id), exist_ok=True)
                 job_path = os.path.join("/staging", id, "job.json")
@@ -646,7 +646,7 @@ def run_submission_locally(sub,
                                           ["docker", "run",
                                            "--hostname", "runner",
                                            "--volumes-from", my_container_id.strip(),
-                                           "--volume", f"{dirname}:{dirname}"] + 
+                                           ] + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
                                           ["-w", dirname,
                                            "--privileged",
@@ -752,7 +752,7 @@ def build_submission(user_directory, solution, command, config_file=None, userna
         input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
 
-    with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
+    with tempfile.TemporaryDirectory(dir="/staging/") as run_directory:
         if pristine:
             try:
                 log.info("Cloning user files to get the version in github...")
