@@ -84,6 +84,7 @@ class CSE141Lab(LabSpec):
             "OPTIMIZE": "<gcc optimization flags>",
             "COMPILER": "gcc-9",
             'DEVEL_MODE':  "yes|no",
+            'IN_TRAVIS_CI': "yes|undef"
         })
         
         super(CSE141Lab, self).__init__(
@@ -182,7 +183,7 @@ class CSE141Lab(LabSpec):
     class MetaRegressions(unittest.TestCase, EasyFileAccess):
 
         def runtimes_valid(self):
-            return not 'IN_TRAVIS_CI' in os.environ
+            return not ('IN_TRAVIS_CI' in os.environ)
         
         def compute_scores(self, js):
             # breakdown score into approximate and precise components
