@@ -799,6 +799,9 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
                 if os.path.isdir(s):
                     solution = s
                     break
+                else:
+                    log.info(f"Looked for {s}, but didn't find it")
+                    
         input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
         os.environ['LAB_SUBMISSION_DIR'] = input_dir
                           
