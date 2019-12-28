@@ -280,28 +280,34 @@ class LabSpec(object):
 
     @classmethod
     def load(cls, root, public_only=False):
-        sys.path.insert(0, os.path.abspath(root))
-        def load_file(name, f):
-            path =  os.path.join(root, f)
-            spec = importlib.util.spec_from_file_location(name, path)
-            info = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(info)
-            log.debug(f"Imported {path}")
-            log.debug(f"{dir(info)}")
-            return info
 
-        if public_only:
-            log.debug(f"Ignoring private.py")
-            LabType = load_file("lab", "lab.py").ThisLab
-        else:
-            try:
-                log.debug(f"Checking for private.py")
-                LabType = load_file("private", "private.py").ThisLab
-            except FileNotFoundError:
-                log.debug(f"Falling back to lab.py")
+        try:
+            old=copy.deepcopy(sys.path)
+            log.debug(f"Added {os.path.abspath(root)} to sys path.  sys path is: {sys.path}")
+            sys.path.insert(0, os.path.abspath(root))
+            def load_file(name, f):
+                path =  os.path.join(root, f)
+                spec = importlib.util.spec_from_file_location(name, path)
+                info = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(info)
+                log.debug(f"Imported {path}")
+                log.debug(f"{dir(info)}")
+                return info
+
+            if public_only:
+                log.debug(f"Ignoring private.py")
                 LabType = load_file("lab", "lab.py").ThisLab
-                
-        return LabType()
+            else:
+                try:
+                    log.debug(f"Checking for private.py")
+                    LabType = load_file("private", "private.py").ThisLab
+                except FileNotFoundError:
+                    log.debug(f"Falling back to lab.py")
+                    LabType = load_file("lab", "lab.py").ThisLab
+
+            return LabType()
+        finally:
+            sys.path = old        
 
 class Submission(object):
 
@@ -703,13 +709,17 @@ def run_submission_locally(sub,
 
         except TypeError:
             raise
-        except Exception as e:
+        except (Exception, UserError,ArchlabError) as e:
             traceback.print_exc(file=err)
             traceback.print_exc()
             err.write("# Execution failed\n")
             out.write("# Execution failed\n")
             status=SubmissionResult.ERROR
-            reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  THis probably a bug or error in the autograder.")
+            log.error(f"Autograder caught an exception during execution.:{repr(e)}.", exc_info=True, stack_info=True)
+            if isinstance(e, UserError):
+                reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  This probably a bug or error in your submission.")
+            else:
+                reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  This probably not a bug in your submission.")
             
         try:
             result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')

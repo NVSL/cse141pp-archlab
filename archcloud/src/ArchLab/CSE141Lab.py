@@ -153,7 +153,7 @@ class CSE141Lab(LabSpec):
                 try:
                     p = subprocess.run(cmd, timeout=30, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 except OSError as e:
-                    self.assertTrue(False, "Something went wrong running the regressions.  If run_tests.exe runs for you locally, this is probably a bug in the autograder: {repr(e)}.")
+                    self.assertTrue(False, f"Something went wrong running the regressions.  If run_tests.exe runs for you locally, this is probably a bug in the autograder: {repr(e)}.")
                     p = None
                 except subprocess.TimeoutExpired:
                     p.kill()
@@ -226,7 +226,7 @@ class CSE141Lab(LabSpec):
                                               username="swanson@eng.ucsd.edu",
                                               pristine=flags.pristine)
                 if flags.remote:
-                    result = run_submission_remotely(submission, daemon=True)
+                    result = run_submission_remotely(submission, daemon=not 'SUPRESS_LOCAL_DAEMON' in os.environ)
                 else:
                     result = run_submission_locally(submission,
                                                     run_in_docker=False,
