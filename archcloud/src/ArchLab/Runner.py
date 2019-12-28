@@ -761,15 +761,17 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(user_directory, solution, command, config_file=None, username=None,pristine=False, public_only=False):
+def build_submission(user_directory, solution=None, command=None, config_file=None, username=None,pristine=False, public_only=False):
 
     # We default to 'solution' so the autograder will run the solution when we
     # test it with maste repo. Since we delete 'solution' in the starter repo,
     # it will use '.' for the students.
     if solution is None:
-        input_dir = "solution" if os.path.isdir("solution") else "."
-    else:
-        input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
+        for s in ['link_solution', 'solution', '.']:
+            if os.path.isdir(s):
+                solution = s
+                break
+    input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
     os.environ['LAB_SUBMISSION_DIR'] = input_dir
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
@@ -818,11 +820,14 @@ def build_submission(user_directory, solution, command, config_file=None, userna
             path = os.path.join(run_directory,
                                 input_dir,
                                 config_file)
-            with open(path) as config:
-                log.debug(f"Parsing config file: '{path}'")
-                from_config = spec.parse_config(config)
-                for i in from_config:
-                    log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
+            try:
+                with open(path) as config:
+                    log.debug(f"Parsing config file: '{path}'")
+                    from_config = spec.parse_config(config)
+                    for i in from_config:
+                        log.info(f"From '{path}', loading environment variable '{i}={from_config[i]}'")
+            except FileNotFoundError as e:
+                raise UserError(f"Your config file: '{path}' is missing.")
         else:
             log.debug("No config file")
             from_config = {}

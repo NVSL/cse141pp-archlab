@@ -84,7 +84,8 @@ class CSE141Lab(LabSpec):
             "OPTIMIZE": "<gcc optimization flags>",
             "COMPILER": "gcc-9",
             'DEVEL_MODE':  "yes|no",
-            'IN_TRAVIS_CI': "yes|undef"
+            'IN_TRAVIS_CI': "yes|undef",
+            'LAB_SUBMISSION_DIR' : "<subdirectory>"
         })
         
         super(CSE141Lab, self).__init__(

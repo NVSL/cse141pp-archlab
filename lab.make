@@ -53,7 +53,7 @@ starter:
 	(name=$$(basename $(PWD));\
 	cd starter-repo; \
 	git init .; \
-	git add * .travis.yml .gitignore; \
+	git add * .gitignore; \
 	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
 	)
 	(cd starter-repo; make test)
@@ -78,4 +78,4 @@ PRIVATE_FILES=*solution .git private.py test.py
 
 .PHONY: remove-private
 remove-private:
-	rm -rf $(PRIVATE_FILES)
+	rm -rf $(PRIVATE_FILES) .travis.yml # Ideally, we would keep this, but right now .travis.yml has my docker_access_token in it.

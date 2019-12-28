@@ -66,15 +66,13 @@ def main(argv=sys.argv[1:]):
                 #if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
                 #                        latest_submission = p
                 
-                solution = "solution" if os.path.isdir(os.path.join(submission_dir, "solution")) else "."
-                log.debug(f"Using solution '{solution}'.")
                 log.debug(f"{output}")
                 if False and recent_submissions > 1:
                         log.info("Too many recent submissions.  Copying old results to current results.")
                         output = latest_submission['results']
                 else:
                         start_time = time.time()
-                        submission = build_submission(submission_dir, solution, None, username=metadata['users'][0]["email"])
+                        submission = build_submission(submission_dir, username=metadata['users'][0]["email"])
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
