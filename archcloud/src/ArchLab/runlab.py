@@ -95,7 +95,8 @@ def main(argv=None):
     parser.add_argument('--zip', default=None, help=sm("Generate a zip file of inputs and outputs"))
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
     parser.add_argument('--public-only', action="store_true", help=sm("Only load the public lab configuration"))
-
+    parser.add_argument('--quieter', action="store_true", help=sm("Be quieter"))
+    
 
     if argv == None:
         argv = sys.argv[1:]
@@ -195,12 +196,13 @@ def main(argv=None):
                 if len(result.files[i]) > 1000:
                     log.debug("< more output >")
                     
-                if i == "STDERR":
+                if i == "STDERR.txt":
                     sys.stdout.write(result.files[i])
-                elif i == "STDOUT":
+                elif i == "STDOUT.txt":
                     sys.stdout.write(result.files[i])
                     
-            sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
+            if not args.quieter:
+                sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
 
             if args.zip:
                 with open(args.zip, "wb") as f:

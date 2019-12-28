@@ -149,9 +149,9 @@ def main(argv=sys.argv[1:]):
                         output = result.results.get('gradescope_test_output', output)
                         output['output'] = f"""
 ================== STDOUT =======================
-{result.get_file('STDOUT')}
+{result.get_file('STDOUT.txt')}
 ================== STDERR =======================
-{result.get_file('STDERR')}
+{result.get_file('STDERR.txt')}
 """
                 output["execution_time"] = float(end_time - start_time)
                 output['tests'] = files + output['tests'] + tail 

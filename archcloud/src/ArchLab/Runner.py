@@ -668,7 +668,7 @@ def run_submission_locally(sub,
                                           ["-w", dirname,
                                            "--privileged",
                                            docker_image,
-                                           "runlab", "--run-json", job_path, '--debug', '--json-status', status_path, '--directory', dirname] +
+                                           "runlab", "--run-json", job_path, '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
                 log.info("Docker finished")
@@ -733,13 +733,12 @@ def run_submission_locally(sub,
                 reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  This probably not a bug in your submission.")
             
         try:
-            result_files['STDOUT'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
-            result_files['STDERR'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
+            result_files['STDOUT.txt'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')
+            result_files['STDERR.txt'] = base64.b64encode(err.getvalue().encode('utf8')).decode('utf8')
             log.debug("STDOUT: \n{}".format(out.getvalue()))
             log.debug("STDOUT_ENDS")
             log.debug("STDERR: \n{}".format(err.getvalue()))
             log.debug("STDERR_ENDS")
-            log.debug(result_files['STDOUT'])
             result = SubmissionResult(sub, result_files, status, reasons)
             sub.lab_spec.run_gradescope_tests(result, dirname)
             if write_outputs:
@@ -855,8 +854,8 @@ def test_run():
     assert set(result.files.keys()) == set(['an_output',
                                             'out1',
                                             'out2',
-                                            'STDOUT',
-                                            'STDERR'])
+                                            'STDOUT.txt',
+                                            'STDERR.txt'])
     assert result.status == SubmissionResult.SUCCESS
 
     d = result._asdict()

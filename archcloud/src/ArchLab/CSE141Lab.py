@@ -146,6 +146,9 @@ class CSE141Lab(LabSpec):
         def go_run_tests(self, label, cwd=None):
             self.regression_count += 1
             log.debug(f"Runing regression {label} {self.regression_count}")
+            if not os.path.exists("./run_tests.exe"):
+                self.skipTest("Regression not run, since run_tests.exe was not built.  This is probably because either compilation or running your job failed.")
+                
             try:
                 timedout = False
                 log.debug(f"PWD={os.getcwd()}")
