@@ -763,16 +763,7 @@ def remove_outputs(dirname, submission):
     
 def build_submission(user_directory, solution=None, command=None, config_file=None, username=None,pristine=False, public_only=False):
 
-    # We default to 'solution' so the autograder will run the solution when we
-    # test it with maste repo. Since we delete 'solution' in the starter repo,
-    # it will use '.' for the students.
-    if solution is None:
-        for s in ['link_solution', 'solution', '.']:
-            if os.path.isdir(s):
-                solution = s
-                break
-    input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
-    os.environ['LAB_SUBMISSION_DIR'] = input_dir
+
 
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
         if pristine:
@@ -785,6 +776,32 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
         else:
             run_directory = user_directory
 
+        # We need a way to make grade scope run different solutions,
+        # but there's no way to pass it an argument, so we use a file
+        # called THE_SOLUTION that has the name of the directotry to
+        # use.  Gradescope also seems to strip out symlinks, or we'd
+        # do that instead.
+        #
+        # We default to 'solution' so the autograder will run the solution when we
+        # test it with maste repo. Since we delete 'solution' in the starter repo,
+        # it will use '.' for the students.
+        if solution is None:
+            override_path = os.path.join(run_directory, 'THE_SOLUTION')
+            if os.path.exists(override_path):
+                log.info(f"Found {override_path}")
+                with open(override_path) as f:
+                    first_choice = f.read().strip()
+            else:
+                log.info(f"Didn't find {override_path}")
+                first_choice = 'solution'
+                
+            for s in [first_choice, '.']:
+                if os.path.isdir(s):
+                    solution = s
+                    break
+        input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
+        os.environ['LAB_SUBMISSION_DIR'] = input_dir
+                          
         spec = LabSpec.load(run_directory, public_only=public_only)
         files = {}
         if config_file is None:
