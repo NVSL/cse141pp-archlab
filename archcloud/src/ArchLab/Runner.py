@@ -796,7 +796,7 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
                 first_choice = 'solution'
                 
             for s in [first_choice, '.']:
-                if os.path.isdir(s):
+                if os.path.isdir(os.path.join(run_directory, s)):
                     solution = s
                     break
                 else:
