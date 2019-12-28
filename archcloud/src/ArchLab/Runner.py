@@ -25,7 +25,7 @@ from uuid import uuid4 as uuid
 import time
 from .BlobStore import BlobStore
 from .DataStore import DataStore
-from .PubSub import Publisher
+from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
@@ -425,8 +425,9 @@ def run_submission_remotely(submission, daemon=False):
             log.debug("Starting local daemon")
             # This should ensure that the daemon processes our
             # requests.  This prevents interference between testing
-            # instances.
-            #os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
+            # instances.  Doing it through the environment is a hack.
+            assert 'PRIVATE_PUBSUB_NAMESPACE' not in os.environ, "PRIVATE_PUBSUSB_NAMESPACE is a hack.  Don't set it yourself"
+            os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
             the_daemon = subprocess.Popen(['runlab.d', '--debug', '--docker'] + (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []))
         else:
             the_daemon = None
@@ -435,9 +436,17 @@ def run_submission_remotely(submission, daemon=False):
             # cleanup local outputs.  This is mostly so can reliably
             # test for the absence of particular outputs.
             subprocess.check_call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
-            
-        ds = DataStore()
+
         publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
+        
+        # there is a race between the creation of the first
+        # subscription and the first publication.  If the subscription
+        # is late, the published items are lost.  Creating a
+        # subscriber here fixes this.  We should never pull on this subscriber
+        subscriber = Subscriber(name=os.environ['PUBSUB_SUBSCRIPTION'], 
+                              topic=os.environ['PUBSUB_TOPIC'])
+
+        ds = DataStore()
 
         job_submission_json = json.dumps(submission._asdict(), sort_keys=True, indent=4)
 
@@ -466,7 +475,7 @@ def run_submission_remotely(submission, daemon=False):
                 break
             c +=1
             if c > 20:
-                raise ArchlabError("I was not able to submit your job.  This is a problem with the autograder.  Try again.")
+                raise ArchlabError("I was not able to submit your job because the job spec never appeared in the datastore.  This is a problem with the autograder.  Try again.")
             time.sleep(0.5)
 
         start_time = time.time()
@@ -520,6 +529,8 @@ def run_submission_remotely(submission, daemon=False):
             the_daemon.terminate()
             the_daemon.wait()
             log.debug("Local daemon is dead.")
+            publisher.delete_topic(force=True)
+            subscriber.delete_subscription(force=True)
             try:
                 del os.environ['PRIVATE_PUBSUB_NAMESPACE']
             except:

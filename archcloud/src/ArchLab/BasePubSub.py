@@ -97,7 +97,13 @@ class BaseSubscriber(PubSubAgent):
 
         if self.private_subscription or not type(self).subscription_exists(self.subscription_path):
             log.debug(f"Creating subscription: {self.subscription_path} on {self.topic_path}")
-            self.subscription = self.create_subscription(sub_path=self.subscription_path, topic_path=self.topic_path, **kwargs)
+            try:
+                self.subscription = self.create_subscription(sub_path=self.subscription_path, topic_path=self.topic_path, **kwargs)
+            except AlreadyExists:
+                if self.private_subscription:
+                    log.error(f"{self.subscription_path} already exists but it shoudl be private")
+                    raise
+                self.subscription = self.get_subscription(path=self.subscription_path)
         else:
             log.debug(f"Not creating subscription {self.subscription_path}.  It exists")
             
@@ -128,7 +134,7 @@ class BaseSubscriber(PubSubAgent):
             log.info(f"Deleting subscription {self.subscription_path}")
             self.do_delete_subscription(self.subscription_path)
         else:
-            log.debug(f"Not deleting subscripti {self.subscription_path}, since no force")
+            log.debug(f"Not deleting subscription {self.subscription_path}, since no force")
 
     def __enter__(self):
         return self

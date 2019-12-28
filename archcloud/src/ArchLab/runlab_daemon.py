@@ -140,7 +140,7 @@ def main(argv=None):
     parser.add_argument('--id', default=None,  help="Use this as the server identifier.")
     parser.add_argument('--debug', action='store_true', help="exit on errors")
     parser.add_argument('--heart-rate', default=30, help="seconds between heart beats")
-        
+
     if argv == None:
         argv = sys.argv[1:]
     args = parser.parse_args(argv)
@@ -176,6 +176,8 @@ def main(argv=None):
         try:
             try:
                 job_id = subscriber.pull()
+                if job_id == "junk":
+                    continue
                 if len(job_id) == 0:
                     log.info('No jobs in queue')
                     time.sleep(1)

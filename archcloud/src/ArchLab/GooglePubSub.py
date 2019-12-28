@@ -44,8 +44,8 @@ class GooglePublisher(BasePublisher):
     def create_topic(self, topic, **kwargs):
         try:
             self.publisher.create_topic(topic, **kwargs)
-        except google.api_core.exceptions.AlreadyExists:
-            raise AlreadyExists()
+        except google.api_core.exceptions.AlreadyExists as e:
+            raise AlreadyExists(repr(e))
         
     def do_publish(self, path, message, **kwargs):
         self.publisher.publish(path,
@@ -87,8 +87,8 @@ class GoogleSubscriber(BaseSubscriber):
     def get_subscription(self, path):
         try:
             return self.subscriber.get_subscription(path)
-        except google.api_core.exceptions.NotFound:
-            raise NotFound
+        except google.api_core.exceptions.NotFound as e:
+            raise NotFound(e)
 
     def create_subscription(self, sub_path, topic_path, **kwargs):
 
@@ -96,8 +96,12 @@ class GoogleSubscriber(BaseSubscriber):
             GooglePublisher.get_publisher().create_topic(topic_path)
         except google.api_core.exceptions.AlreadyExists:
             pass
-        
-        return self.subscriber.create_subscription(sub_path, topic_path, **kwargs)
+
+        try:
+            return self.subscriber.create_subscription(sub_path, topic_path, **kwargs)
+        except google.api_core.exceptions.AlreadyExists as e: 
+            raise AlreadyExists(repr(e))
+            
 
     
     PulledMessage = namedtuple("PulledMessage",  "data ack_id")
