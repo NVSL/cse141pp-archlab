@@ -201,7 +201,7 @@ class CSE141Lab(LabSpec):
         
         def run_solution(self, solution, flags):
             tag = f"{solution}-{'p' if flags.pristine else ''}-{'d' if flags.devel else ''}-{'g' if flags.gprof else ''}-{'r' if flags.remote else ''}-{'s' if flags.public_lab else ''}"
-            log.info(f"=========================== Starting {tag} in {self.id()} ==========================================")
+            log.info(f"=========================== Starting {tag} in {self.id()} in {os.getcwd()} ==========================================")
 
             if not CSE141Lab.does_papi_work() and not flags.devel:
                 log.warn("Skipping since PAPI doesn't work on this machine and this is not a devel mode test.")
@@ -242,5 +242,5 @@ class CSE141Lab(LabSpec):
                                                     run_pristine=flags.pristine)
                     
                 log.debug(f"results={result.results}")
-            log.info(f"=========================== Finished {tag} in {self.id()} ==========================================")
+            log.info(f"=========================== Finished {tag} as {self.id()} in {os.getcwd()}  ==========================================")
             return result, tag 

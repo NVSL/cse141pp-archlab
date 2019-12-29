@@ -114,7 +114,10 @@ class GoogleSubscriber(BaseSubscriber):
             raise DeadlineExceeded
 
     def do_acknowledge(self, path, msg):
-        self.subscriber.acknowledge(path, [msg.ack_id])
+        try:
+            self.subscriber.acknowledge(path, [msg.ack_id])
+        except:
+            pass
 
     def do_delete_subscription(self, path):
         self.subscriber.delete_subscription(path)

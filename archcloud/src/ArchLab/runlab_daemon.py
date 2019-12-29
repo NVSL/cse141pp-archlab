@@ -260,10 +260,12 @@ def main(argv=None):
                     raise
             except Exception as e:
                 log.error(f"Something went wrong and {job_id} failed.  Job failed:{e}")
-                ds.update(job_id,
-                          status='ERROR',
-                          status_reasons=job_data.get('status_reasons', []) + [f"{traceback.format_exc()}\n{repr(e)}"] + ["An unexected error occurred.  This is probably not a problem with your code."],
-                          completed_utc=datetime.datetime.now(pytz.utc),
+                job_id and ds.update(job_id,
+                                     status='ERROR',
+                                     status_reasons=job_data.get('status_reasons', []) +
+                                     [f"{traceback.format_exc()}\n{repr(e)}"] +
+                                     ["An unexected error occurred.  This is probably not a problem with your code."],
+                                     completed_utc=datetime.datetime.now(pytz.utc),
                 )
                 if args.debug:
                     raise
