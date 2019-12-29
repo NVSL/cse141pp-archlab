@@ -54,9 +54,10 @@ lab-clean:
 
 #  lab test suite.
 TESTS?=.*
-.PHONY: test
-test:
+.PHONY: test test-lab
+test-lab:
 	(unset LAB_SUBMISSION_DIR; test-lab)
+test: test-lab
 	if [ -f test.bats ]; then bats test.bats -f '$(TESTS)'; else true;fi
 
 ###############

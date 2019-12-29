@@ -56,7 +56,7 @@ starter:
 	git add * .gitignore; \
 	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
 	)
-	(cd starter-repo; make test)
+	(cd starter-repo; make test-lab)
 	@echo "====================================================="
 	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
