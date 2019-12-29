@@ -202,7 +202,7 @@ def main(argv=None):
                     sys.stdout.write(result.files[i])
                     
             if not args.quieter:
-                sys.stdout.write("Extracted results:\n" + json.dumps(result.results, sort_keys=True, indent=4) + "\n")
+                sys.stdout.write("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
             if args.zip:
                 with open(args.zip, "wb") as f:
@@ -216,13 +216,13 @@ def main(argv=None):
             raise
     except ArchlabError as e:
         log.error(f"System error (probably not your fault): {repr(e)}")
-        status_str = f"{repr(e)}"
+        status_str = f"{traceback.format_exc()}\n{repr(e)}"
         exit_code = 1
         if args.debug:
             raise
     except Exception as e:
         log.error(f"Unknown error (probably not your fault): {repr(e)}")
-        status_str = f"{repr(e)}"
+        status_str = f"{traceback.format_exc()}\n{repr(e)}"
         exit_code = 1
         if args.debug:
             raise
@@ -238,6 +238,8 @@ def main(argv=None):
             exit_code = 0
         
     log.info(f"Finished.  Final status: {status_str}")
+    if exit_code != 0:
+        log.info(f"Rerun with '--debug -v' for more details")
     log.debug(f"Exit code: {exit_code}")
     if args.json_status:
         with open(args.json_status, "w") as f:

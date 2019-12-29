@@ -351,19 +351,22 @@ class SubmissionResult(object):
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
 
-    def __init__(self, submission, files, status, status_reasons, results=None):
+    def __init__(self, submission, files, status, status_reasons, results=None, job_submission_data=None):
         self.submission = submission
         #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
         assert isinstance(submission, Submission)
         self.files = files
         self.status = status
         self.status_reasons = status_reasons
-        
+        self.job_submission_data = job_submission_data
         if results is None:
             self.results = {}
         else:
             self.results = results
 
+    def set_job_submission_data(self, data):
+        self.job_submission_data = data
+        
     def get_file(self, name):
         try: # this seems horribly wrong. We return either bytes or a string...
             return base64.b64decode(self.files[name]).decode("utf8")
@@ -378,6 +381,7 @@ class SubmissionResult(object):
                     files=self.files,
                     status=self.status,
                     results=self.results,
+                    job_submission_data=self.job_submission_data,
                     status_reasons=self.status_reasons)
     
     def write_outputs(self):
@@ -417,6 +421,8 @@ class SubmissionResult(object):
 
 def run_submission_remotely(submission, daemon=False):
     the_daemon = None
+    subscriber = None
+    publisher = None
     log.info(f"Submitting remotely  {os.environ['IN_DEPLOYMENT']}")
     log.info(f"Submitting remotely  {os.environ['CLOUD_MODE']}")
     log.info(f"Submitting remotely  {os.environ['GOOGLE_RESOURCE_PREFIX']}")
@@ -479,7 +485,7 @@ def run_submission_remotely(submission, daemon=False):
             time.sleep(0.5)
 
         start_time = time.time()
-        status = 'SUBMITTED'
+
         running_time = time.time() - start_time
 
         log.info(f"Started job {job_id}.")
@@ -492,7 +498,7 @@ def run_submission_remotely(submission, daemon=False):
             running_time = time.time() - start_time
 
             if running_time > int(os.environ['UNIVERSAL_TIMEOUT_SEC']):
-                status = SubmissionResult.TIMEOUT
+
                 log.error(f'Job timed out after {running_time}s')
                 ds.update(job_id,
                           status="COMPLETED",
@@ -508,8 +514,13 @@ def run_submission_remotely(submission, daemon=False):
 
                 if job_data['status'] == 'COMPLETED':
                     log.info(f"Job finished after {running_time} seconds: {job_id}")
-                    status = 'COMPLETED'
+                    ds.update(job_id,
+                              status="COMPLETED",
+                              completed_utc=datetime.datetime.now(pytz.utc),
+                              submission_status=SubmissionResult.SUCCESS)
+
                     r = SubmissionResult._fromdict(json.loads(blobstore.read_file(f"{job_id}-result")))
+                    r.set_job_submission_data(ds.convert_to_dict(job_data))  #it might be a Google data store entity, so convert it before storing it.
                     r.write_outputs()
                     r.zip_archive = job_data['zip_archive']
                     return r
@@ -529,8 +540,8 @@ def run_submission_remotely(submission, daemon=False):
             the_daemon.terminate()
             the_daemon.wait()
             log.debug("Local daemon is dead.")
-            publisher.delete_topic(force=True)
-            subscriber.delete_subscription(force=True)
+            publisher and publisher.delete_topic(force=True)
+            subscriber and subscriber.delete_subscription(force=True)
             try:
                 del os.environ['PRIVATE_PUBSUB_NAMESPACE']
             except:

@@ -45,6 +45,10 @@ class BaseDataStore(object):
 
     def pull(self, job_id):
         return self.get_job(job_id)
+
+    def convert_to_dict(self, job):
+        d = dict(job)
+        return {k:str(v) for k,v in d.items()}
                 
 def do_test_datastore(DataStoreType):
     ds = DataStoreType(namespace="testing-junk")
@@ -80,3 +84,7 @@ def do_test_datastore(DataStoreType):
 
     r = ds.query(status=junk)
     assert len(r) == 2
+
+    # The entities are not json serializable by default,
+    # convert_to_dict should make them so.
+    json.dumps(ds.convert_to_dict(ds.pull(str(id2))))
