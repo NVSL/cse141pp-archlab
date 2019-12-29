@@ -10,6 +10,7 @@ import platform
 import dateutil.parser
 import datetime
 import copy
+import traceback
 
 def main(argv=sys.argv[1:]):
         parser = argparse.ArgumentParser(description='Run a lab.')
@@ -98,21 +99,21 @@ def main(argv=sys.argv[1:]):
         except UserError as e:
                 t = default_file_output()
                 t['name'] = "User Error"
-                t['output'] = f"A user error occurred with your job.  There is probably something wrong with your submission: {repr(e)}"
+                t['output'] = f"{traceback.format_exc()}\nA user error occurred with your job.  There is probably something wrong with your submission: {repr(e)}"
                 files.append(t)
                 if args.debug:
                         raise
         except ArchlabError as e:
                 t = default_file_output()
                 t['name'] = "Internal Error"
-                t['output'] = f"Something unexpected went wrong in autograder.  Probably not your fault.: {repr(e)}"
+                t['output'] = f"{traceback.format_exc()}\nSomething unexpected went wrong in autograder.  Probably not your fault.: {repr(e)}"
                 files.append(t)
                 if args.debug:
                         raise
         except Exception as e:
                 t = default_file_output()
                 t['name'] = "Unexpected Internal Error"
-                t['output'] = f"An exception occurred.  Probably not your fault: {repr(e)}"
+                t['output'] = f"{traceback.format_exc()}\nAn exception occurred.  Probably not your fault: {repr(e)}"
                 files.append(t)
                 if args.debug:
                         raise
