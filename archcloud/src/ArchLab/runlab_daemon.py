@@ -172,6 +172,7 @@ def main(argv=None):
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
     job_id = None
+    job_data = dict()
     while keep_running:
         result = None
         try:
@@ -260,7 +261,7 @@ def main(argv=None):
                 log.error(f"Something went wrong and {job_id} failed.  Job failed:{e}")
                 ds.update(job_id,
                           status='ERROR',
-                          status_reasons=job_data['status_reasons'] + [f"{traceback.format_exc()}\n{repr(e)}"] + ["An unexected error occurred.  This is probably not a problem with your code."],
+                          status_reasons=job_data.get('status_reasons', []) + [f"{traceback.format_exc()}\n{repr(e)}"] + ["An unexected error occurred.  This is probably not a problem with your code."],
                           completed_utc=datetime.datetime.now(pytz.utc),
                 )
                 if args.debug:
