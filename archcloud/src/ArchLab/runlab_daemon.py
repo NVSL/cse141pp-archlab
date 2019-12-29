@@ -171,6 +171,7 @@ def main(argv=None):
     set_status("IDLE")    
     threading.Thread(target=Heart.beat,args=(heart,), daemon=True).start()
     threading.Thread(target=head.listen, daemon=True).start()
+    job_id = None
     while keep_running:
         result = None
         try:
@@ -248,19 +249,20 @@ def main(argv=None):
                 ds.update(
                     job_id,
                     status='ERROR',
-                    status_reasons=job_data['status_reasons'] + [repr(e)],
+                    status_reasons=job_data['status_reasons'] +
+                    [f"{traceback.format_exc()}\n{repr(e)}"] +
+                    [f"An error occurred.  This is probably {'not ' if isinstance(e, ArchlabError) else ''}a problem with your code or configuration."],
                     completed_utc=datetime.datetime.now(pytz.utc),
                 )
                 if args.debug:
                     raise
             except Exception as e:
-                # if something goes wrong, we still need to notify the
-                # client, so try this simpler request that only
-                # depends on the Datastore.
-                log.error(f"Updating status of {job_id} failed.  Job failed:{e}")
+                log.error(f"Something went wrong and {job_id} failed.  Job failed:{e}")
                 ds.update(job_id,
                           status='ERROR',
-                          status_reasons=["Couldn't update the status of the job. Something is wrong with the cloud.  This is not a problem with your code."])
+                          status_reasons=job_data['status_reasons'] + [f"{traceback.format_exc()}\n{repr(e)}"] + ["An unexected error occurred.  This is probably not a problem with your code."],
+                          completed_utc=datetime.datetime.now(pytz.utc),
+                )
                 if args.debug:
                     raise
             finally:

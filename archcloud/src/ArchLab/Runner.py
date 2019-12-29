@@ -666,7 +666,12 @@ def run_submission_locally(sub,
                     json.dump(d, job, sort_keys=True, indent=4)
                     log.info(f"Wrote job spec to {job_path}")
 
-                my_container_id = subprocess.check_output("head -1 /proc/self/cgroup".split()).decode("utf8").split("/")[-1]
+                cgroup = subprocess.check_output("head -1 /proc/self/cgroup".split())
+                my_container_id = cgroup.decode("utf8").split("/")[-1]
+                if my_container_id == "":
+                    log.error(f"Couldn't get my container id.  Output was: {cgroup}")
+                    log.error("cat /proc/self/cgroup: ")
+                    log.error(subprocess.check_output("cat /proc/self/cgroup".split()))
 
                 log.info(f"my container id is: {my_container_id}")
                 log.info("Docker starts...")
@@ -739,9 +744,9 @@ def run_submission_locally(sub,
             status=SubmissionResult.ERROR
             log.error(f"Autograder caught an exception during execution.:{repr(e)}.", exc_info=True, stack_info=True)
             if isinstance(e, UserError):
-                reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  This probably a bug or error in your submission.")
+                reasons.append(f"{traceback.format_exc()}\nAutograder caught an exception during execution.:{repr(e)}.\nThis probably a bug or error in your submission.")
             else:
-                reasons.append(f"Autograder caught an exception during execution.:{repr(e)}.  This probably not a bug in your submission.")
+                reasons.append(f"{traceback.format_exc()}\nAutograder caught an exception during execution.:{repr(e)}.\nThis probably not a bug in your submission.")
             
         try:
             result_files['STDOUT.txt'] = base64.b64encode(out.getvalue().encode('utf8')).decode('utf8')

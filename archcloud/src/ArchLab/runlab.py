@@ -12,6 +12,7 @@ import base64
 import textwrap
 import tempfile
 from  .CSE141Lab import CSE141Lab
+import traceback
 
 def show_info(directory, fields=None):
     try:
