@@ -17,6 +17,7 @@ import argparse
 import tempfile
 import datetime
 import threading
+import traceback
 from uuid import uuid4 as uuid
 import pytz
 
