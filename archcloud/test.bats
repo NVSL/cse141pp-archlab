@@ -50,7 +50,7 @@ fi
     . config.sh
     popd
     export MODES=CLOUD
-    for LAB in CSE141pp-Lab-Tiny; do 
+    for LAB in $TESTING_LAB; do 
 	for CLOUD_MODE in $MODES; do
 	    reconfig
 	    d=$(mktemp -d)
