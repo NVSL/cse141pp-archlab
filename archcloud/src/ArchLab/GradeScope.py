@@ -142,16 +142,6 @@ def main(argv=sys.argv[1:]):
                         }
                 )
 
-                tail.append(
-                        {
-                                "score": 0.0, # optional, but required if not on top level submission
-                                "max_score": 0.0, # optional
-                                "name": "job_control",
-                                "output": json.dumps(d._asdict(), indent=4, sort_keys=True),
-                                "visibility": "visible", # Optional visibility setting
-                        }
-                )
-
         finally:
                 end_time = time.time()
                 if result:

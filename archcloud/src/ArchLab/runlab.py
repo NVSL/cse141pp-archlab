@@ -202,8 +202,7 @@ def main(argv=None):
                 elif i == "STDOUT.txt":
                     sys.stdout.write(result.files[i])
                     
-            if not args.quieter:
-                sys.stdout.write("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+                log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
             if args.zip:
                 with open(args.zip, "wb") as f:

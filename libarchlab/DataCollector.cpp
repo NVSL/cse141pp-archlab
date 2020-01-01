@@ -236,7 +236,7 @@ std::string DataCollector::build_csv_header(MeasurementInterval * mi)
 	}
 
 	out << "\n";
-	std::cerr << out.str() << "\n";
+	//std::cerr << out.str() << "\n";
 	return out.str();
 }
 
@@ -381,6 +381,6 @@ void DataCollector::write_stats() {
 	std::string t = stats_filename + ".raw";
 	write_csv(t.c_str());
 	std::string cmd = (std::string("calc.py --in ") + t  + " --out " + stats_filename).c_str();
-	std::cerr << "calc cmd: " << cmd << "\n";
+	//std::cerr << "calc cmd: " << cmd << "\n";
 	system(cmd.c_str());
 }
