@@ -74,7 +74,7 @@ push-starter:
 	@echo "Repo prefix                  : $(STARTER_REPO_NAME)"
 	@echo "Repo URL For github classroom: $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
-PRIVATE_FILES=*solution .git private.py test.py
+PRIVATE_FILES=*solution .git private.py test.py TA.md
 
 .PHONY: remove-private
 remove-private:
