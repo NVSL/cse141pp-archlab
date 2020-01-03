@@ -668,7 +668,7 @@ def run_submission_locally(sub,
 
                 cgroup = subprocess.check_output("head -1 /proc/self/cgroup".split())
                 my_container_id = cgroup.decode("utf8").split("/")[-1]
-                if my_container_id == "":
+                if my_container_id.strip() == "":
                     log.error(f"Couldn't get my container id.  Output was: {cgroup}")
                     log.error("cat /proc/self/cgroup: ")
                     log.error(subprocess.check_output("cat /proc/self/cgroup".split()))
