@@ -45,7 +45,8 @@ class Cleanup(SubCommand):
                               status = "COMPLETED",
                               completed_utc=datetime.datetime.now(pytz.utc),
                               submission_status = SubmissionResult.TIMEOUT,
-                    )            
+                    )
+                    
 class Top(SubCommand):
     def __init__(self, parent):
         super(Top, self).__init__(parent,
@@ -82,7 +83,7 @@ class Top(SubCommand):
 
             try: 
                 while True:
-                    rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner", "lab", "user" ]]
+                    rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner",  "user" ]]
                     for j in copy.copy(live_jobs):
                         job = ds.pull(j)
                         now = datetime.datetime.now(pytz.utc)
@@ -138,9 +139,8 @@ class Top(SubCommand):
                                      format_time_delta(waiting),
                                      format_time_delta(running),
                                      format_time_delta(total),
-                                     str(job['runner_host'])])
-                        #submission.lab_spec.short_name,
-                        #             submission.username])
+                                     str(job['runner_host']),
+                                     job.get('username', "")])
                         
                     recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
                     s = datetime.timedelta()
