@@ -338,6 +338,16 @@ class Submission(object):
         else:
             return t
 
+    def write_inputs(self, directory=None):
+        if not directory:
+            directory = self.user_directory
+        for i in self.files:
+            p = os.path.abspath(os.path.join(directory, i))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "wb") as t:
+                log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
+                t.write(base64.b64decode(self.files[i]))
+
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
     d = list(reader)
@@ -384,14 +394,16 @@ class SubmissionResult(object):
                     job_submission_data=self.job_submission_data,
                     status_reasons=self.status_reasons)
     
-    def write_outputs(self):
+    def write_outputs(self, directory=None):
+        if not directory:
+            directory = self.submission.user_directory
         for i in self.files:
-            p = os.path.abspath(os.path.join(self.submission.user_directory, i))
+            p = os.path.abspath(os.path.join(directory, i))
             with open(p, "wb") as t:
                 log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
                 t.write(base64.b64decode(self.files[i]))
                 
-        with open(os.path.join(self.submission.user_directory, "results.json"), "w") as t:
+        with open(os.path.join(directory, "results.json"), "w") as t:
             log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
             t.write(json.dumps(self.results, sort_keys=True, indent=4))
 

@@ -10,6 +10,7 @@ import os
 import subprocess
 import base64
 from  .DataStore import DataStore
+from  .BlobStore import BlobStore
 from  .PubSub import Subscriber
 
 import copy
@@ -25,6 +26,60 @@ def cmd_ls(args):
     sys.stdout.write(f"{len(jobs)} jobs:\n")
     for j in jobs:
         sys.stdout.write(f"{j['job_id']}\n")
+
+class Download(SubCommand):
+    def __init__(self, parent):
+        super(Download, self).__init__(parent,
+                                  name="fetch-data",
+                                  help="Download information about a job")
+        self.parser.add_argument("id", nargs='+', help="prefix of job id")
+
+    def run(self, args):
+        import json
+        from .Runner import cd
+        import re
+        blobstore = BlobStore(os.environ['JOBS_BUCKET'])
+        ds = DataStore()
+        for id in args.id:
+            names = blobstore.get_files_by_prefix(id)
+            if len(names) == 0:
+                sys.stderr.write(f"No such job: {id}")
+                sys.exit(1)
+            if len(names) > 3:
+                sys.stderr.write(f"Not a unique prefix: {id}")
+                sys.exit(1)
+
+            m = re.search("^(\w+-\w+-\w+-\w+-\w+)", names[0])
+            prefix = m.group(1)
+            log.debug(f"Prefix = {prefix}\n")
+            log.debug(f"Found these blobs: {names}")
+            job_data = ds.get_job(prefix)
+
+            
+            os.makedirs(prefix, exist_ok=True)
+            for i in names:
+                with open(os.path.join(prefix, i), "w") as f:
+                    d = blobstore.read_file(i)
+                    f.write(d)
+                if "-result" in i:
+                    files_path = os.path.join(prefix, "files")
+                    os.makedirs(files_path, exist_ok=True)
+                    result = SubmissionResult._fromdict(json.loads(d))
+                    result.write_outputs(directory=files_path)
+                    result.submission.write_inputs(directory=files_path)
+
+                    result.files = "<hidden>"
+                    result.submission.files = "<hidden>"
+                    result.results ="<hidden>"
+                    sys.stdout.write(json.dumps(result._asdict(), indent=4) + "\n")
+                    
+            with open(os.path.join(prefix, "job_data"), "w") as f:
+                f.write(str(job_data))
+
+
+            
+
+            
 
 class Cleanup(SubCommand):
     def __init__(self, parent):
@@ -185,6 +240,7 @@ def main(argv=None):
 
     Top(subparsers)
     Cleanup(subparsers)
+    Download(subparsers)
 
     if argv == None:
         argv = sys.argv[1:]

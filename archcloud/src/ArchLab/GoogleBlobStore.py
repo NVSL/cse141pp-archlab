@@ -34,6 +34,9 @@ class GoogleBlobStore(object):
     def get_url(self, filename):
         return f"https://storage.cloud.google.com/{self.bucket_name}/{filename}"
 
+    def get_files_by_prefix(self, prefix):
+        return [b.name for b in  self.client.list_blobs(self.bucket_name, prefix=prefix)]
+        
                  
 def test_google_blob_store():
     do_test_blob_store(GoogleBlobStore)
