@@ -677,7 +677,7 @@ def run_submission_locally(sub,
                     json.dump(d, job, sort_keys=True, indent=4)
                     log.info(f"Wrote job spec to {job_path}")
 
-                cgroup = subprocess.check_output("head -1 /proc/self/cgroup".split())
+                cgroup = subprocess.check_output("tail -1 /proc/self/cgroup".split())
                 my_container_id = cgroup.decode("utf8").split("/")[-1]
                 if my_container_id.strip() == "":
                     log.error(f"Couldn't get my container id.  Output was: {cgroup}")
