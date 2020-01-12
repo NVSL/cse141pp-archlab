@@ -123,7 +123,7 @@ def main(argv=sys.argv[1:]):
                                 "score": 0.0, # optional, but required if not on top level submission
                                 "max_score": 0.0, # optional
                                 "name": "zip_output_url",
-                                "output": result.zip_archive,
+                                "output": f"Your lab inputs and oututs are available in this zip file:  {result.zip_archive}.  \nWhen prompted, log in as '{metadata['users'][0]['email']}' to access it.",
                                 "visibility": "visible", # Optional visibility setting
                         }
                 )

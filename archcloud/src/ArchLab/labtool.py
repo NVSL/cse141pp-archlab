@@ -75,6 +75,7 @@ class Download(SubCommand):
                     
             with open(os.path.join(prefix, "job_data"), "w") as f:
                 f.write(str(job_data))
+                sys.stdout.write(str(job_data) + "\n")
 
 
             
@@ -91,13 +92,14 @@ class Cleanup(SubCommand):
     def run(self, args):
         import datetime
         ds = DataStore()
-        for i in ds.query(status="SUBMITTED"):
+        for i in ds.query(status="SUBMITTED") + ds.query(status="STARTED"):
             now = datetime.datetime.now(pytz.utc)
             if now - i['submitted_utc'] > datetime.timedelta(seconds=int(os.environ['UNIVERSAL_TIMEOUT_SEC'])):
                 log.info(f"Canceling {i['job_id']}")
                 if not args.dry_run:
                     ds.update(i['job_id'],
                               status = "COMPLETED",
+                              status_reasons=["Manually cleaned up"],
                               completed_utc=datetime.datetime.now(pytz.utc),
                               submission_status = SubmissionResult.TIMEOUT,
                     )
