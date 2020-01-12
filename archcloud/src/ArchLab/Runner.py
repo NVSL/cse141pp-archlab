@@ -360,7 +360,6 @@ class SubmissionResult(object):
     TIMEOUT = "timeout"
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
-
     def __init__(self, submission, files, status, status_reasons, results=None, job_submission_data=None):
         self.submission = submission
         #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
@@ -851,7 +850,10 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
             log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
             for filename in Path(full_path).glob(f):
                 if not  os.path.isfile(filename):
-                    log.debug(f"Skipping '{filename}' since it's a directory")
+                    log.debug(f"Skipping '{filename}' since it's a directory.")
+                    continue
+                if os.path.split(filename)[1][:1] == ".":
+                    log.debug(f"Skipping '{filename}' since it's a hidden file.")
                     continue
                 log.debug(f"Found file '{filename}' matching '{f}'.")
                 try:
