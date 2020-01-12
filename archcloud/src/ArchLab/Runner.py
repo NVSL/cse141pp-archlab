@@ -338,6 +338,12 @@ class Submission(object):
         else:
             return t
 
+    def get_file(self, name):
+        try: # this seems horribly wrong. We return either bytes or a string...
+            return base64.b64decode(self.files[name]).decode("utf8")
+        except UnicodeDecodeError:
+            return base64.b64decode(self.files[name])
+
     def write_inputs(self, directory=None):
         if not directory:
             directory = self.user_directory
@@ -414,7 +420,7 @@ class SubmissionResult(object):
             zip_file.writestr(fn, self.get_file(fn))
 
         for fn in self.submission.files:
-            zip_file.writestr(fn, base64.b64decode(self.submission.files[fn]).decode('utf8'))
+            zip_file.writestr(fn, self.submission.get_file(fn))
         zip_file.close()
 
         return out.getvalue()
@@ -852,8 +858,8 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
                 if not  os.path.isfile(filename):
                     log.debug(f"Skipping '{filename}' since it's a directory.")
                     continue
-                if os.path.split(filename)[1][:1] == ".":
-                    log.debug(f"Skipping '{filename}' since it's a hidden file.")
+                if os.path.split(filename)[1][:1] == "." and f[:1] != ".":  
+                    log.debug(f"Skipping '{filename}' since it's a hidden file.  To include add a pattern for it starting with '.'.")
                     continue
                 log.debug(f"Found file '{filename}' matching '{f}'.")
                 try:
