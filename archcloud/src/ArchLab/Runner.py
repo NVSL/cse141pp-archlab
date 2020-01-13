@@ -284,38 +284,38 @@ class LabSpec(object):
     @classmethod
     def load(cls, root, public_only=False):
 
-        try:
-            old=copy.deepcopy(sys.path)
-            log.debug(f"Added {os.path.abspath(root)} to sys path.  sys path is: {sys.path}")
-            sys.path.insert(0, os.path.abspath(root))
-            def load_file(name, f):
-                path =  os.path.join(root, f)
-                spec = importlib.util.spec_from_file_location(name, path)
-                info = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(info)
-                log.debug(f"Imported {path}")
-                log.debug(f"{dir(info)}")
-                return path, info
+        def load_file(name, f):
+            path =  os.path.join(root, f)
+            spec = importlib.util.spec_from_file_location(name, path)
+            info = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(info)
+            log.debug(f"Imported {path}")
+            log.debug(f"{dir(info)}")
+            try:
+                importlib.reload(info)
+            except:
+                pass
 
-            if public_only:
-                log.debug(f"Ignoring private.py")
-                path,info = load_file("lab", "lab.py")
+            return path, info
+
+        if public_only:
+            log.debug(f"Ignoring private.py")
+            path, info = load_file("lab", "lab.py")
+            LabType = info.ThisLab
+        else:
+
+            try:
+                log.debug(f"Checking for private.py")
+                path, info = load_file("private", "private.py")
                 LabType = info.ThisLab
-            else:
-                try:
-                    log.debug(f"Checking for private.py")
-                    path, info = load_file("private", "private.py")
-                    LabType = info.ThisLab
-                except FileNotFoundError:
-                    log.debug(f"Falling back to lab.py")
-                    path, info = load_file("lab", "lab.py")
-                    LabType = info.ThisLab
-            r = LabType()
-            # this should probably be passed to the constructor. This require adding **kwargs to the end of the super constructor call in lab.py for all the labs.
-            r.source_file = os.path.abspath(path)
-            return r
-        finally:
-            sys.path = old        
+            except FileNotFoundError:
+                log.debug(f"Falling back to lab.py")
+                path, info = load_file("lab", "lab.py")
+                LabType = info.ThisLab
+        r = LabType()
+        # this should probably be passed to the constructor. This require adding **kwargs to the end of the super constructor call in lab.py for all the labs.
+        r.source_file = os.path.abspath(path)
+        return r
 
 class Submission(object):
 
@@ -826,9 +826,10 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
         # use.  Gradescope also seems to strip out symlinks, or we'd
         # do that instead.
         #
-        # We default to 'solution' so the autograder will run the solution when we
-        # test it with maste repo. Since we delete 'solution' in the starter repo,
-        # it will use '.' for the students.
+        # We default to 'solution' so the autograder will run the
+        # solution when we test it with master repo. Since we delete
+        # 'solution' in the starter repo, it will use '.' for the
+        # students.
         if solution is None:
             override_path = os.path.join(run_directory, 'THE_SOLUTION')
             if os.path.exists(override_path):
