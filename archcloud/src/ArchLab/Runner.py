@@ -295,21 +295,24 @@ class LabSpec(object):
                 spec.loader.exec_module(info)
                 log.debug(f"Imported {path}")
                 log.debug(f"{dir(info)}")
-                return info
+                return path, info
 
             if public_only:
                 log.debug(f"Ignoring private.py")
-                LabType = load_file("lab", "lab.py").ThisLab
+                path,info = load_file("lab", "lab.py")
+                LabType = info.ThisLab
             else:
                 try:
                     log.debug(f"Checking for private.py")
-                    LabType = load_file("private", "private.py").ThisLab
+                    path, info = load_file("private", "private.py")
+                    LabType = info.ThisLab
                 except FileNotFoundError:
                     log.debug(f"Falling back to lab.py")
-                    LabType = load_file("lab", "lab.py").ThisLab
+                    path, info = load_file("lab", "lab.py")
+                    LabType = info.ThisLab
             r = LabType()
             # this should probably be passed to the constructor. This require adding **kwargs to the end of the super constructor call in lab.py for all the labs.
-            r.source_file = os.path.abspath("lab.py") 
+            r.source_file = os.path.abspath(path)
             return r
         finally:
             sys.path = old        
@@ -673,7 +676,7 @@ def run_submission_locally(sub,
             if run_in_docker:
                 assert dirname[:8] == "/staging", f"{dirname} doesn't appear to be a /staging directory"
                 id = str(uuid())
-                os.makedirs(os.path.join("/staging", id), exist_ok=True)
+                os.makedirs(os.path.join("/staging", id), exist_ok=False)
                 job_path = os.path.join("/staging", id, "job.json")
                 status_path = os.path.join("/staging",id, "status.json")
                 with open(job_path, "w") as job:
@@ -716,6 +719,9 @@ def run_submission_locally(sub,
                         json_status = json.loads(s.read())
                         if json_status['exit_code'] != 0:
                             reasons.append(f"From runlab in docker: {json_status['status_str']}")
+                    os.remove(status_path)
+                if os.path.exists(job_path):
+                    os.remove(job_path)
             else:
 
                 # filter the environment with the clean lab_spec
