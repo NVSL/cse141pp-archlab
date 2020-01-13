@@ -609,7 +609,7 @@ def run_submission_locally(sub,
             errout += errout2 or b""
             
             r = SubmissionResult.TIMEOUT
-            reasons.append("Execution of {args} timedout after {timeout} seconds.")
+            reasons.append(f"Execution of {args} timedout after {timeout} seconds.")
             try:
                 subprocess.run(['stty', 'sane']) # Timeouts can leave the terminal in a bad state.  Restore it.
             except:
