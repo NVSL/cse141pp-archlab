@@ -92,7 +92,9 @@ class LabSpec(object):
                  clean_cmd=None,
                  valid_options={},
                  time_limit = 30,
-                 solution="."):
+                 solution=".",
+                 source_file=None,
+                 loaded_on_host=None):
 
         with collect_fields_of(self):
             self.lab_name = lab_name
@@ -107,8 +109,9 @@ class LabSpec(object):
             self.time_limit = time_limit
             self.solution = solution
             self.config_file = config_file
-
-            
+            self.source_file = source_file
+            self.loaded_on_host = platform.node()
+           
         if self.default_cmd is None:
             self.default_cmd = ['make']
         if self.clean_cmd is None:
@@ -304,8 +307,10 @@ class LabSpec(object):
                 except FileNotFoundError:
                     log.debug(f"Falling back to lab.py")
                     LabType = load_file("lab", "lab.py").ThisLab
-
-            return LabType()
+            r = LabType()
+            # this should probably be passed to the constructor. This require adding **kwargs to the end of the super constructor call in lab.py for all the labs.
+            r.source_file = os.path.abspath("lab.py") 
+            return r
         finally:
             sys.path = old        
 
@@ -694,7 +699,7 @@ def run_submission_locally(sub,
                 log.info("Docker starts...")
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
-                                           "--hostname", "runner",
+                                           "--hostname", f"{platform.node()}-runner",
                                            "--volumes-from", my_container_id.strip(),
                                            ] + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
