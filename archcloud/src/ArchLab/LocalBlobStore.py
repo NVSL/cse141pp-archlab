@@ -1,6 +1,7 @@
 import os
 from .BaseBlobStore import NotFound, BaseBlobStore, do_test_blob_store
 import pytest
+from pathlib import Path
 
 class LocalBlobStore(BaseBlobStore):
     def __init__(self, bucket):
@@ -27,6 +28,11 @@ class LocalBlobStore(BaseBlobStore):
             raise NotFound
     def get_url(self, filename):
         return f"file://{os.path.abspath(os.path.join(self.directory, filename))}"
+
+    def get_files_by_prefix(self, prefix):
+        p = Path(self.directory)
+        matches = p.glob(f"{prefix}*")
+        return [string(m) for m in matches]
     
 def test_local_blob_store():
     if "EMULATION_DIR" not in os.environ:

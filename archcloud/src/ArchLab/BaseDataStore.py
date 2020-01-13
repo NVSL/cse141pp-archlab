@@ -40,6 +40,16 @@ class BaseDataStore(object):
 	       **kwargs):
         log.debug(f"Updating {job_id} with {kwargs}")
         job = self.pull(job_id)
+        for k,v in kwargs.items(): 
+            if isinstance(v, datetime.datetime):
+                pass
+            elif isinstance(v, list):
+                if len(repr(v)) > 1500:
+                    kwargs[k] = [repr(v)[:1500]]
+            elif isinstance(v, str) or isinstance(v, bytes):
+                if len(v) > 1500: # Google data store field size limit.
+                    kwargs[k] = v[:1500]
+                
         job.update(**kwargs)
         self.put_job(job)
 

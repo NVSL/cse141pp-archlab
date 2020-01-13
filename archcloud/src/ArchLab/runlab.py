@@ -93,7 +93,7 @@ def main(argv=None):
         
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
-    parser.add_argument('--zip', default=None, help=sm("Generate a zip file of inputs and outputs"))
+    parser.add_argument('--zip',action='store_true', help=sm("Generate a zip file of inputs and outputs"))
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
     parser.add_argument('--public-only', action="store_true", help=sm("Only load the public lab configuration"))
     parser.add_argument('--quieter', action="store_true", help=sm("Be quieter"))
@@ -205,7 +205,7 @@ def main(argv=None):
                 log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
             if args.zip:
-                with open(args.zip, "wb") as f:
+                with open("files.zip", "wb") as f:
                     f.write(result.build_file_zip_archive())
 
     except UserError as e: 

@@ -62,7 +62,7 @@ def do_calc(inreader):
                 log.info(f"Parsing '{v}'")
                 try:
                     t = ast.literal_eval(v)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     t = v
                 log.info(f"Parsed '{r[k]}' into {repr(t)}")
                 r[k] = t

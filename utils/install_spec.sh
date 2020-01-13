@@ -8,9 +8,16 @@ fi
 
 set -x
 set -v
+set -e
 
-sudo mkdir /mnt/iso
-sudo mount -t iso9660 -o loop cpu2017-1_0_5.iso /mnt/iso/
+if which sudo; then
+    SUDO=sudo
+else
+    SUDO=
+fi
+
+$SUDO mkdir /mnt/iso
+$SUDO mount -t iso9660 -o loop cpu2017-1_0_5.iso /mnt/iso/
 cp -a /mnt/iso ./benchmarks/spec2017
 
 cd benchmarks/spec2017

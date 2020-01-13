@@ -92,7 +92,9 @@ class LabSpec(object):
                  clean_cmd=None,
                  valid_options={},
                  time_limit = 30,
-                 solution="."):
+                 solution=".",
+                 source_file=None,
+                 loaded_on_host=None):
 
         with collect_fields_of(self):
             self.lab_name = lab_name
@@ -107,8 +109,9 @@ class LabSpec(object):
             self.time_limit = time_limit
             self.solution = solution
             self.config_file = config_file
-
-            
+            self.source_file = source_file
+            self.loaded_on_host = platform.node()
+           
         if self.default_cmd is None:
             self.default_cmd = ['make']
         if self.clean_cmd is None:
@@ -281,33 +284,38 @@ class LabSpec(object):
     @classmethod
     def load(cls, root, public_only=False):
 
-        try:
-            old=copy.deepcopy(sys.path)
-            log.debug(f"Added {os.path.abspath(root)} to sys path.  sys path is: {sys.path}")
-            sys.path.insert(0, os.path.abspath(root))
-            def load_file(name, f):
-                path =  os.path.join(root, f)
-                spec = importlib.util.spec_from_file_location(name, path)
-                info = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(info)
-                log.debug(f"Imported {path}")
-                log.debug(f"{dir(info)}")
-                return info
+        def load_file(name, f):
+            path =  os.path.join(root, f)
+            spec = importlib.util.spec_from_file_location(name, path)
+            info = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(info)
+            log.debug(f"Imported {path}")
+            log.debug(f"{dir(info)}")
+            try:
+                importlib.reload(info)
+            except:
+                pass
 
-            if public_only:
-                log.debug(f"Ignoring private.py")
-                LabType = load_file("lab", "lab.py").ThisLab
-            else:
-                try:
-                    log.debug(f"Checking for private.py")
-                    LabType = load_file("private", "private.py").ThisLab
-                except FileNotFoundError:
-                    log.debug(f"Falling back to lab.py")
-                    LabType = load_file("lab", "lab.py").ThisLab
+            return path, info
 
-            return LabType()
-        finally:
-            sys.path = old        
+        if public_only:
+            log.debug(f"Ignoring private.py")
+            path, info = load_file("lab", "lab.py")
+            LabType = info.ThisLab
+        else:
+
+            try:
+                log.debug(f"Checking for private.py")
+                path, info = load_file("private", "private.py")
+                LabType = info.ThisLab
+            except FileNotFoundError:
+                log.debug(f"Falling back to lab.py")
+                path, info = load_file("lab", "lab.py")
+                LabType = info.ThisLab
+        r = LabType()
+        # this should probably be passed to the constructor. This require adding **kwargs to the end of the super constructor call in lab.py for all the labs.
+        r.source_file = os.path.abspath(path)
+        return r
 
 class Submission(object):
 
@@ -338,6 +346,22 @@ class Submission(object):
         else:
             return t
 
+    def get_file(self, name):
+        try: # this seems horribly wrong. We return either bytes or a string...
+            return base64.b64decode(self.files[name]).decode("utf8")
+        except UnicodeDecodeError:
+            return base64.b64decode(self.files[name])
+
+    def write_inputs(self, directory=None):
+        if not directory:
+            directory = self.user_directory
+        for i in self.files:
+            p = os.path.abspath(os.path.join(directory, i))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "wb") as t:
+                log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
+                t.write(base64.b64decode(self.files[i]))
+
 def extract_from_first_csv_line_by_field(file_contents, field):
     reader = csv.DictReader(StringIO(file_contents))
     d = list(reader)
@@ -350,7 +374,6 @@ class SubmissionResult(object):
     TIMEOUT = "timeout"
     MISSING_OUTPUT= "missing_output"
     ERROR = "error"
-
     def __init__(self, submission, files, status, status_reasons, results=None, job_submission_data=None):
         self.submission = submission
         #log.debug(f"{submission}")# {submission.__type__}  {submission.__type__.__name__}")
@@ -384,14 +407,16 @@ class SubmissionResult(object):
                     job_submission_data=self.job_submission_data,
                     status_reasons=self.status_reasons)
     
-    def write_outputs(self):
+    def write_outputs(self, directory=None):
+        if not directory:
+            directory = self.submission.user_directory
         for i in self.files:
-            p = os.path.abspath(os.path.join(self.submission.user_directory, i))
+            p = os.path.abspath(os.path.join(directory, i))
             with open(p, "wb") as t:
                 log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
                 t.write(base64.b64decode(self.files[i]))
                 
-        with open(os.path.join(self.submission.user_directory, "results.json"), "w") as t:
+        with open(os.path.join(directory, "results.json"), "w") as t:
             log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
             t.write(json.dumps(self.results, sort_keys=True, indent=4))
 
@@ -403,7 +428,7 @@ class SubmissionResult(object):
             zip_file.writestr(fn, self.get_file(fn))
 
         for fn in self.submission.files:
-            zip_file.writestr(fn, base64.b64decode(self.submission.files[fn]).decode('utf8'))
+            zip_file.writestr(fn, self.submission.get_file(fn))
         zip_file.close()
 
         return out.getvalue()
@@ -592,7 +617,7 @@ def run_submission_locally(sub,
             errout += errout2 or b""
             
             r = SubmissionResult.TIMEOUT
-            reasons.append("Execution of {args} timedout after {timeout} seconds.")
+            reasons.append(f"Execution of {args} timedout after {timeout} seconds on {platform.node()}.")
             try:
                 subprocess.run(['stty', 'sane']) # Timeouts can leave the terminal in a bad state.  Restore it.
             except:
@@ -651,7 +676,7 @@ def run_submission_locally(sub,
             if run_in_docker:
                 assert dirname[:8] == "/staging", f"{dirname} doesn't appear to be a /staging directory"
                 id = str(uuid())
-                os.makedirs(os.path.join("/staging", id), exist_ok=True)
+                os.makedirs(os.path.join("/staging", id), exist_ok=False)
                 job_path = os.path.join("/staging", id, "job.json")
                 status_path = os.path.join("/staging",id, "status.json")
                 with open(job_path, "w") as job:
@@ -666,7 +691,7 @@ def run_submission_locally(sub,
                     json.dump(d, job, sort_keys=True, indent=4)
                     log.info(f"Wrote job spec to {job_path}")
 
-                cgroup = subprocess.check_output("head -1 /proc/self/cgroup".split())
+                cgroup = subprocess.check_output("tail -1 /proc/self/cgroup".split())
                 my_container_id = cgroup.decode("utf8").split("/")[-1]
                 if my_container_id.strip() == "":
                     log.error(f"Couldn't get my container id.  Output was: {cgroup}")
@@ -677,7 +702,7 @@ def run_submission_locally(sub,
                 log.info("Docker starts...")
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
-                                           "--hostname", "runner",
+                                           "--hostname", f"{platform.node()}-runner",
                                            "--volumes-from", my_container_id.strip(),
                                            ] + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
@@ -694,6 +719,9 @@ def run_submission_locally(sub,
                         json_status = json.loads(s.read())
                         if json_status['exit_code'] != 0:
                             reasons.append(f"From runlab in docker: {json_status['status_str']}")
+                    os.remove(status_path)
+                if os.path.exists(job_path):
+                    os.remove(job_path)
             else:
 
                 # filter the environment with the clean lab_spec
@@ -798,9 +826,10 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
         # use.  Gradescope also seems to strip out symlinks, or we'd
         # do that instead.
         #
-        # We default to 'solution' so the autograder will run the solution when we
-        # test it with maste repo. Since we delete 'solution' in the starter repo,
-        # it will use '.' for the students.
+        # We default to 'solution' so the autograder will run the
+        # solution when we test it with master repo. Since we delete
+        # 'solution' in the starter repo, it will use '.' for the
+        # students.
         if solution is None:
             override_path = os.path.join(run_directory, 'THE_SOLUTION')
             if os.path.exists(override_path):
@@ -839,7 +868,10 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
             log.debug(f"Looking for files matching '{f}' in '{full_path}'.")
             for filename in Path(full_path).glob(f):
                 if not  os.path.isfile(filename):
-                    log.debug(f"Skipping '{filename}' since it's a directory")
+                    log.debug(f"Skipping '{filename}' since it's a directory.")
+                    continue
+                if os.path.split(filename)[1][:1] == "." and f[:1] != ".":  
+                    log.debug(f"Skipping '{filename}' since it's a hidden file.  To include add a pattern for it starting with '.'.")
                     continue
                 log.debug(f"Found file '{filename}' matching '{f}'.")
                 try:

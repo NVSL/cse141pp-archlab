@@ -61,14 +61,18 @@ starter:
 	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
 
-STARTER_REPO_NAME=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
-TAG_NAME=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
+STARTER_REPO_NAME=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)-starter
+TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
+BRANCH_NAME:=$(TAG_NAME)-branch
+
 push-starter:
 	curl -H "Authorization: token $(GITHUB_OAUTH_TOKEN)" https://api.github.com/orgs/$(GITHUB_CLASSROOM_ORG)/repos -d "{\"name\":\"$(STARTER_REPO_NAME)\", \"private\":\"true\", \"visibility\": \"private\", \"is_template\":\"true\"}" -X POST > starter.json
 	! jextract errors < starter.json 2>/dev/null || (echo "Repo creation failed:"; cat starter.json; false)
 	(cd starter-repo; git remote add origin https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git)
 	(cd starter-repo; git push -u origin master)
 	git tag -a -m "starter repo: $(STARTER_REPO_NAME)" $(TAG_NAME)
+	git branch $(BRANCH_NAME)	
+	git push -u origin $(BRANCH_NAME)
 	git push origin $(TAG_NAME)
 	@echo "Lab Name                     : $$(runlab --info lab_name)"
 	@echo "Repo prefix                  : $(STARTER_REPO_NAME)"
