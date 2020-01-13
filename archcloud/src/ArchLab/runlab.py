@@ -42,14 +42,15 @@ def main(argv=None):
 
     """
 
-    student_mode = "STUDENT_MODE" in os.environ # Don't get any clever
-                                                # ideas, this just
-                                                # hides the options to
-                                                # the make help more
-                                                # useful.  Access
-                                                # control checks
-                                                # happen
-                                                # elsewhere. ;-)
+    student_mode = os.environ.get("STUDENT_MODE", "no").upper() == "YES"
+    # Don't get any clever
+    # ideas, this just
+    # hides the options to
+    # the make help more
+    # useful.  Access
+    # control checks
+    # happen
+    # elsewhere. ;-)
     
     parser = argparse.ArgumentParser(description=textwrap.dedent("""Run a Lab
 
