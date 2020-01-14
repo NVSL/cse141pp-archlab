@@ -14,7 +14,7 @@ from  .BlobStore import BlobStore
 from  .PubSub import Subscriber
 
 import copy
-from .Columnize import columnize, format_time_delta
+from .Columnize import columnize, format_time_delta, format_time_short
 from .SubCommand import SubCommand
 from .hosttool import send_command_to_hosts
 import pytz
@@ -140,7 +140,7 @@ class Top(SubCommand):
 
             try: 
                 while True:
-                    rows =[["id", "jstat", "sstat", "wtime", "rtime", "tot. time", "runner",  "user" ]]
+                    rows =[["id", "jstat", "sstat", "wtime","rtime", "tot. time", "finished", "runner",  "user" ]]
                     for j in copy.copy(live_jobs):
                         job = ds.pull(j)
                         now = datetime.datetime.now(pytz.utc)
@@ -196,6 +196,7 @@ class Top(SubCommand):
                                      format_time_delta(waiting),
                                      format_time_delta(running),
                                      format_time_delta(total),
+                                     format_time_short(job['started_utc']),
                                      str(job['runner_host']),
                                      job.get('username', "")])
                         

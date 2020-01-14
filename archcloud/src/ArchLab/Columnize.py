@@ -1,4 +1,5 @@
 import math
+from dateutil import tz
 
 def columnize(data, divider="|", headers=1):
     r = ""
@@ -21,6 +22,13 @@ def format_time_delta(t):
     minutes = math.floor(seconds/60)
     hours = math.floor(minutes/60)
     return f"{hours}:{minutes % 60:02}:{seconds%60:02}"
+
+def format_time_short(t):
+    if isinstance(t, str):
+        return t
+    to_zone = tz.gettz('America/Los_Angeles')
+    t = t.astimezone(to_zone)
+    return f"{t.hour}:{t.minute:02}:{t.second%60:02}"
 
 def test_format_time_delta():
     import datetime
