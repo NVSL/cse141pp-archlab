@@ -284,7 +284,7 @@ def main(argv=None):
             if args.debug:
                 raise
             time.sleep(10.0)
-            
+    log.info("Exiting...")
 
             
 if __name__ == '__main__':
