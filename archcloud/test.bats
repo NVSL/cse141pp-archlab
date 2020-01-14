@@ -63,6 +63,7 @@ fi
 	    gradescope -v --root . --daemon --debug
 	    [ -e  $PWD/results/results.json ]
 	    popd
+	    cp $d/results/results.json ./
 	    rm -rf $d
 	done
     done

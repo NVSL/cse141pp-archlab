@@ -29,7 +29,10 @@ class GoogleBlobStore(object):
         blob = self.bucket.get_blob(filename)
         if not blob:
             raise NotFound
-        return blob.download_as_string().decode("utf8")
+        try:
+            return blob.download_as_string().decode("utf8")
+        except UnicodeDecodeError:
+            return blob.download_as_string()
 
     def get_url(self, filename):
         return f"https://storage.cloud.google.com/{self.bucket_name}/{filename}"
