@@ -61,7 +61,8 @@ starter:
 	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
 
-STARTER_REPO_NAME=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)-starter
+STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
+STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
 TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
 BRANCH_NAME:=$(TAG_NAME)-branch
 
@@ -75,7 +76,7 @@ push-starter:
 	git push -u origin $(BRANCH_NAME)
 	git push origin $(TAG_NAME)
 	@echo "Lab Name                     : $$(runlab --info lab_name)"
-	@echo "Repo prefix                  : $(STARTER_REPO_NAME)"
+	@echo "Repo prefix                  : $(STARTER_REPO_NAME_BASE)"
 	@echo "Repo URL For github classroom: $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
 PRIVATE_FILES=*solution .git private.py test.py TA.md admin
