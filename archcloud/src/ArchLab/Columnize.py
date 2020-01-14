@@ -27,6 +27,7 @@ def format_time_short(t):
     if isinstance(t, str):
         return t
     to_zone = tz.gettz('America/Los_Angeles')
+    t = t.replace(tzinfo=tz.tzutc())
     t = t.astimezone(to_zone)
     return f"{t.hour}:{t.minute:02}:{t.second%60:02}"
 

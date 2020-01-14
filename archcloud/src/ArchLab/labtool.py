@@ -217,6 +217,7 @@ class Top(SubCommand):
                     sys.stdout.write(f"Comp. in the last {args.window}s: {len(recent_jobs)}\n")
                     sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
+                    sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
                     sys.stdout.write(columnize(rows, divider=" "))
                     sys.stdout.flush()
 
