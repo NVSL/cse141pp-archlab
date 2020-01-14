@@ -152,9 +152,21 @@ def main(argv=sys.argv[1:]):
 ================== STDERR =======================
 {result.get_file('STDERR.txt')}
 """
+
+                status = {
+                        "score": 0.0, # optional, but required if not on top level submission
+                        "max_score": 0.0, # optional
+                        "name": "submission status",
+                
+                        "visibility": "visible", # Optional visibility setting
+                }
+                status["output"] = f"Job outcome: {result.status}" + ("" if result.status == "success" else f"ERROR:\n{result.status_reasons}")
+                files.insert(0, status)
+                        
                 output["execution_time"] = float(end_time - start_time)
                 output['tests'] = files + output['tests'] + tail 
 
+                
 
         log.debug(f"Writing to {os.path.abspath(results_fn)}")
         with open(os.path.abspath(results_fn), 'w') as f:

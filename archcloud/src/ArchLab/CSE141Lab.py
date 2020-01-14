@@ -60,10 +60,9 @@ def test_configs(*solutions):
 
 def load_public_lab(private_lab):
     path =  os.path.join(pathlib.Path(private_lab).parent.absolute(), "lab.py")
-    print(f"Path = {path}")
+
     spec = importlib.util.spec_from_file_location("lab", path)
     info = importlib.util.module_from_spec(spec)
-    print(f"info = {info}")
     spec.loader.exec_module(info)
     log.debug(f"Imported {path}")
     log.debug(f"{dir(info)}")
