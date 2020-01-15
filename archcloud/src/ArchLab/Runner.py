@@ -130,7 +130,7 @@ class LabSpec(object):
         Class = type(self).GradedRegressions
         log.debug(f"Running regressions for {Class}")
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
-        with cd (dirname):
+        with cd(dirname):
             with environment(**result.submission.env):
                 JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
         result.results['gradescope_test_output'] = json.loads(out.getvalue())
@@ -671,25 +671,29 @@ def run_submission_locally(sub,
                     raise  ArchlabError(f"Clone for pristine execution failed: {reasons}")
 
             sub.lab_spec = LabSpec.load(dirname) # distrust submitters spec by loading the pristine one from the newly cloned repo.
+            if run_pristine:
+                # we just dumped the files in '.' so, look for them there.
+                sub.env['LAB_SUBMISSION_DIR'] = '.'
+            else:
+                with environment(**sub.env):
+                    log_run(sub.lab_spec.clean_cmd, cwd=dirname)
+                os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
+                sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
+
+            for f in sub.files:
+                path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
+                os.makedirs(os.path.dirname(path),exist_ok=True)
+                with open(path, "wb") as of:
+                    log.debug("Writing input file {}".format(path))
+                    of.write(base64.b64decode(sub.files[f]))
+
 
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
                 assert dirname[:8] == "/staging", f"{dirname} doesn't appear to be a /staging directory"
                 id = str(uuid())
                 os.makedirs(os.path.join("/staging", id), exist_ok=False)
-                job_path = os.path.join("/staging", id, "job.json")
                 status_path = os.path.join("/staging",id, "status.json")
-                with open(job_path, "w") as job:
-                    d = sub._asdict()
-                    # we can't be sure where the submission's
-                    # directory is, but that's ok.  The submision
-                    # object has all the files in it.  What we know
-                    # for sure is that dirname is where we cloned the
-                    # lab (since pristine is required for docker) so we can
-                    # safely use that.
-                    d['user_directory'] = dirname 
-                    json.dump(d, job, sort_keys=True, indent=4)
-                    log.info(f"Wrote job spec to {job_path}")
 
                 cgroup = subprocess.check_output("tail -1 /proc/self/cgroup".split())
                 my_container_id = cgroup.decode("utf8").split("/")[-1]
@@ -709,7 +713,8 @@ def run_submission_locally(sub,
                                           ["-w", dirname,
                                            "--privileged",
                                            docker_image,
-                                           "runlab", "--run-json", job_path, '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
+                                           "runlab", '--no-validate',  '--solution', '.',
+                                           '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
                 log.info("Docker finished")
@@ -720,8 +725,7 @@ def run_submission_locally(sub,
                         if json_status['exit_code'] != 0:
                             reasons.append(f"From runlab in docker: {json_status['status_str']}")
                     os.remove(status_path)
-                if os.path.exists(job_path):
-                    os.remove(job_path)
+
             else:
 
                 # filter the environment with the clean lab_spec
@@ -732,26 +736,11 @@ def run_submission_locally(sub,
                     raise UserError(f"Disallowed command ({error}): {sub.command}")
                 log.debug(f"Filtered env: {sub.env}")
 
-                if run_pristine:
-                    # we just dumped the files in '.' so, look for them there.
-                    sub.env['LAB_SUBMISSION_DIR'] = dirname
-                else:
-                    with environment(**sub.env):
-                        log_run(sub.lab_spec.clean_cmd, cwd=dirname)
-                    os.makedirs(os.path.join(dirname, ".tmp"),exist_ok=True)
-                    sub.env['LAB_SUBMISSION_DIR'] = ".tmp"
-
-                for f in sub.files:
-                    path = os.path.join(dirname, sub.env['LAB_SUBMISSION_DIR'], f)
-                    os.makedirs(os.path.dirname(path),exist_ok=True)
-                    with open(path, "wb") as of:
-                        log.debug("Writing input file {}".format(path))
-                        of.write(base64.b64decode(sub.files[f]))
-
                 # Run the job!
                 with environment(**sub.env):
                     status, reasons = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
+            log.debug(f"Directory contents\n{list(Path(dirname).glob('**'))}")
             for f in sub.lab_spec.output_files:
                 log.debug(f"Searching for output files matching '{f}'")
                 for filename in Path(dirname).glob(f):
