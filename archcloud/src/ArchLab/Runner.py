@@ -27,6 +27,7 @@ from .BlobStore import BlobStore
 from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
+from functools import reduce
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
 
@@ -704,11 +705,14 @@ def run_submission_locally(sub,
 
                 log.info(f"my container id is: {my_container_id}")
                 log.info("Docker starts...")
+
+                env = reduce(lambda x,y:x+y, map(lambda x:["--env", f"{x[0]}={x[1]}"], sub.env.items()))
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
                                            "--hostname", f"{platform.node()}-runner",
                                            "--volumes-from", my_container_id.strip(),
-                                           ] + 
+                                          ] +
+                                          env + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
                                           ["-w", dirname,
                                            "--privileged",
