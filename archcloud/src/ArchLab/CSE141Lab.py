@@ -1,4 +1,4 @@
-from .Runner import LabSpec, build_submission, run_submission_locally, run_submission_remotely, environment
+from .Runner import LabSpec, build_submission, run_submission_locally, run_submission_remotely, environment, UserError
 import unittest
 import logging as log
 import os
@@ -112,6 +112,13 @@ class CSE141Lab(LabSpec):
             reference_tag = reference_tag,
             time_limit = timeout)
 
+    def validate_environment(self, env):
+        if "MHz" in env['CMD_LINE_ARGS'] and env.get("GPROF", 'no') == "yes":
+            # Not sure why this is, but be low 1100MHz, the code takes
+            # enormously long to run.  My guess is that gprof doesn't
+            # like the clock rate changing underneath it.
+            raise UserError("You can't enable gprof and change the clock speed in the same run.  Please check your 'config.env' and/or environment variables.")
+        
     @classmethod
     def does_papi_work(cls):
         try:
