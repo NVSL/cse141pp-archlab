@@ -160,7 +160,10 @@ def main(argv=sys.argv[1:]):
                 
                         "visibility": "visible", # Optional visibility setting
                 }
-                status["output"] = f"Job outcome: {result.status}" + ("" if result.status == "success" else f"ERROR:\n{result.status_reasons}")
+                if result:
+                        status["output"] = f"Job outcome: {result.status}" + ("" if result.status == "success" else f"ERROR:\n{result.status_reasons}")
+                else:
+                        status["output"] = f"Job outcome: Pre-execution failure in GradeScope.py"
                 files.insert(0, status)
                         
                 output["execution_time"] = float(end_time - start_time)
