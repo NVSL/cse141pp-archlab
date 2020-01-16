@@ -113,7 +113,7 @@ class CSE141Lab(LabSpec):
             time_limit = timeout)
 
     def validate_environment(self, env):
-        if "MHz" in env['CMD_LINE_ARGS'] and env.get("GPROF", 'no') == "yes":
+        if "MHz" in env.get('CMD_LINE_ARGS', "") and env.get("GPROF", 'no') == "yes":
             # Not sure why this is, but be low 1100MHz, the code takes
             # enormously long to run.  My guess is that gprof doesn't
             # like the clock rate changing underneath it.
