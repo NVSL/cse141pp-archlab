@@ -122,7 +122,7 @@ class CSE141Lab(LabSpec):
         
     class EasyFileAccess(object):
         
-        def open_file(self, name, root=None):
+        def open_file(self, name, root=None, mode="r"):
             if root == None:
                 root = os.environ['LAB_SUBMISSION_DIR']
             else:
@@ -130,11 +130,19 @@ class CSE141Lab(LabSpec):
                 
             path = os.path.join(root, name)
             log.debug(f"Opening {os.path.abspath(path)} for graded regressions")
-            return open(path)
-
-        def read_file(self, name, root=None):
+            return open(path, mode)
+        
+        def read_text_file(self, name, root=None):
             with self.open_file(name, root) as f:
+                try:
+                    return f.read()
+                except UnicodeDecodeError:
+                    self.assertFalse(f"{name} should be a text file, but it's not.")
+            
+        def read_binary_file(self, name, root=None):
+            with self.open_file(name, root, mode="b") as f:
                 return f.read()
+            
         def assertFileExists(self, f, tag=""):
             self.assertTrue(os.path.exists(f), f"Failed on {tag}: looking for '{f}'")
         def assertNotFileExists(self, f, tag):

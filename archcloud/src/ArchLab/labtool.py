@@ -58,8 +58,10 @@ class Download(SubCommand):
             
             os.makedirs(prefix, exist_ok=True)
             for i in names:
-                with open(os.path.join(prefix, i), "w") as f:
-                    d = blobstore.read_file(i)
+                d = blobstore.read_file(i)
+                mode = "w" if isinstance(d, str) else "wb"
+                    
+                with open(os.path.join(prefix, i), mode) as f:
                     f.write(d)
                 if "-result" in i:
                     files_path = os.path.join(prefix, "files")

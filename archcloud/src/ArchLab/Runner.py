@@ -27,6 +27,7 @@ from .BlobStore import BlobStore
 from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
+from functools import reduce
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
 
@@ -77,6 +78,8 @@ def collect_fields_of(obj):
         yield None
     finally:
         obj._fields =  list(set(obj.__dict__.keys()) - set(before))
+
+safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/]"
     
 class LabSpec(object):
 
@@ -201,7 +204,6 @@ class LabSpec(object):
         return map(lambda x: parse(x[field]), reader)
     
     def safe_env_value(self, v):
-        safe_env = r"[a-zA-Z0-9_\-\. =\"\'\/]"
         if not re.match(fr"^{safe_env}*$", v):
             return False
         else:
@@ -239,7 +241,7 @@ class LabSpec(object):
             if e in env:
                 v = env[e]
                 if not self.safe_env_value(v):
-                    log.warn(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
+                    log.warn(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain numbers, letters, and certain punctuation.")
                 else:
                     out[e] = env[e]
         return out
@@ -704,11 +706,14 @@ def run_submission_locally(sub,
 
                 log.info(f"my container id is: {my_container_id}")
                 log.info("Docker starts...")
+
+                env = reduce(lambda x,y:x+y, map(lambda x:["--env", f"{x[0]}={x[1]}"], sub.env.items()))
                 status, reasons = log_run(cmd=
                                           ["docker", "run",
                                            "--hostname", f"{platform.node()}-runner",
                                            "--volumes-from", my_container_id.strip(),
-                                           ] + 
+                                          ] +
+                                          env + 
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
                                           ["-w", dirname,
                                            "--privileged",
