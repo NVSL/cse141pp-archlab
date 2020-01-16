@@ -596,14 +596,17 @@ def run_submission_locally(sub,
 
         r = SubmissionResult.SUCCESS
         reasons = []
+        output, errout = b"", b""
+        
         try:
-            p = subprocess.Popen(cmd, *args, stdin=None,
-                                 **kwargs)
+            p = subprocess.Popen(cmd, *args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
             
-            output, errout = b"", b""
             
             log.debug(f"Timeout is {timeout}")
-            output, errout = p.communicate(timeout=timeout)
+            output1, errout1 = p.communicate(timeout=timeout)
+            output += output1 or b""
+            errout += errout1 or b""
+            
             log.info(f"Execution completed with result: {p.returncode}")
             if p.returncode != 0:
                 r = SubmissionResult.ERROR
@@ -627,12 +630,10 @@ def run_submission_locally(sub,
         except OSError as e:
             r = SubmissionResult.ERROR
             reasons.append(f"An error occcurred while running your program: {repr(e)}.")
-            
-        if output:
+        finally:
             out.write(output.decode("utf-8"))
-        if errout:
             err.write(errout.decode("utf-8"))
-
+            
         return r, reasons
 
     @contextmanager

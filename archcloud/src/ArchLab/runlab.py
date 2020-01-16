@@ -194,14 +194,15 @@ def main(argv=None):
             log.debug(f"Got response: {result}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
-                log.debug(result.files[i][:1000])
-                if len(result.files[i]) > 1000:
+                d = result.get_file(i)
+                log.debug(d[:1000])
+                if len(d) > 1000:
                     log.debug("< more output >")
                     
                 if i == "STDERR.txt":
-                    sys.stdout.write(result.files[i])
+                    sys.stdout.write(result.get_file(i))
                 elif i == "STDOUT.txt":
-                    sys.stdout.write(result.files[i])
+                    sys.stdout.write(result.get_file(i))
                     
                 log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
