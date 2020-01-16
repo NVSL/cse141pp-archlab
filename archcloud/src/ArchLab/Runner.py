@@ -128,6 +128,9 @@ class LabSpec(object):
     class MetaRegressions(unittest.TestCase):
         pass
 
+    def validate_environment(self, env):
+        pass
+
     def run_gradescope_tests(self, result, dirname):
         out =io.StringIO()
         Class = type(self).GradedRegressions
@@ -229,7 +232,7 @@ class LabSpec(object):
                 if m.group(1) not in self.valid_options:
                     raise ConfigException(f"Setting {m.group(1)} is not permitted.  Possibilities are {','.join(self.valid_options.keys())}")
                 if not self.safe_env_value(m.group(2)):
-                    raise ConfigException(f"Unsafe value in this line.  Values cannot contain special characters.: {l}")
+                    raise ConfigException(f"Unsafe value in this line.  Values cannot contain {safe_env}: {l}")
 
             log.debug(f"Parsed '{orig}' as '{m.group(1)}' = '{m.group(2)}'")
             r[m.group(1)] = m.group(2)
@@ -308,7 +311,7 @@ class LabSpec(object):
 
             try:
                 log.debug(f"Checking for private.py")
-                path, info = load_file("private", "private.py")
+                path, info = load_file("private","private.py")
                 LabType = info.ThisLab
             except FileNotFoundError:
                 log.debug(f"Falling back to lab.py")
@@ -690,7 +693,15 @@ def run_submission_locally(sub,
                     log.debug("Writing input file {}".format(path))
                     of.write(base64.b64decode(sub.files[f]))
 
-
+            # filter the environment with the clean lab_spec
+            log.debug(f"Incoming env: {sub.env}")
+            sub.env = sub.lab_spec.filter_env(sub.env)
+            good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
+            if not good_command:
+                raise UserError(f"Disallowed command ({error}): {sub.command}")
+            log.debug(f"Filtered env: {sub.env}")
+            sub.lab_spec.validate_environment (sub.env)
+            
             # If we run in a docker, just serialize the submission and pass it via the file system.
             if run_in_docker:
                 assert dirname[:8] == "/staging", f"{dirname} doesn't appear to be a /staging directory"
@@ -733,15 +744,6 @@ def run_submission_locally(sub,
                     os.remove(status_path)
 
             else:
-
-                # filter the environment with the clean lab_spec
-                log.debug(f"Incoming env: {sub.env}")
-                sub.env = sub.lab_spec.filter_env(sub.env)
-                good_command, error, sub.command = sub.lab_spec.filter_command(sub.command)
-                if not good_command:
-                    raise UserError(f"Disallowed command ({error}): {sub.command}")
-                log.debug(f"Filtered env: {sub.env}")
-
                 # Run the job!
                 with environment(**sub.env):
                     status, reasons = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
@@ -832,20 +834,25 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
                 with open(override_path) as f:
                     first_choice = f.read().strip()
             else:
-                log.info(f"Didn't find {override_path}")
+                log.debug(f"Didn't find {override_path}")
                 first_choice = 'solution'
                 
             for s in [first_choice, '.']:
                 if os.path.isdir(os.path.join(run_directory, s)):
+                    log.info(f"Using solution '{s}'")
                     solution = s
                     break
                 else:
-                    log.info(f"Looked for {s}, but didn't find it")
+                    log.debug(f"Looked for {s}, but didn't find it")
                     
         input_dir = os.path.join(".", solution) # this will fail in the path isn't relative.
         os.environ['LAB_SUBMISSION_DIR'] = input_dir
-                          
-        spec = LabSpec.load(run_directory, public_only=public_only)
+
+        try:
+            spec = LabSpec.load(run_directory, public_only=public_only)
+        except FileNotFoundError:
+            raise UserError("I couldn't load lab.py or private.py.  Are you in the right directory?")
+        
         files = {}
         if config_file is None:
             config_file = spec.config_file
@@ -898,10 +905,12 @@ def build_submission(user_directory, solution=None, command=None, config_file=No
     from_env = spec.filter_env(os.environ)
     
     for i in from_env:
-        from_env[i] = re.sub(r'"|\'', "", from_env[i])
+        from_env[i] = re.sub(r'"|\'', "", from_env[i]) #remove quotes
         log.info(f"Copying environment variable '{i}' with value '{from_env[i]}'")
         
     from_config.update(from_env)
+
+    spec.validate_environment(from_config)
 
     s = Submission(spec, files, from_config, command, 
                    user_directory, input_dir, username=username)
