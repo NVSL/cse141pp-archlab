@@ -35,25 +35,45 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Couldn't allocate memory.\n");
 		exit(1);
 	}
-
+       
+	
 	// Using timer object
-	for(auto mhz: cpu_frequencies) {
+	//	for(auto mhz: cpu_frequencies) {
 		for(uint64_t s = mem_size_small; s <= mem_size_large; s*= 2) {
 			ArchLabTimer timer; // create it.
 			theDataCollector->pristine_machine(); // reset the machine
 			if (disable_prefetcher) {
 				theDataCollector->disable_prefetcher();
 			}
-			set_cpu_clock_frequency(mhz);
+			//set_cpu_clock_frequency(mhz);
 			timer.
 				attr("MemoryRange", s). // add key-value pairs.  strings, ints, and floats are fine for values.
-				attr("ClockSpeed", mhz). 
+				attr("rep", 1).
+				attr("count", access_count).
+				//attr("ClockSpeed", mhz). 
 				attr("Method", "function"). // Describing the measurement.
 				go(); // Start measuring
 			random_access(memory, s/sizeof(int), read_ratio, access_count);
 			// Measurements tops when timer goes out of scope.
 		}
-	}
+		for(uint64_t s = mem_size_large; s >= mem_size_small; s/= 2) {
+			ArchLabTimer timer; // create it.
+			theDataCollector->pristine_machine(); // reset the machine
+			if (disable_prefetcher) {
+				theDataCollector->disable_prefetcher();
+			}
+			//set_cpu_clock_frequency(mhz);
+			timer.
+				attr("MemoryRange", s). // add key-value pairs.  strings, ints, and floats are fine for values.
+				attr("rep", 2).
+				attr("count", access_count+ 0.0).
+				//attr("ClockSpeed", mhz). 
+				attr("Method", "function"). // Describing the measurement.
+				go(); // Start measuring
+			random_access(memory, s/sizeof(int), read_ratio, access_count);
+			// Measurements tops when timer goes out of scope.
+		}
+		//	}
   
 	if (enable_demo) {
     

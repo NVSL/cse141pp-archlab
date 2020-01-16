@@ -78,6 +78,8 @@ def collect_fields_of(obj):
         yield None
     finally:
         obj._fields =  list(set(obj.__dict__.keys()) - set(before))
+
+safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/]"
     
 class LabSpec(object):
 
@@ -202,7 +204,6 @@ class LabSpec(object):
         return map(lambda x: parse(x[field]), reader)
     
     def safe_env_value(self, v):
-        safe_env = r"[a-zA-Z0-9_\-\. =\"\'\/]"
         if not re.match(fr"^{safe_env}*$", v):
             return False
         else:
@@ -240,7 +241,7 @@ class LabSpec(object):
             if e in env:
                 v = env[e]
                 if not self.safe_env_value(v):
-                    log.warn(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain charecters from {safe_env}.")
+                    log.warn(f"Environment variable '{e}' has a potentially unsafe value: '{v}'.  Imported environment variables can only contain numbers, letters, and certain punctuation.")
                 else:
                     out[e] = env[e]
         return out
