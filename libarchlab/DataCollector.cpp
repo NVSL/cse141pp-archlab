@@ -382,5 +382,6 @@ void DataCollector::write_stats() {
 	write_csv(t.c_str());
 	std::string cmd = (std::string("calc.py --in ") + t  + " --out " + stats_filename).c_str();
 	//std::cerr << "calc cmd: " << cmd << "\n";
-	system(cmd.c_str());
+	volatile int i = system(cmd.c_str());
+	if (i);
 }

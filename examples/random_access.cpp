@@ -28,9 +28,11 @@ int main(int argc, char *argv[]) {
 	archlab_parse_cmd_line(&argc, argv);
 
 	// Compute array size and allocate memory.
-	int array_length = mem_size_large/sizeof(int);
+	uint array_length = mem_size_large/sizeof(int);
 	int * memory = (int *)calloc(array_length*sizeof(int), 1);
-
+	for(uint i = 0; i< array_length; i++) {
+		memory[i] = i;
+	}
 	if (memory == NULL) {
 		fprintf(stderr, "Couldn't allocate memory.\n");
 		exit(1);
