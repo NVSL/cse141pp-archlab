@@ -421,6 +421,8 @@ class SubmissionResult(object):
             directory = self.submission.user_directory
         for i in self.files:
             p = os.path.abspath(os.path.join(directory, i))
+            directory = os.path.dirname(p)
+            os.makedirs(directory, exist_ok=True)
             with open(p, "wb") as t:
                 log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
                 t.write(base64.b64decode(self.files[i]))

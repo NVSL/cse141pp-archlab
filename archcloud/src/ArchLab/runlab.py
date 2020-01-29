@@ -14,6 +14,7 @@ import tempfile
 from  .CSE141Lab import CSE141Lab
 import traceback
 
+dev_null=open("/dev/null", "w")
 
 def show_info(directory, fields=None):
     try:
@@ -26,6 +27,57 @@ def show_info(directory, fields=None):
         return "Not a lab directory\n"
     except AttributeError:
         return f"Unknown field: {fields}\n"
+
+def set_upstream():
+    if os.path.exists(".starter_repo"):
+        with open(".starter_repo") as f:
+            upstream = f.read().strip()
+
+    current_remotes = subprocess.check_output(['git', 'remote']).decode("utf8")
+    if "upstream" in current_remotes:
+        log.debug("Remote upstream is set")
+        return
+    try:
+        subprocess.check_call(f"git remote add upstream {upstream}".split(), stdout=dev_null)
+    except:
+        log.error("Failed to set upstream remote")
+        raise
+
+
+def check_for_updates():
+
+    try:
+        subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
+    except:
+        log.error("Failed to check for updates.")
+        raise
+
+    if subprocess.run("git diff --exit-code upstream/master".split(), stdout=dev_null).returncode != 0:
+
+        sys.stdout.write("""
+===================================================================
+# The lab starter repo has been changed.  The diff follows.
+# Do `runlab --merge-updates` to merge the changes into your repo.\n""")
+        subprocess.run("git diff upstream/master".split())
+        sys.stdout.write("""
+===================================================================\n""")
+    else:
+        sys.stdout.write("No updates available for this lab.\n")
+
+
+def merge_updates():
+    try:
+        subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
+    except:
+        log.error("Failed to check for updates.")
+        return
+
+    try:
+        subprocess.check_call("git merge remotes/upstream/master".split())
+    except:
+        log.error("Failed to merge updates")
+        raise
+    
     
 def main(argv=None):
     """
@@ -73,7 +125,7 @@ def main(argv=None):
     parser.add_argument('--info', nargs="?", default=None, const=[],  help="Print information about this lab an exit.  With an argument print that field of lab structure.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
-    parser.add_argument('--branch',  help="Run this branch")
+    parser.add_argument('--branch',  help="When running a git repo, use this branch instead of the current branch")
     parser.add_argument('--run-git-remotely', action='store_true', default=False, help="Run the contents of this repo remotely")
 
     def sm(s):
@@ -103,6 +155,8 @@ def main(argv=None):
     parser.add_argument('--verify-repo', action="store_true", help=sm("Check that repo in lab.py is on the whitelist"))
     parser.add_argument('--public-only', action="store_true", help=sm("Only load the public lab configuration"))
     parser.add_argument('--quieter', action="store_true", help=sm("Be quieter"))
+    parser.add_argument('--check-for-updates', action='store_true', help=sm("Check for upstream updates"))
+    parser.add_argument('--merge-updates', action='store_true', help="Merge in updates from starter repo.")
     
     if argv == None:
         argv = sys.argv[1:]
@@ -113,7 +167,7 @@ def main(argv=None):
         log.basicConfig(format="%(levelname)-8s %(message)s", level=log.WARN)
     else:
         log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                        level=log.DEBUG if args.verbose else log.INFO)
+                        level=log.DEBUG if args.verbose else log.WARN)
 
     log.debug(f"Command line args: {args}")
 
@@ -121,6 +175,16 @@ def main(argv=None):
         sys.stdout.write(show_info(args.directory, args.info))
         return 
 
+    if student_mode:
+        args.check_for_updates = True
+
+    if args.check_for_updates:
+        set_upstream()
+        check_for_updates()
+
+    if args.merge_updates:
+        merge_updates()
+        
     if args.run_git_remotely:
         if not args.repo:
             args.repo = subprocess.check_output("git config --get remote.origin.url".split()).strip()
@@ -133,7 +197,7 @@ def main(argv=None):
             args.pristine = True
             
     if not CSE141Lab.does_papi_work():
-        log.info("Forcing '--devel' because PAPI doesn't work on this machine")
+        log.warn("Forcing '--devel' because PAPI doesn't work on this machine")
         args.devel = True
 
     if args.devel:
@@ -181,8 +245,8 @@ def main(argv=None):
                 reporter = log.error if args.validate else log.warn
 
                 try:
-                    subprocess.check_call(diff)
-                    subprocess.check_call(update)
+                    subprocess.check_call(diff, stdout=dev_null)
+                    subprocess.check_call(update, stdout=dev_null)
                     if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
                         raise Exception()
                 except:

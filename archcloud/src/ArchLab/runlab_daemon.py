@@ -224,7 +224,7 @@ def main(argv=None):
                 blobstore.write_file(f"{job_id}-result",
                                      json.dumps(result._asdict(), sort_keys=True, indent=4))
 
-                if '@' in job_data['username']:
+                if job_data.get('username',"") != None and '@' in job_data.get('username',""):
                     username = f"{job_data['username'].split('@')[0]}-"
 
                     to_zone = pytz.timezone('America/Los_Angeles')
