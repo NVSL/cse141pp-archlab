@@ -86,3 +86,6 @@ def submit_job():
         return json.dumps(dict(status="SUCCESS",
                                result=result._asdict()))
 
+def main():
+    app.run(debug=True, host='0.0.0.0')
+    
