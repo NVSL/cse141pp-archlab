@@ -9,7 +9,8 @@ import sys
 import logging as log
 import platform
 import re
-
+import time
+import textwrap 
 app = Flask(__name__)
 
 debug=False
@@ -26,19 +27,33 @@ log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)
 @app.route('/jobs/submit',methods=["POST"])
 def submit_job():
     log.warning(f"Got request: {request.form}")
+    os.makedirs("/status_files", exist_ok=True)
     repo = request.form['repo']
     branch = request.form['branch']
 
     student_repo = re.search("/CSE141pp/wi20-CSE141L-(.*)-(\w+)", repo)
     master_repo = re.search("/NVSL/.*Lab-(.*)", repo)
+    
     if student_repo:
-        username=studet_repo.group(2)
+        username=student_repo.group(2)
+        lock_path =os.path.join("/status_files", username)
+        if os.path.exists(lock_path):
+            with open(lock_path) as f :
+                last_timestamp=float(f.read())
+            if time.time() < last_timestamp + 60:
+                return fail(status="FAILURE",
+                            reason="You can only submit one job per minute")
+        with open(lock_path, "w") as f:
+            f.write(str(time.time()))
+
     elif master_repo:
         username="staff"
+        lock_path = None
     else:
         return fail(status="FAILURE",
                     reason=f"{repo} is not repo for this class.")
-    
+
+
     os.makedirs("/jobs", exist_ok=True)
     with tempfile.TemporaryDirectory(dir="/jobs/") as work_dir:
 
@@ -67,7 +82,7 @@ def submit_job():
                         reason=f"{traceback.format_exc()}\nAn exception occurred.  Probably not your fault: {repr(e)}.")
         finally:
             pass
-        
+
         return json.dumps(dict(status="SUCCESS",
                                result=result._asdict()))
-    
+

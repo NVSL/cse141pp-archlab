@@ -28,7 +28,6 @@ from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
 from functools import reduce
-import requests
 import http.client as http_client
 #http_client.HTTPConnection.debuglevel = 1
 
@@ -41,6 +40,8 @@ import pytz
 class UserError(Exception):
     pass
 class ArchlabError(Exception):
+    pass
+class ArchlabTransientError(Exception):
     pass
 
 class BadOptionException(UserError):
@@ -455,7 +456,12 @@ def run_submission_by_proxy(proxy, repo, branch):
     data = dict(repo=repo,
                 branch=branch)
     log.debug(f"Sending data: {data}")
-    r = requests.post(f"{proxy}/jobs/submit", data=data)
+    lab_spec =LabSpec.load(".")
+    try:
+        r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=lab_spec.time_limit + 5)
+    except:
+        raise ArchlabTransientError("Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape.")
+        
     log.debug(f"Got response: {r}")
     r.raise_for_status()
     response = r.json()
@@ -486,7 +492,7 @@ def run_submission_remotely(submission, daemon=False):
         with environment(**submission.env):
             # cleanup local outputs.  This is mostly so can reliably
             # test for the absence of particular outputs.
-            subprocess.check_call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
+            subprocess.call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
 
         publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
         

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError
 import logging as log
 import json
 import platform
@@ -246,6 +246,12 @@ def main(argv=None):
     except ArchlabError as e:
         log.error(f"System error (probably not your fault): {repr(e)}")
         status_str = f"{traceback.format_exc()}\n{repr(e)}"
+        exit_code = 1
+        if args.debug:
+            raise
+    except ArchlabTransientError as e:
+        log.error(f"System error (probably not your fault): {repr(e)}")
+        status_str = f"{repr(e)}"
         exit_code = 1
         if args.debug:
             raise
