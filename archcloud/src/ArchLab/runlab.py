@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, Submission, ArchlabError, UserError, SubmissionResult, LabSpec
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError
 import logging as log
 import json
 import platform
@@ -13,6 +13,7 @@ import textwrap
 import tempfile
 from  .CSE141Lab import CSE141Lab
 import traceback
+
 
 def show_info(directory, fields=None):
     try:
@@ -72,6 +73,8 @@ def main(argv=None):
     parser.add_argument('--info', nargs="?", default=None, const=[],  help="Print information about this lab an exit.  With an argument print that field of lab structure.")
     parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
+    parser.add_argument('--branch',  help="Run this branch")
+    parser.add_argument('--run-git-remotely', action='store_true', default=False, help="Run the contents of this repo remotely")
 
     def sm(s):
         if student_mode:
@@ -79,6 +82,8 @@ def main(argv=None):
         else:
             return s
 
+    parser.add_argument('--repo', help=sm("Run this repo"))
+    parser.add_argument('--proxy', default=os.environ.get("RUNLAB_PROXY","http://127.0.0.1:5000"), help=sm("Proxy host"))
     parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
     parser.add_argument('--nop', action='store_true', default=False, help=sm("Don't actually run anything."))
     parser.add_argument('--native', action='store_false', dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
@@ -99,7 +104,6 @@ def main(argv=None):
     parser.add_argument('--public-only', action="store_true", help=sm("Only load the public lab configuration"))
     parser.add_argument('--quieter', action="store_true", help=sm("Be quieter"))
     
-
     if argv == None:
         argv = sys.argv[1:]
         
@@ -117,6 +121,17 @@ def main(argv=None):
         sys.stdout.write(show_info(args.directory, args.info))
         return 
 
+    if args.run_git_remotely:
+        if not args.repo:
+            args.repo = subprocess.check_output("git config --get remote.origin.url".split()).strip()
+        if not args.branch:
+            args.branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD".split()).strip()
+        args.pristine=True
+        
+    if args.repo or args.branch:
+        if not args.pristine:
+            args.pristine = True
+            
     if not CSE141Lab.does_papi_work():
         log.info("Forcing '--devel' because PAPI doesn't work on this machine")
         args.devel = True
@@ -140,13 +155,17 @@ def main(argv=None):
             else:
                 submission = Submission._fromdict(json.loads(open(args.run_json[0]).read()))
             log.debug(f"loaded this submission from json:\n" + str(submission._asdict()))
+        elif args.run_git_remotely:
+            pass
         else:
             submission = build_submission(args.directory,
                                           args.solution,
                                           args.command,
                                           public_only=args.public_only,
                                           username=os.environ.get("USER_EMAIL"),
-                                          pristine=args.pristine)
+                                          pristine=args.pristine,
+                                          repo=args.repo,
+                                          branch=args.branch)
 
             for i in args.lab_override:
                 k, v = i.split("=")
@@ -155,24 +174,25 @@ def main(argv=None):
                 log.debug(f"{submission.lab_spec._asdict()}")
             
 
-            diff = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
-            update = ['git', 'remote', 'update']
-            unpushed = ['git' , 'status', '-uno']
-            reporter = log.error if args.validate else log.warn
-            
-            try:
-                subprocess.check_call(diff)
-                subprocess.check_call(update)
-                if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
-                    raise Exception()
-            except:
-                reporter("You have uncommitted changes and/or there is changes in github that you don't have locally.  This means local behavior won't match what the autograder will do.")
-                if args.validate:
-                    log.error("To run anyway, pass '--no-validate'.  Alternately, to mimic the autograder as closely as possible (and require committing your files), do '--pristine'")
-                    if args.debug:
-                        raise
-                    else:
-                        sys.exit(1)
+            if not args.repo:
+                diff = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
+                update = ['git', 'remote', 'update']
+                unpushed = ['git' , 'status', '-uno']
+                reporter = log.error if args.validate else log.warn
+
+                try:
+                    subprocess.check_call(diff)
+                    subprocess.check_call(update)
+                    if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
+                        raise Exception()
+                except:
+                    reporter("You have uncommitted changes and/or there is changes in github that you don't have locally.  This means local behavior won't match what the autograder will do.")
+                    if args.validate:
+                        log.error("To run anyway, pass '--no-validate'.  Alternately, to mimic the autograder as closely as possible (and require committing your files), do '--pristine'")
+                        if args.debug:
+                            raise
+                        else:
+                            sys.exit(1)
 
                     
         if args.json:
@@ -182,14 +202,20 @@ def main(argv=None):
         result = None
         if not args.nop:
 
-            if not args.remote:
+            if args.remote:
+                result = run_submission_remotely(submission, daemon=args.daemon)
+            elif args.run_git_remotely:
+                result = run_submission_by_proxy(proxy=args.proxy,
+                                                 repo=args.repo,
+                                                 branch=args.branch)
+             
+            else:
                 result = run_submission_locally(submission,
                                                 run_in_docker=args.docker,
                                                 run_pristine=args.pristine,
                                                 docker_image=args.docker_image,
                                                 verify_repo=args.verify_repo)
-            else:
-                result = run_submission_remotely(submission, daemon=args.daemon)
+
                 
             log.debug(f"Got response: {result}")
             for i in result.files:
@@ -220,6 +246,12 @@ def main(argv=None):
     except ArchlabError as e:
         log.error(f"System error (probably not your fault): {repr(e)}")
         status_str = f"{traceback.format_exc()}\n{repr(e)}"
+        exit_code = 1
+        if args.debug:
+            raise
+    except ArchlabTransientError as e:
+        log.error(f"System error (probably not your fault): {repr(e)}")
+        status_str = f"{repr(e)}"
         exit_code = 1
         if args.debug:
             raise

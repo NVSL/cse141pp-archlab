@@ -73,7 +73,17 @@ def main(argv=sys.argv[1:]):
                         output = latest_submission['results']
                 else:
                         start_time = time.time()
-                        submission = build_submission(submission_dir, username=metadata['users'][0]["email"])
+
+                        try:
+                                # Sometimes we don't get a
+                                # user from gradescope.  Resubmitting
+                                # seems to fix it.
+                                username= metadata['users'][0]["email"]
+                        except IndexError as e:
+                                raise ArchlabError("Malformed job metadata.  Probably gradescope's fault.  Resubmit.")
+                        
+                        submission = build_submission(submission_dir, username=username)
+                        
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
@@ -123,7 +133,7 @@ def main(argv=sys.argv[1:]):
                                 "score": 0.0, # optional, but required if not on top level submission
                                 "max_score": 0.0, # optional
                                 "name": "zip_output_url",
-                                "output": f"Your lab inputs and oututs are available in this zip file:\n{result.zip_archive}\nWhen prompted, log in as '{metadata['users'][0]['email']}' to access it.",
+                                "output": f"Your lab inputs and oututs are available in this zip file:\n{result.zip_archive}\nWhen prompted, log in as '{metadata['users'][0]['email']}' to access it.\nIf you have trouble, either log out of google or open it in your browser's 'private' or 'incognito' mode.",
                                 "visibility": "visible", # Optional visibility setting
                         }
                 )

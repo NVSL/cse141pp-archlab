@@ -28,6 +28,8 @@ from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
 from functools import reduce
+import http.client as http_client
+#http_client.HTTPConnection.debuglevel = 1
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
 
@@ -38,6 +40,8 @@ import pytz
 class UserError(Exception):
     pass
 class ArchlabError(Exception):
+    pass
+class ArchlabTransientError(Exception):
     pass
 
 class BadOptionException(UserError):
@@ -424,7 +428,7 @@ class SubmissionResult(object):
         with open(os.path.join(directory, "results.json"), "w") as t:
             log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
             t.write(json.dumps(self.results, sort_keys=True, indent=4))
-
+        
     def build_file_zip_archive(self):
         out = io.BytesIO()
         zip_file = ZipFile(out,mode="w")
@@ -448,7 +452,24 @@ class SubmissionResult(object):
             raise MalformedObject
 
 
-
+def run_submission_by_proxy(proxy, repo, branch):
+    data = dict(repo=repo,
+                branch=branch)
+    log.debug(f"Sending data: {data}")
+    lab_spec =LabSpec.load(".")
+    try:
+        r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=lab_spec.time_limit + 5)
+    except:
+        raise ArchlabTransientError("Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape.")
+        
+    log.debug(f"Got response: {r}")
+    r.raise_for_status()
+    response = r.json()
+    if response['status'] == "SUCCESS":
+        return SubmissionResult._fromdict(response['result'])
+    else:
+        raise ArchlabError(response['reason'])
+    
 def run_submission_remotely(submission, daemon=False):
     the_daemon = None
     subscriber = None
@@ -462,7 +483,7 @@ def run_submission_remotely(submission, daemon=False):
             # This should ensure that the daemon processes our
             # requests.  This prevents interference between testing
             # instances.  Doing it through the environment is a hack.
-            assert 'PRIVATE_PUBSUB_NAMESPACE' not in os.environ, "PRIVATE_PUBSUSB_NAMESPACE is a hack.  Don't set it yourself"
+            #assert 'PRIVATE_PUBSUB_NAMESPACE' not in os.environ, "PRIVATE_PUBSUSB_NAMESPACE is a hack.  Don't set it yourself"
             os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
             the_daemon = subprocess.Popen(['runlab.d', '--debug', '--docker'] + (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []))
         else:
@@ -471,7 +492,7 @@ def run_submission_remotely(submission, daemon=False):
         with environment(**submission.env):
             # cleanup local outputs.  This is mostly so can reliably
             # test for the absence of particular outputs.
-            subprocess.check_call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
+            subprocess.call(submission.lab_spec.clean_cmd, cwd=submission.user_directory)
 
         publisher = Publisher(topic=os.environ['PUBSUB_TOPIC'])
         
@@ -651,7 +672,10 @@ def run_submission_locally(sub,
             try:
                 yield r.name
             finally:
-                r.cleanup()
+                try:
+                    r.cleanup()
+                except:
+                    pass
 
     
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
@@ -666,9 +690,6 @@ def run_submission_locally(sub,
         try:
             if run_pristine:
                 repo = sub.lab_spec.repo
-                log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
-                if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
-                    raise UserError(f"Repo {repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 log.info("Cloning lab reference files...")
@@ -802,18 +823,43 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(user_directory, solution=None, command=None, config_file=None, username=None,pristine=False, public_only=False):
+def build_submission(user_directory,
+                     solution=None,
+                     command=None,
+                     config_file=None,
+                     username=None,
+                     pristine=False,
+                     public_only=False,
+                     repo=None,
+                     branch=None,
+                     options=None):
 
+    if (repo or branch) and not pristine:
+        raise UserError("You can't pass a repo or a branch without passing pristine")
 
-
+    if pristine:
+        if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+            repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+        try:
+            subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
+        except:
+            raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
+    
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
+        if repo is None:
+            repo = user_directory
         if pristine:
             try:
-                log.info("Cloning user files to get the version in github...")
-                subprocess.check_call(["git", "clone", user_directory, run_directory])
+                log.info(f"Cloning {repo} to get the version in git...")
+                if branch is None:
+                    subprocess.check_call(["git", "clone", repo, run_directory])
+                else:
+                    subprocess.check_call(["git", "clone", "-b", branch, repo, run_directory])
+
             except Exception as e:
-                log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
-                raise UserError("Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                log.error(f"Tried to clone `{repo}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                raise UserError("Tried to clone `{repo}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+            
         else:
             run_directory = user_directory
 
