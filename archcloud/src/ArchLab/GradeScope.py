@@ -73,7 +73,17 @@ def main(argv=sys.argv[1:]):
                         output = latest_submission['results']
                 else:
                         start_time = time.time()
-                        submission = build_submission(submission_dir, username=metadata['users'][0]["email"])
+
+                        try:
+                                # Sometimes we don't get a
+                                # user from gradescope.  Resubmitting
+                                # seems to fix it.
+                                username= metadata['users'][0]["email"]
+                        except IndexError as e:
+                                raise ArchlabError("Malformed job metadata.  Probably gradescope's fault.  Resubmit.")
+                        
+                        submission = build_submission(submission_dir, username=username)
+                        
                         if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
                                 raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 

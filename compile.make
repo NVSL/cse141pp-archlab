@@ -46,7 +46,7 @@ endif
 endif
 
 %.o : %.s
-	$(CC) -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
 
 %.o : %.cpp
 	$(CXX) -c $(CXXFLAGS)  $< -o $@
@@ -62,10 +62,10 @@ endif
 	cp $< $@
 
 %.s : %.cpp
-	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g3 $< -o $@
 
 %.s : %.c
-	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g3 $< -o $@
 
 %.pin-trace: %.exe
 	pin -t $(ARCHLAB)/pin-tools/obj-intel64/trace_archlab.so -o $@ -- $(abspath $<) $(TRACE_ARGS) --engine pin

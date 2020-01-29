@@ -28,6 +28,9 @@ from .DataStore import DataStore
 from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
 from functools import reduce
+import requests
+import http.client as http_client
+#http_client.HTTPConnection.debuglevel = 1
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
 
@@ -424,7 +427,7 @@ class SubmissionResult(object):
         with open(os.path.join(directory, "results.json"), "w") as t:
             log.debug(f"wrote {json.dumps(self.results, sort_keys=True, indent=4)}")
             t.write(json.dumps(self.results, sort_keys=True, indent=4))
-
+        
     def build_file_zip_archive(self):
         out = io.BytesIO()
         zip_file = ZipFile(out,mode="w")
@@ -448,7 +451,19 @@ class SubmissionResult(object):
             raise MalformedObject
 
 
-
+def run_submission_by_proxy(proxy, repo, branch):
+    data = dict(repo=repo,
+                branch=branch)
+    log.debug(f"Sending data: {data}")
+    r = requests.post(f"{proxy}/jobs/submit", data=data)
+    log.debug(f"Got response: {r}")
+    r.raise_for_status()
+    response = r.json()
+    if response['status'] == "SUCCESS":
+        return SubmissionResult._fromdict(response['result'])
+    else:
+        raise ArchlabError(response['reason'])
+    
 def run_submission_remotely(submission, daemon=False):
     the_daemon = None
     subscriber = None
@@ -651,7 +666,10 @@ def run_submission_locally(sub,
             try:
                 yield r.name
             finally:
-                r.cleanup()
+                try:
+                    r.cleanup()
+                except:
+                    pass
 
     
     if os.environ.get('IN_DOCKER') == 'yes' and run_in_docker and not run_pristine:
@@ -802,18 +820,43 @@ def remove_outputs(dirname, submission):
         if os.path.exists(path) and os.path.isfile(path):
             os.remove(path)
     
-def build_submission(user_directory, solution=None, command=None, config_file=None, username=None,pristine=False, public_only=False):
+def build_submission(user_directory,
+                     solution=None,
+                     command=None,
+                     config_file=None,
+                     username=None,
+                     pristine=False,
+                     public_only=False,
+                     repo=None,
+                     branch=None,
+                     options=None):
 
+    if (repo or branch) and not pristine:
+        raise UserError("You can't pass a repo or a branch without passing pristine")
 
-
+    if pristine:
+        try:
+            subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
+        except:
+            raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
+    
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
+        if repo is None:
+            repo = user_directory
         if pristine:
             try:
-                log.info("Cloning user files to get the version in github...")
-                subprocess.check_call(["git", "clone", user_directory, run_directory])
+                if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+                    repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+                log.info(f"Cloning {repo} to get the version in git...")
+                if branch is None:
+                    subprocess.check_call(["git", "clone", repo, run_directory])
+                else:
+                    subprocess.check_call(["git", "clone", "-b", branch, repo, run_directory])
+
             except Exception as e:
-                log.error(f"Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
-                raise UserError("Tried to clone `{user_directory}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                log.error(f"Tried to clone `{repo}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+                raise UserError("Tried to clone `{repo}` into '{run_directory}' for pristine execution, but failed: {repr(e)}")
+            
         else:
             run_directory = user_directory
 

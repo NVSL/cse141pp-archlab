@@ -226,18 +226,26 @@ def main(argv=None):
 
                 if job_data['username']:
                     username = f"{job_data['username'].split('@')[0]}-"
-                else:
-                    username = ""
 
-                to_zone = pytz.timezone('America/Los_Angeles')
-                local_time = job_data['submitted_utc'].astimezone(to_zone).strftime('%Y-%m-%d-%H-%M-%S')
-                download_name=f"{username}submitted-at-{local_time}.zip"
-                zip_name = f"{job_id}.zip"
-                archive = blobstore.write_file(zip_name,
-                                               result.build_file_zip_archive(),
-                                               content_disposition=f"Attachment; filename={download_name}",
-                                               owner=job_data['username'],
-                                               content_type="application/zip")
+                    to_zone = pytz.timezone('America/Los_Angeles')
+                    local_time = job_data['submitted_utc'].astimezone(to_zone).strftime('%Y-%m-%d-%H-%M-%S')
+                    download_name=f"{username}submitted-at-{local_time}.zip"
+                    zip_name = f"{job_id}.zip"
+
+                    try:
+                        archive = blobstore.write_file(zip_name,
+                                                       result.build_file_zip_archive(),
+                                                       content_disposition=f"Attachment; filename={download_name}",
+                                                       owner=job_data['username'],
+                                                       content_type="application/zip")
+                    except google.api_core.exceptions.BadRequest as e:
+                        if "Unknown user" in repr(e):
+                            raise UserError(f"Unknown user: {job_data['username']}")
+                        else:
+                            raise
+                else:
+                    archive = None
+                    
                 ds.update(
                     job_id,
                     status='COMPLETED',

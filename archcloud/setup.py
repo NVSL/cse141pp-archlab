@@ -17,7 +17,9 @@ setup(
         "dateutils",
         "parameterized",
         "gradescope_utils",
-        "packet-python"
+        "packet-python",
+        "flask",
+        "requests"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
