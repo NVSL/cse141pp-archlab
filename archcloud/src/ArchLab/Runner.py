@@ -684,9 +684,6 @@ def run_submission_locally(sub,
         try:
             if run_pristine:
                 repo = sub.lab_spec.repo
-                log.debug("Valid repos = {os.environ['VALID_LAB_STARTER_REPOS']}")
-                if verify_repo and repo not in os.environ['VALID_LAB_STARTER_REPOS']:
-                    raise UserError(f"Repo {repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
                 if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 log.info("Cloning lab reference files...")
