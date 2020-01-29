@@ -477,7 +477,7 @@ def run_submission_remotely(submission, daemon=False):
             # This should ensure that the daemon processes our
             # requests.  This prevents interference between testing
             # instances.  Doing it through the environment is a hack.
-            assert 'PRIVATE_PUBSUB_NAMESPACE' not in os.environ, "PRIVATE_PUBSUSB_NAMESPACE is a hack.  Don't set it yourself"
+            #assert 'PRIVATE_PUBSUB_NAMESPACE' not in os.environ, "PRIVATE_PUBSUSB_NAMESPACE is a hack.  Don't set it yourself"
             os.environ['PRIVATE_PUBSUB_NAMESPACE'] = str(uuid())[-8:]
             the_daemon = subprocess.Popen(['runlab.d', '--debug', '--docker'] + (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []))
         else:
@@ -835,6 +835,8 @@ def build_submission(user_directory,
         raise UserError("You can't pass a repo or a branch without passing pristine")
 
     if pristine:
+        if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+            repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
         try:
             subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
         except:
@@ -845,8 +847,6 @@ def build_submission(user_directory,
             repo = user_directory
         if pristine:
             try:
-                if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
-                    repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 log.info(f"Cloning {repo} to get the version in git...")
                 if branch is None:
                     subprocess.check_call(["git", "clone", repo, run_directory])

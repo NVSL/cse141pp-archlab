@@ -8,7 +8,8 @@ import traceback
 import sys
 import logging as log
 import platform
-    
+import re
+
 app = Flask(__name__)
 
 debug=False
@@ -28,16 +29,26 @@ def submit_job():
     repo = request.form['repo']
     branch = request.form['branch']
 
+    student_repo = re.search("/CSE141pp/wi20-CSE141L-(.*)-(\w+)", repo)
+    master_repo = re.search("/NVSL/.*Lab-(.*)", repo)
+    if student_repo:
+        username=studet_repo.group(2)
+    elif master_repo:
+        username="staff"
+    else:
+        return fail(status="FAILURE",
+                    reason=f"{repo} is not repo for this class.")
+    
     os.makedirs("/jobs", exist_ok=True)
     with tempfile.TemporaryDirectory(dir="/jobs/") as work_dir:
 
         try:
-            submission = build_submission(work_dir, username=None, repo=repo, branch=branch, pristine=True)
+            submission = build_submission(work_dir, username=username, repo=repo, branch=branch, pristine=True)
 
 #            if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
 #                raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
 
-            result = run_submission_remotely(submission, daemon=True)
+            result = run_submission_remotely(submission)#, daemon=True)
 
         except UserError as e:
             if debug:
