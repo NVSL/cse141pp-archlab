@@ -135,7 +135,7 @@ def main(argv=None):
             return s
 
     parser.add_argument('--repo', help=sm("Run this repo"))
-    parser.add_argument('--proxy', default=os.environ.get("RUNLAB_PROXY","http://127.0.0.1:5000"), help=sm("Proxy host"))
+    parser.add_argument('--proxy', default=os.environ.get('RUNLAB_PROXY', "http://127.0.0.1:5000"), help=sm("Proxy host"))
     parser.add_argument('--devel', action='store_true', default=student_mode, dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
     parser.add_argument('--nop', action='store_true', default=False, help=sm("Don't actually run anything."))
     parser.add_argument('--native', action='store_false', dest='devel', help=sm("Don't check for edited files and set DEVEL_MODE=yes in environment."))
