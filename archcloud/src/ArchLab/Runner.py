@@ -421,6 +421,8 @@ class SubmissionResult(object):
             directory = self.submission.user_directory
         for i in self.files:
             p = os.path.abspath(os.path.join(directory, i))
+            directory = os.path.dirname(p)
+            os.makedirs(directory, exist_ok=True)
             with open(p, "wb") as t:
                 log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
                 t.write(base64.b64decode(self.files[i]))
@@ -836,9 +838,13 @@ def build_submission(user_directory,
 
     if (repo or branch) and not pristine:
         raise UserError("You can't pass a repo or a branch without passing pristine")
+    
 
     if pristine:
-        if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+        if repo is None:
+            repo = user_directory
+            
+        if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
             repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
         try:
             subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
@@ -846,8 +852,6 @@ def build_submission(user_directory,
             raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
     
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
-        if repo is None:
-            repo = user_directory
         if pristine:
             try:
                 log.info(f"Cloning {repo} to get the version in git...")
