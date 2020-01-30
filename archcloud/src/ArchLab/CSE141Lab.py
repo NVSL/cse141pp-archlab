@@ -258,7 +258,9 @@ class CSE141Lab(LabSpec):
                                               None,
                                               public_only=flags.public_lab,
                                               username="swanson@eng.ucsd.edu",
-                                              pristine=flags.pristine)
+                                              pristine=flags.pristine,
+                                              branch=subprocess.check_output("git rev-parse --abbrev-ref HEAD".split()).decode('utf8').strip() if flags.pristine else None)
+                
                 if flags.remote:
                     result = run_submission_remotely(submission, daemon=not 'SUPRESS_LOCAL_DAEMON' in os.environ)
                 else:
