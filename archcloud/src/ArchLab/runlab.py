@@ -32,17 +32,20 @@ def set_upstream():
     if os.path.exists(".starter_repo"):
         with open(".starter_repo") as f:
             upstream = f.read().strip()
-
+    else:
+        log.warning("Can't find '.starter_repo', so I can't check for updates")
+        return False
+        
     current_remotes = subprocess.check_output(['git', 'remote']).decode("utf8")
     if "upstream" in current_remotes:
         log.debug("Remote upstream is set")
-        return
+        return True
     try:
         subprocess.check_call(f"git remote add upstream {upstream}".split(), stdout=dev_null)
+        return True
     except:
         log.error("Failed to set upstream remote")
-        raise
-
+        return False
 
 def check_for_updates():
 
@@ -179,8 +182,8 @@ def main(argv=None):
         args.check_for_updates = True
 
     if args.check_for_updates:
-        set_upstream()
-        check_for_updates()
+        if set_upstream():
+            check_for_updates()
 
     if args.merge_updates:
         merge_updates()
