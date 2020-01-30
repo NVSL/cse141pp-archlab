@@ -838,9 +838,13 @@ def build_submission(user_directory,
 
     if (repo or branch) and not pristine:
         raise UserError("You can't pass a repo or a branch without passing pristine")
+    
 
     if pristine:
-        if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+        if repo is None:
+            repo = user_directory
+            
+        if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
             repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
         try:
             subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
@@ -848,8 +852,6 @@ def build_submission(user_directory,
             raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
     
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
-        if repo is None:
-            repo = user_directory
         if pristine:
             try:
                 log.info(f"Cloning {repo} to get the version in git...")
