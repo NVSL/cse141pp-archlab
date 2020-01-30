@@ -51,7 +51,7 @@ def check_for_updates():
 
     try:
         subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
-        common_ancestor = subprocess.check_output("git merge-base master remotes/upstream/master".split()).decode("utf8").strip()
+        common_ancestor = subprocess.check_output("git merge-base HEAD remotes/upstream/master".split()).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
         log.error("Failed to check for updates.")
