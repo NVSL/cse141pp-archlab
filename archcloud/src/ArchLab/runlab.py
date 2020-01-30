@@ -51,17 +51,19 @@ def check_for_updates():
 
     try:
         subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
+        common_ancestor = subprocess.check_output("git merge-base master remotes/upstream/master".split()).decode("utf8").strip()
+        log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
         log.error("Failed to check for updates.")
         raise
 
-    if subprocess.run("git diff --exit-code upstream/master".split(), stdout=dev_null).returncode != 0:
+    if subprocess.run(f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null).returncode != 0:
 
         sys.stdout.write("""
 ===================================================================
 # The lab starter repo has been changed.  The diff follows.
 # Do `runlab --merge-updates` to merge the changes into your repo.\n""")
-        subprocess.run("git diff upstream/master".split())
+        subprocess.run(f"git diff {common_ancestor} remotes/upstream/master -- ".split())
         sys.stdout.write("""
 ===================================================================\n""")
     else:
@@ -76,7 +78,7 @@ def merge_updates():
         return
 
     try:
-        subprocess.check_call("git merge remotes/upstream/master".split())
+        subprocess.call(["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"])
     except:
         log.error("Failed to merge updates")
         raise
@@ -174,20 +176,29 @@ def main(argv=None):
 
     log.debug(f"Command line args: {args}")
 
-    if args.info != None:
-        sys.stdout.write(show_info(args.directory, args.info))
-        return 
 
     if student_mode:
         args.check_for_updates = True
+
+    if args.merge_updates:
+        try:
+            merge_updates()
+        except:
+            if debug:
+                raise
+            return 1
+        else:
+            return 0
 
     if args.check_for_updates:
         if set_upstream():
             check_for_updates()
 
-    if args.merge_updates:
-        merge_updates()
-        
+    if args.info != None:
+        sys.stdout.write(show_info(args.directory, args.info))
+        return 
+
+            
     if args.run_git_remotely:
         if not args.repo:
             args.repo = subprocess.check_output("git config --get remote.origin.url".split()).strip()
