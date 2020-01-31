@@ -55,8 +55,8 @@ def check_for_updates():
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
         log.error("Failed to check for updates.")
-        raise
-
+        return
+    
     if subprocess.run(f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null).returncode != 0:
 
         sys.stdout.write("""
