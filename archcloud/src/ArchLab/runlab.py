@@ -181,6 +181,8 @@ def main(argv=None):
         args.check_for_updates = True
 
     if args.merge_updates:
+        if True:
+            log.warn("--merge-updates has been temporarily disabled.  Maybe it will return next lab.")
         try:
             merge_updates()
         except:
@@ -190,14 +192,13 @@ def main(argv=None):
         else:
             return 0
 
-    if args.check_for_updates:
+    if False and args.check_for_updates:
         if set_upstream():
             check_for_updates()
 
-    if args.info != None:
+    if False and args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
         return 
-
             
     if args.run_git_remotely:
         if not args.repo:
