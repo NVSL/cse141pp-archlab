@@ -16,8 +16,13 @@ import traceback
 from .Columnize import columnize
 import datetime
 
-dev_null=open("/dev/null", "w")
+log.addLevelName(25, "NOTE")
+def note(*argc, **kwargs):
+    log.log(25, *argc, **kwargs)
+log.note = note
+log.NOTE=25
 
+dev_null=open("/dev/null", "w")
 def exec_environment():
     rows = []
     data = dict(utc=str(datetime.datetime.utcnow()),
@@ -26,13 +31,34 @@ def exec_environment():
                 docker_image=os.environ.get("THIS_DOCKER_IMAGE", "<not set>"),
                 student_mode=os.environ.get("STUDENT_MODE", "<not set>"),
                 deployed=os.environ.get("IN_DEPLOYMENT", "<not set>"),
-                cwd=os.getcwd())
+                cwd=os.getcwd(),
+                origin=run_git(subprocess.run, "git remote get-url origin".split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf8').strip(),
+                upstream=run_git(subprocess.run, "git remote get-url upstream".split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf8').strip(),
+    )
     rows.append(["EXEC", ""])
     rows.append(["=======", ""])
 
     return columnize(rows +  list(map(list, data.items())), divider=" : ", headers=None)
          
-         
+def run_git(func,*argc, **kwargs):
+    log.debug(f"Running {func.__name__}: {argc[0]}")
+    try:
+        a = func(*argc, **kwargs)
+    except:
+        raise
+    else:
+        log.note(f"git ran successfully.")
+        return a
+
+def cache_git_credentials():
+    try:
+        if run_git(subprocess.call,"git config --get credential.helper".split(), stdout=dev_null, stderr=dev_null) == 1:
+            return
+        run_git(subprocess.call,"git config --global credential.helper cache".split(), stdout=dev_null, stderr=dev_null)
+        run_git(subprocess.check_call,["git", "config", "--global", "credential.helper", "cache", "--timeout=36000"], stdout=dev_null, stderr=dev_null)
+    except:
+        log.warning("I tried to set up credential caching but failed.  You might have to type your password alot.  It is safe to continue.")
+        
 def show_info(directory, fields=None):
     try:
         spec=LabSpec.load(directory)
@@ -52,37 +78,37 @@ def set_upstream():
         with open(".starter_repo") as f:
             upstream = f.read().strip()
     else:
-        log.warning("Can't find '.starter_repo', so I can't check for updates")
+        log.note("Can't find '.starter_repo', so I can't check for updates")
         return False
         
-    current_remotes = subprocess.check_output(['git', 'remote']).decode("utf8")
+    current_remotes = run_git(subprocess.check_output, ['git', 'remote']).decode("utf8")
     if "upstream" in current_remotes:
         log.debug("Remote upstream is set")
         return True
     try:
-        subprocess.check_call(f"git remote add upstream {upstream}".split(), stdout=dev_null)
+        run_git(subprocess.check_call, f"git remote add upstream {upstream}".split(), stdout=dev_null, stderr=dev_null)
         return True
     except:
-        log.error("Failed to set upstream remote")
+        log.note(f"Unable to set upstream remote to '{upstream}'.  You won't be able to check for updates.  This probably means your upstream is already set or '{upstream}' is not a valid repo.  If you want to reset your upstream, do 'git remote remove upstream'.  To restore your .starter_repo, download a fresh copy from the starter repo.")
         return False
 
 def check_for_updates():
 
     try:
-        subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
-        common_ancestor = subprocess.check_output("git merge-base HEAD remotes/upstream/master".split()).decode("utf8").strip()
+        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null)
+        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split()).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
-        log.error("Failed to check for updates.")
+        log.note("Unable to check for updates.")
         return
     
-    if subprocess.run(f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null).returncode != 0:
+    if run_git(subprocess.run, f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null).returncode != 0:
 
         sys.stdout.write("""
 ===================================================================
 # The lab starter repo has been changed.  The diff follows.
 # Do `runlab --merge-updates` to merge the changes into your repo.\n""")
-        subprocess.run(f"git diff {common_ancestor} remotes/upstream/master -- ".split())
+        run_git(subprocess.run, f"git diff {common_ancestor} remotes/upstream/master -- ".split())
         sys.stdout.write("""
 ===================================================================\n""")
     else:
@@ -91,15 +117,15 @@ def check_for_updates():
 
 def merge_updates():
     try:
-        subprocess.check_call("git fetch upstream".split(), stdout=dev_null)
+        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null)
     except:
-        log.error("Failed to check for updates.")
+        log.note("Unable to check for updates.")
         return
 
     try:
-        subprocess.call(["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"])
+        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"])
     except:
-        log.error("Failed to merge updates")
+        log.note("Unable to merge updates")
         raise
     
     
@@ -188,10 +214,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if not args.verbose and student_mode:
-        log.basicConfig(format="%(levelname)-8s %(message)s", level=log.WARN)
+        log.basicConfig(format="%(levelname)-8s %(message)s", level=log.NOTE)
     else:
         log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if args.verbose else "%(levelname)-8s %(message)s",
-                        level=log.DEBUG if args.verbose else log.WARN)
+                        level=log.DEBUG if args.verbose else log.NOTE)
 
     log.debug(f"Command line args: {args}")
 
@@ -200,19 +226,19 @@ def main(argv=None):
         args.check_for_updates = True
 
     if args.merge_updates:
-        if True:
-            log.warn("--merge-updates has been temporarily disabled.  Maybe it will return next lab.")
+        try:
+            merge_updates()
+        except:
+            if debug:
+                raise
+            return 1
         else:
-            try:
-                merge_updates()
-            except:
-                if debug:
-                    raise
-                return 1
-            else:
-                return 0
+            return 0
 
-    if False and args.check_for_updates:
+    if student_mode:
+        cache_git_credentials()
+                    
+    if args.check_for_updates:
         if set_upstream():
             check_for_updates()
 
