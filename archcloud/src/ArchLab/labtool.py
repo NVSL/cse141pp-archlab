@@ -12,6 +12,7 @@ import base64
 from  .DataStore import DataStore
 from  .BlobStore import BlobStore
 from  .PubSub import Subscriber
+import math
 
 import copy
 from .Columnize import columnize, format_time_delta, format_time_short
@@ -144,6 +145,7 @@ class Top(SubCommand):
                 while True:
                     rows =[["id", "jstat", "sstat", "wtime","rtime", "tot. time", "finished", "runner",  "user" ]]
                     users = set()
+        
                     for j in copy.copy(live_jobs):
                         job = ds.pull(j)
                         now = datetime.datetime.now(pytz.utc)
@@ -206,7 +208,8 @@ class Top(SubCommand):
 
                     
                     recent_jobs = ds.get_recently_completed_jobs(seconds_ago=args.window)
-                    s = datetime.timedelta()
+                    latency_sum = datetime.timedelta()
+                    exec_time_sum = datetime.timedelta()
                     timeout = datetime.timedelta(seconds = int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
                     overdue = 0
 
@@ -214,13 +217,25 @@ class Top(SubCommand):
                         d = j['completed_utc'] - j['submitted_utc']
                         if d > timeout:
                             overdue += 1
-                        s += d
-
+                        latency_sum += d
+                        d = j['completed_utc'] - j['started_utc']
+                        exec_time_sum += d
+                        
                     if not args.verbose:
                         os.system("clear")
                     sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
                     sys.stdout.write(f"In the last {args.window}s: {len(recent_jobs)} job; {len(users)} students\n")
-                    sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
+                    sys.stdout.write(f"Average latency: Total: {len(recent_jobs) and latency_sum/len(recent_jobs)}; Execute {len(recent_jobs) and exec_time_sum/len(recent_jobs)}.\n")
+                    if len(recent_jobs):
+                        arrival_period = float(args.window)/float(len(recent_jobs))
+                        log.debug(f"arrival_period={arrival_period}")
+                        completion_period = float(exec_time_sum.seconds)/float(len(recent_jobs))
+                        log.debug(f"completion_period={completion_period}")
+                        servers_needed = math.ceil(completion_period/arrival_period)
+                    else:
+                        servers_needed = 1
+                        
+                    sys.stdout.write(f"We should have this many servers running: {servers_needed}\n")  
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                     sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
                     sys.stdout.write(columnize(rows, divider=" "))
