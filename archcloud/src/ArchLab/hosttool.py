@@ -45,15 +45,21 @@ class PacketCommand(SubCommand):
 class PacketList(PacketCommand):
     def __init__(self, parent):
         super(PacketList, self).__init__(parent_subparser=parent, name="ls", help="List hosts")
-        
+        self.parser.add_argument("--ip", action='store_true', help="list ips")
+
     def run(self, args):
         current_devices = self.get_packet_hosts()
+
+        if args.ip:
+            for h in current_devices:
+                sys.stdout.write(f"{h['ip_addresses'][0]['address']}\n")
+            return
         
         rows=[["hostname","id", "IP"]]
         for h in current_devices:
             rows.append([f"{h['hostname']}",f"{h['id']}", f"{h['ip_addresses'][0]['address']}"])
         sys.stdout.write(columnize(rows))
-        
+
 class PacketDelete(PacketCommand):
     def __init__(self, parent):
         super(PacketDelete, self).__init__(parent_subparser=parent, name="rm", help="List hosts")
