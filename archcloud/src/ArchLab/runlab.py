@@ -13,20 +13,39 @@ import textwrap
 import tempfile
 from  .CSE141Lab import CSE141Lab
 import traceback
+from .Columnize import columnize
+import datetime
 
 dev_null=open("/dev/null", "w")
 
+def exec_environment():
+    rows = []
+    data = dict(utc=str(datetime.datetime.utcnow()),
+                node=platform.node(),
+                user=os.environ.get("USER", "<not set>"),
+                docker_image=os.environ.get("THIS_DOCKER_IMAGE", "<not set>"),
+                student_mode=os.environ.get("STUDENT_MODE", "<not set>"),
+                deployed=os.environ.get("IN_DEPLOYMENT", "<not set>"),
+                cwd=os.getcwd())
+    rows.append(["EXEC", ""])
+    rows.append(["=======", ""])
+
+    return columnize(rows +  list(map(list, data.items())), divider=" : ", headers=None)
+         
+         
 def show_info(directory, fields=None):
     try:
         spec=LabSpec.load(directory)
-        if fields == []:
-            return spec.get_help()
-        else:
-            return f"{getattr(spec, fields)}\n"
     except FileNotFoundError:
         return "Not a lab directory\n"
-    except AttributeError:
-        return f"Unknown field: {fields}\n"
+
+    if fields == []:
+        return f"{exec_environment()}\n{spec.get_help()}"
+    else:
+        try:
+            return f"{getattr(spec, fields)}\n"
+        except AttributeError:
+            return f"Unknown field: {fields}\n"
 
 def set_upstream():
     if os.path.exists(".starter_repo"):
