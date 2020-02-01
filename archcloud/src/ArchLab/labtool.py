@@ -219,7 +219,7 @@ class Top(SubCommand):
                     if not args.verbose:
                         os.system("clear")
                     sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
-                    sys.stdout.write(f"Comp. in the last {args.window}s: {len(recent_jobs)}; Active students: {len(users)}\n")
+                    sys.stdout.write(f"In the last {args.window}s: {len(recent_jobs)} job; {len(users)} students\n")
                     sys.stdout.write(f"Average latency: {len(recent_jobs) and s/len(recent_jobs)}\n")
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                     sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
