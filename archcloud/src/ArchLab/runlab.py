@@ -196,7 +196,7 @@ def main(argv=None):
         if set_upstream():
             check_for_updates()
 
-    if False and args.info != None:
+    if args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
         return 
             
