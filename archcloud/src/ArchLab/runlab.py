@@ -183,14 +183,15 @@ def main(argv=None):
     if args.merge_updates:
         if True:
             log.warn("--merge-updates has been temporarily disabled.  Maybe it will return next lab.")
-        try:
-            merge_updates()
-        except:
-            if debug:
-                raise
-            return 1
         else:
-            return 0
+            try:
+                merge_updates()
+            except:
+                if debug:
+                    raise
+                return 1
+            else:
+                return 0
 
     if False and args.check_for_updates:
         if set_upstream():
