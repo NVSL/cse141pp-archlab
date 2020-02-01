@@ -132,7 +132,7 @@ class HostTop(PacketCommand):
 
         
         class Host(object):
-            def __init__(self,id, name, status, git_hash, ipaddr, docker_image):
+            def __init__(self,id, name, status, git_hash, ipaddr, docker_image, load):
                 self.id=id
                 self.name = name
                 self.last_heart_beat = datetime.datetime.utcnow()
@@ -141,6 +141,7 @@ class HostTop(PacketCommand):
                 self.git_hash = git_hash
                 self.ipaddr = ipaddr
                 self.docker_image =docker_image
+                self.load =load
 
             def touch(self, when):
                 self.last_heart_beat = max(when, self.last_heart_beat)
@@ -186,7 +187,8 @@ class HostTop(PacketCommand):
                                                           status=d['status'],
                                                           git_hash=d.get('sw_git_hash', " "*8),
                                                           ipaddr=ip_addr,
-                                                          docker_image=d.get('docker_image', "unknown"))
+                                                          docker_image=d.get('docker_image', "unknown"),
+                                                          load=d.get("load", "unknown"))
                                 else:
                                     host = hosts[d['id']]
                                     stamp = eval(d['time'])
@@ -198,14 +200,15 @@ class HostTop(PacketCommand):
                             except KeyError as e:
                                 log.warning(f"Got strange message: {d} ({e})")
                                 raise
-                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker"]]
+                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker", "load"]]
                     for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
                         rows.append([h.name, h.ipaddr, h.id[:8],
                                      format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
                                      h.status,
                                      format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
                                      h.git_hash[:8],
-                                     h.docker_image
+                                     h.docker_image,
+                                     h.load
                         ])
 
                     if not args.verbose:
