@@ -222,8 +222,6 @@ def main(argv=None):
                     log.error(f"Found that job I was running completed without me")
                     continue
 
-                blobstore.write_file(f"{job_id}-result",
-                                     json.dumps(result._asdict(), sort_keys=True, indent=4))
 
                 if job_data.get('username',"") != None and '@' in job_data.get('username',""):
                     username = f"{job_data['username'].split('@')[0]}-"
@@ -246,6 +244,10 @@ def main(argv=None):
                             raise
                 else:
                     archive = None
+
+                result.limit_output_file_size(size_limit=10*1024*1024, msg="This is usually due to printing too much output.  Disable your debugging output.  " + ("The full output is available in the zip file: {archive}" if archive else "If you run this via gradescope, the full output will be in your zip archive for the run."))
+                blobstore.write_file(f"{job_id}-result",
+                                     json.dumps(result._asdict(), sort_keys=True, indent=4))
                     
                 ds.update(
                     job_id,

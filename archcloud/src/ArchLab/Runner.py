@@ -445,6 +445,15 @@ class SubmissionResult(object):
 
         return out.getvalue()
 
+    def limit_output_file_size(self, size_limit=10*1024*1024, msg=None):
+        if not msg:
+            msg=""
+        for fn in self.files:
+            if len(self.files[fn]) > size_limit:
+                error=f"File '{fn}' truncated because it was larger than {size_limit} bytes.  {msg}\n"
+                del self.files[fn]
+                self.put_file(fn, error.encode('utf8'))
+        
     @classmethod
     def _fromdict(cls, j):
         try:
