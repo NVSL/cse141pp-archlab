@@ -461,7 +461,7 @@ def run_submission_by_proxy(proxy, repo, branch):
     log.debug(f"Sending data: {data}")
     lab_spec =LabSpec.load(".")
     try:
-        r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=lab_spec.time_limit+20)
+        r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
     except:
         raise ArchlabTransientError("Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape.")
         
