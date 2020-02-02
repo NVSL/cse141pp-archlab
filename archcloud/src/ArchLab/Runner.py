@@ -469,7 +469,9 @@ def run_submission_by_proxy(proxy, repo, branch):
     r.raise_for_status()
     response = r.json()
     if response['status'] == "SUCCESS":
-        return SubmissionResult._fromdict(response['result'])
+        result = SubmissionResult._fromdict(response['result'])
+        result.write_outputs(".")
+        return result
     else:
         raise ArchlabError(response['reason'])
     
