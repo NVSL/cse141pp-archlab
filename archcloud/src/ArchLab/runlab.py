@@ -301,13 +301,13 @@ def main(argv=None):
 
             if not args.repo:
                 diff = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
-                update = ['git', 'remote', 'update']
+                update = ['git', 'remote', 'update', 'origin']
                 unpushed = ['git' , 'status', '-uno']
                 reporter = log.error if args.validate else log.note
 
                 try:
-                    run_git(subprocess.check_call,diff)#, stdout=dev_null, stderr=dev_null)
-                    run_git(subprocess.check_call,update)#, stdout=dev_null, stderr=dev_null)
+                    run_git(subprocess.check_call,diff, stdout=dev_null, stderr=dev_null)
+                    run_git(subprocess.check_call,update, stdout=dev_null, stderr=dev_null)
                     if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
                         raise Exception()
                 except:
