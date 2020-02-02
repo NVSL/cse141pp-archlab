@@ -274,6 +274,7 @@ def main(argv=None):
         args.command = None
 
     try:
+        submission = None
         if args.run_json is not None:
             if args.run_json == []:
                 submission = Submission._fromdict(json.loads(sys.stdin.read()))
@@ -320,8 +321,8 @@ def main(argv=None):
                             sys.exit(1)
 
                     
-        if args.json:
-            with open(args.json, "w") as f:
+        if args.json and submission:
+            with open(f"{args.json}.submission", "w") as f:
                 f.write(json.dumps(submission._asdict(), sort_keys=True, indent=4) + "\n")
 
         result = None
@@ -342,6 +343,10 @@ def main(argv=None):
                                                 verify_repo=args.verify_repo)
 
                 
+            if args.json:
+                with open(f"{args.json}.response", "w") as f:
+                    f.write(json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+
             log.debug(f"Got response: {result}")
             for i in result.files:
                 log.debug("========================= {} ===========================".format(i))
