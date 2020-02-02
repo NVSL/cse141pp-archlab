@@ -161,6 +161,15 @@ def main(argv=sys.argv[1:]):
 {result.get_file('STDOUT.txt')}
 ================== STDERR =======================
 {result.get_file('STDERR.txt')}
+=================================================
+If you see any of the following in the output above, do not be alarmed.  They are not errors:
+
+* WARNING You have uncommitted changes and/or there is changes in github that you don't have locally. This means local behavior won't match what the autograder will do.
+
+* If you have not been specifically asked to management the live deployment of these tools, you should not be here. To leave: type 'notdeployed'
+
+If something seems to have not worked poperly, check the field right below this one ("submission status")
+
 """
 
                 status = {
