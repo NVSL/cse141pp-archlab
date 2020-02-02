@@ -220,26 +220,27 @@ def main(argv=None):
 
     log.debug(f"Command line args: {args}")
 
-
-    if student_mode:
-        args.check_for_updates = True
-
-    if args.merge_updates:
-        try:
-            merge_updates()
-        except:
-            if debug:
-                raise
-            return 1
-        else:
-            return 0
-
     if student_mode:
         cache_git_credentials()
-                    
-    if args.check_for_updates:
-        if set_upstream():
-            check_for_updates()
+
+
+    if False:
+        if student_mode:
+            args.check_for_updates = True
+
+        if args.merge_updates:
+            try:
+                merge_updates()
+            except:
+                if debug:
+                    raise
+                return 1
+            else:
+                return 0
+
+        if args.check_for_updates:
+            if set_upstream():
+                check_for_updates()
 
     if args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
@@ -302,11 +303,11 @@ def main(argv=None):
                 diff = ['git', 'diff', '--exit-code', '--stat', '--', '.'] + list(map(lambda x : f'!{x}', submission.files.keys()))
                 update = ['git', 'remote', 'update']
                 unpushed = ['git' , 'status', '-uno']
-                reporter = log.error if args.validate else log.warn
+                reporter = log.error if args.validate else log.note
 
                 try:
-                    run_git(check_call,diff, stdout=dev_null, stderr=dev_null)
-                    run_git(check_call,update, stdout=dev_null, stderr=dev_null)
+                    run_git(subprocess.check_call,diff)#, stdout=dev_null, stderr=dev_null)
+                    run_git(subprocess.check_call,update)#, stdout=dev_null, stderr=dev_null)
                     if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
                         raise Exception()
                 except:
