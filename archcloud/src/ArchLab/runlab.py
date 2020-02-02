@@ -52,10 +52,10 @@ def run_git(func,*argc, **kwargs):
 
 def cache_git_credentials():
     try:
-        if run_git(subprocess.call,"git config --get credential.helper".split(), stdout=dev_null, stderr=dev_null) == 1:
+        if run_git(subprocess.call,"git config --get credential.helper".split(), stdout=dev_null, stderr=dev_null) == 0:
+            log.note("You already have credential caching enabled.")
             return
-        run_git(subprocess.call,"git config --global credential.helper cache".split(), stdout=dev_null, stderr=dev_null)
-        run_git(subprocess.check_call,["git", "config", "--global", "credential.helper", "cache", "--timeout=36000"], stdout=dev_null, stderr=dev_null)
+        run_git(subprocess.check_call,["git", "config", "credential.helper", "cache", "--timeout=36000"], stdout=dev_null, stderr=dev_null)
     except:
         log.warning("I tried to set up credential caching but failed.  You might have to type your password alot.  It is safe to continue.")
         
@@ -95,14 +95,14 @@ def set_upstream():
 def check_for_updates():
 
     try:
-        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null)
-        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split()).decode("utf8").strip()
+        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null, stderr=dev_null)
+        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(),stdout=dev_null, stderr=dev_null).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
         log.note("Unable to check for updates.")
         return
     
-    if run_git(subprocess.run, f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null).returncode != 0:
+    if run_git(subprocess.run, f"git diff --exit-code {common_ancestor} remotes/upstream/master -- ".split(), stdout=dev_null, stderr=dev_null).returncode != 0:
 
         sys.stdout.write("""
 ===================================================================
@@ -117,17 +117,16 @@ def check_for_updates():
 
 def merge_updates():
     try:
-        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null)
+        run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null, stderr=dev_null)
     except:
-        log.note("Unable to check for updates.")
+        log.note("Unable to check for updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
         return
 
     try:
-        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"])
+        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"], stdout=dev_null, stderr=dev_null)
     except:
-        log.note("Unable to merge updates")
-        raise
-    
+        log.note("Unable to merge updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
+        
     
 def main(argv=None):
     """
@@ -306,8 +305,8 @@ def main(argv=None):
                 reporter = log.error if args.validate else log.warn
 
                 try:
-                    subprocess.check_call(diff, stdout=dev_null)
-                    subprocess.check_call(update, stdout=dev_null)
+                    run_git(check_call,diff, stdout=dev_null, stderr=dev_null)
+                    run_git(check_call,update, stdout=dev_null, stderr=dev_null)
                     if not "Your branch is up-to-date with" in subprocess.check_output(unpushed).decode('utf8'):
                         raise Exception()
                 except:
