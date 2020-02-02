@@ -748,8 +748,9 @@ def run_submission_locally(sub,
                                           ["docker", "run",
                                            "--hostname", f"{platform.node()}-runner",
                                            "--volumes-from", my_container_id.strip(),
+                                           "--name", f"job-{id[:8]}",
                                           ] +
-                                          env + 
+                                          env +
                                           (["--volume", "/home/swanson/cse141pp-archlab/archcloud/src:/course/cse141pp-archlab/archcloud/src"] if "USE_LOCAL_ARCHCLOUD" in os.environ else [])+
                                           ["-w", dirname,
                                            "--privileged",
@@ -758,6 +759,8 @@ def run_submission_locally(sub,
                                            '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
+                log_run("docker container stop job-id[:8]")
+                log_run("docker container rm job-id[:8]")
                 log.info("Docker finished")
 
                 if os.path.exists(status_path):

@@ -149,7 +149,7 @@ class HostTop(PacketCommand):
             def update_status(self, status):
                 if self.status != status:
                     self.last_status_change = datetime.datetime.utcnow()
-                    self. status = status
+                    self.status = status
 
             def update_software(self, git_hash, docker_image):
                 self.git_hash = git_hash
@@ -197,6 +197,7 @@ class HostTop(PacketCommand):
                                         host.update_status(d['status'])
                                         host.update_software(git_hash=d.get('sw_git_hash', " "*8),
                                                              docker_image=d.get('docker_image', "unknown"))
+                                        host.load = d.get("load", "unknown")
                             except KeyError as e:
                                 log.warning(f"Got strange message: {d} ({e})")
                                 raise

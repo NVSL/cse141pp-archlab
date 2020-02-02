@@ -75,7 +75,7 @@ class Heart(object):
                     sw_git_hash=self.git_hash,
                     docker_image=os.environ.get("THIS_DOCKER_IMAGE", "unknown"),
                     status=status,
-                    load=open("/proc/loadavg").read())
+                    load=open("/proc/loadavg").read().strip())
                 
         self.publisher.publish(json.dumps(data))
         log.info(f"Heartbeat sent: {data}")

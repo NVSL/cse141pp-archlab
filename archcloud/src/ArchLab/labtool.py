@@ -113,6 +113,7 @@ class Top(SubCommand):
                                   name="top",
                                   help="Track lab submission status")
         self.parser.add_argument('--once', action='store_true', default=False, help="Just collect stats once and exit")
+        self.parser.add_argument('--max-rows', default="50", help="How many to display")
         self.parser.add_argument('--window', default=30, help="Time window to compute stats (in minutes) (default = 30)")
 
     def run(self, args):
@@ -143,7 +144,8 @@ class Top(SubCommand):
 
             try: 
                 while True:
-                    rows =[["id", "jstat", "sstat", "wtime","rtime", "tot. time", "finished", "runner",  "user" ]]
+                    rows =[]
+                    header =[["id", "jstat", "sstat", "wtime","rtime", "tot. time", "finished", "runner",  "user" ]]
                     users = set()
         
                     for j in copy.copy(live_jobs):
@@ -238,7 +240,8 @@ class Top(SubCommand):
                     sys.stdout.write(f"We should have this many servers running: {servers_needed}\n")  
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                     sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
-                    sys.stdout.write(columnize(rows, divider=" "))
+                    rows.sort(key=lambda x: x[1], reverse=True)
+                    sys.stdout.write(columnize((header + rows)[:int(args.max_rows)], divider=" "))
                     sys.stdout.flush()
 
                     for m in subscriber.pull(timeout=5,max_messages=100):
