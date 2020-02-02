@@ -216,7 +216,12 @@ class Top(SubCommand):
                     overdue = 0
 
                     for j in recent_jobs:
-                        d = j['completed_utc'] - j['submitted_utc']
+                        try:
+                            d = j['completed_utc'] - j['submitted_utc']
+                        except TypeError as e:
+                            log.error(f"j['completed_utc'] = {j['completed_utc']}")
+                            log.error(f"j['submitted_utc'] = {j['submitted_utc']}")
+                            raise e
                         if d > timeout:
                             overdue += 1
                         latency_sum += d

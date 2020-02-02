@@ -759,8 +759,9 @@ def run_submission_locally(sub,
                                            '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
                                           (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
                                           timeout=sub.lab_spec.time_limit)
-                log_run(f"docker container stop job-{id[:8]}")
-                log_run(f"docker container rm job-{id[:8]}")
+                
+                log_run(f"docker container stop job-{id[:8]}".split())
+                log_run(f"docker container rm job-{id[:8]}".split())
                 log.info("Docker finished")
 
                 if os.path.exists(status_path):
