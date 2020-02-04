@@ -197,7 +197,7 @@ def main(argv=None):
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
     parser.add_argument('--daemon', action='store_true', default=False, help=sm("Start a local server to run my job"))
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
-        
+
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
     parser.add_argument('--zip',action='store_true', help=sm("Generate a zip file of inputs and outputs"))

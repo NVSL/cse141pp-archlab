@@ -31,6 +31,23 @@ def format_time_short(t):
     t = t.astimezone(to_zone)
     return f"{t.hour}:{t.minute:02}:{t.second%60:02}"
 
+
+def format_time_excel(t):
+    if isinstance(t, str):
+        return t
+    to_zone = tz.gettz('America/Los_Angeles')
+    t = t.replace(tzinfo=tz.tzutc())
+    t = t.astimezone(to_zone)
+    return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute:02}:{t.second%60:02}"
+
+def format_time_long(t):
+    if isinstance(t, str):
+        return t
+    to_zone = tz.gettz('America/Los_Angeles')
+    t = t.replace(tzinfo=tz.tzutc())
+    t = t.astimezone(to_zone)
+    return f"{t.year}-{t.month}-{t.day} {t.hour}:{t.minute:02}:{t.second%60:02}"
+
 def test_format_time_delta():
     import datetime
     assert format_time_delta("hello") == "hello"
