@@ -366,7 +366,7 @@ def main(argv=None):
                 with open("files.zip", "wb") as f:
                     f.write(result.build_file_zip_archive())
 
-            log.info(f"Grading results:\n{result.results}")
+            log.info(f"Grading results:\n{json.dumps(result.results, indent=4)}")
     except UserError as e: 
         log.error(f"User error (probably your fault): {repr(e)}")
         status_str = f"{repr(e)}"

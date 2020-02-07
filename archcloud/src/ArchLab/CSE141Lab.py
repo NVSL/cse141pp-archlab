@@ -173,6 +173,9 @@ class CSE141Lab(LabSpec):
             
         def go_run_tests(self, label, cwd=None):
             self.regression_count += 1
+
+            print("This is a regression test.  Your code must pass all the regression tests before the autograder will evaluate its performance.  If the test fails, you should be able to reproduce the error locally using the command listed below.")
+            
             log.debug(f"Runing regression {label} {self.regression_count}")
             if not os.path.exists("./run_tests.exe"):
                 self.skipTest("Regression not run, since run_tests.exe was not built.  This is probably because either compilation or running your job failed.")

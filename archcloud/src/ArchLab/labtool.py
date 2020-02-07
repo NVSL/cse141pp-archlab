@@ -333,7 +333,7 @@ class Top(SubCommand):
                     sys.stdout.write(f"We should have this many servers running: {servers_needed}\n")  
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                     sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
-                    rows.sort(key=lambda x: x[1], reverse=True)
+                    rows.sort(key=lambda x: (x[1], x[6]), reverse=True)
                     sys.stdout.write(columnize((header + rows)[:int(args.max_rows)], divider=" "))
                     sys.stdout.flush()
 
