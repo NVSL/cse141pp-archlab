@@ -223,25 +223,25 @@ def main(argv=None):
     if student_mode:
         cache_git_credentials()
 
-
     if False:
         if student_mode:
             args.check_for_updates = True
 
-        if args.merge_updates:
-            try:
-                merge_updates()
-            except:
-                if debug:
-                    raise
-                return 1
-            else:
-                return 0
+            
+    if args.check_for_updates:
+        if set_upstream():
+            check_for_updates()
 
-        if args.check_for_updates:
-            if set_upstream():
-                check_for_updates()
-
+    if args.merge_updates:
+        try:
+            merge_updates()
+        except:
+            if debug:
+                raise
+            return 1
+        else:
+            return 0
+            
     if args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
         return 
