@@ -31,11 +31,12 @@ def submit_job():
     repo = request.form['repo']
     branch = request.form['branch']
 
-    student_repo = re.search("/CSE141pp/wi20-CSE141L-(.*)-(\w+)", repo)
+    # the wi20... is only optional because I accidently created an assignment without it.
+    student_repo = re.search("/CSE141pp/(wi20-CSE141L-)?(.*)-(\w+)", repo)
     master_repo = re.search("/NVSL/.*Lab-(.*)", repo)
     
     if student_repo:
-        username=student_repo.group(2)
+        username=student_repo.group(3)
         lock_path =os.path.join("/status_files", username)
         if os.path.exists(lock_path):
             with open(lock_path) as f :

@@ -47,7 +47,7 @@ def run_git(func,*argc, **kwargs):
     except:
         raise
     else:
-        log.note(f"git ran successfully.")
+        #log.note(f"git ran successfully.")
         return a
 
 def cache_git_credentials():
@@ -96,9 +96,10 @@ def check_for_updates():
 
     try:
         run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null, stderr=dev_null)
-        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(),stdout=dev_null, stderr=dev_null).decode("utf8").strip()
+        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(), stderr=dev_null).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
+        raise
         log.note("Unable to check for updates.")
         return
     
@@ -106,8 +107,12 @@ def check_for_updates():
 
         sys.stdout.write("""
 ===================================================================
+===================================================================
 # The lab starter repo has been changed.  The diff follows.
-# Do `runlab --merge-updates` to merge the changes into your repo.\n""")
+# Do `runlab --merge-updates` to merge the changes into your repo.
+===================================================================
+===================================================================
+""")
         run_git(subprocess.run, f"git diff {common_ancestor} remotes/upstream/master -- ".split())
         sys.stdout.write("""
 ===================================================================\n""")
@@ -223,9 +228,8 @@ def main(argv=None):
     if student_mode:
         cache_git_credentials()
 
-    if False:
-        if student_mode:
-            args.check_for_updates = True
+    if student_mode:
+        args.check_for_updates = True
 
             
     if args.check_for_updates:
@@ -273,6 +277,7 @@ def main(argv=None):
     else:
         args.command = None
 
+    log.note("Running your code...")
     try:
         submission = None
         if args.run_json is not None:
