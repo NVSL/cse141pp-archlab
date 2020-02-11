@@ -86,22 +86,29 @@ class PacketDelete(PacketCommand):
 class PacketCreate(PacketCommand):
     def __init__(self, parent):
         super(PacketCreate, self).__init__(parent_subparser=parent, name="create", help="Create hosts on packet.com")
-
+        self.parser.add_argument("name", nargs="?", help="server name")
+        
     def run(self, args):
         import subprocess
         params = {
             'per_page': 50
         }
         current_devices = self.manager.list_devices(project_id=self.project, params=params)
-        basename=os.environ['GOOGLE_RESOURCE_PREFIX']
-        maxn = 0
-        for d in current_devices:
-            log.debug(f"Found device: {d['hostname']}")
-            m = re.match(f"{basename}-(\d+)", d['hostname'])
-            if m:
-                maxn = max(maxn, int(m.group(1)))
-                log.debug(f"{d['hostname']} matches pattern.  new max = {maxn}")
-        hostname = f"{basename}-{maxn+1}"
+        if args.name:
+            basename=args.name
+            if basename in current_devices:
+                raise Exception(f"Host '{basename}' already exists.")
+            hostname = basename
+        else:
+            basename=os.environ['GOOGLE_RESOURCE_PREFIX']
+            maxn = 0
+            for d in current_devices:
+                log.debug(f"Found device: {d['hostname']}")
+                m = re.match(f"{basename}-(\d+)", d['hostname'])
+                if m:
+                    maxn = max(maxn, int(m.group(1)))
+                    log.debug(f"{d['hostname']} matches pattern.  new max = {maxn}")
+            hostname = f"{basename}-{maxn+1}"
 
         log.info(f"Creating host '{hostname}'")
         userdata = subprocess.check_output(['show_boot.sh']).decode("utf8")
