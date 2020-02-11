@@ -99,7 +99,6 @@ def check_for_updates():
         common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(), stderr=dev_null).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
-        raise
         log.note("Unable to check for updates.")
         return
     
@@ -128,8 +127,9 @@ def merge_updates():
         return
 
     try:
-        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"], stdout=dev_null, stderr=dev_null)
+        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"], stdout=dev_null)
     except:
+        raise
         log.note("Unable to merge updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
         
     
