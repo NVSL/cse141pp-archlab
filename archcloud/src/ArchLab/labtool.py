@@ -15,19 +15,102 @@ from  .PubSub import Subscriber
 import math
 
 import copy
-from .Columnize import columnize, format_time_delta, format_time_short
+from .Columnize import columnize, format_time_delta, format_time_short, format_time_excel
 from .SubCommand import SubCommand
 from .hosttool import send_command_to_hosts
 import pytz
 
-def cmd_ls(args):
-    log.debug(f"Running ls with {args}")
-    ds = DataStore()
-    jobs = ds.query()
-    sys.stdout.write(f"{len(jobs)} jobs:\n")
-    for j in jobs:
-        sys.stdout.write(f"{j['job_id']}\n")
+class Report(SubCommand):
+    def __init__(self, parent):
+        super(Report, self).__init__(parent,
+                                   name="report",
+                                   help="Generate reports")
+        self.parser.add_argument("--count", default=None, help="How many to list")
 
+    def subs_per_student_histo(self, jobs):
+        
+        counts = {}
+        for j in jobs:
+            counts[j['username']] = counts.setdefault(j['username'], 0) + 1
+            #print(j['username'])
+
+        self.print_histogram(counts,1)
+              
+    def subs_per_hour_histo(self, jobs, bucket_size=10):
+        
+        counts = {}
+        for j in jobs:
+            counts[j['submitted_utc'].hour] = counts.setdefault(j['username'], 0) + 1
+            #print(j['username'])
+
+        self.print_histogram(counts, bucket_size)
+              
+    def print_histogram(self, counts, bucket_size):
+        min_count = int(math.floor(min(counts.values())/bucket_size)*bucket_size)
+        max_count = int(math.ceil(max(counts.values())/bucket_size)*bucket_size)
+
+        bucket_count = int((max_count - min_count)/bucket_size)
+
+        buckets = [0]*bucket_count
+        #print(counts)
+        for lb in range(min_count, min_count + bucket_count *bucket_size, bucket_size):
+            for k,v in counts.items():
+                if v > lb and v <= lb + bucket_size:
+                    buckets[int(lb/bucket_size)] += 1
+
+        max_count = max(buckets)
+        for lb in range(min_count, min_count + bucket_count *bucket_size, bucket_size):
+            print(f"{lb:4} {'#' * int((buckets[int(lb/bucket_size)]/max_count)*70)}")
+        
+    def run(self, args):
+        
+        import csv
+        import datetime
+        
+        ds = DataStore()
+        jobs = ds.query(limit=None if not args.count else int(args.count))
+        
+        #self.subs_per_student_histo(jobs)
+        self.subs_per_hour_histo(jobs)
+        
+        
+class List(SubCommand):
+    def __init__(self, parent):
+        super(List, self).__init__(parent,
+                                   name="ls",
+                                   help="List all jobs")
+        self.parser.add_argument("--count", default=None, help="How many to list")
+        self.parser.add_argument("--csv", nargs="?", help="List as CSV")
+        
+    def run(self, args):
+        
+        import csv
+        import datetime
+        
+        ds = DataStore()
+        jobs = ds.query_iterator(limit=None if not args.count else str(args.count))
+#<Entity('ArchLabJob', '00049b44-381b-4c33-89c4-fae781fad3fc') {'completed_utc': datetime.datetime(2020, 1, 24, 2, 34, 44, 411792, tzinfo=<UTC>), 'submission_status_reasons': [], 'started_utc': datetime.datetime(2020, 1, 24, 2, 34, 15, 976252, tzinfo=<UTC>), 'job_id': '00049b44-381b-4c33-89c4-fae781fad3fc', 'zip_archive': 'https://storage.cloud.google.com/cse141l-jobs/00049b44-381b-4c33-89c4-fae781fad3fc.zip', 'username': 'nonguyen@ucsd.edu', 'status': 'COMPLETED', 'status_reasons': [], 'runner_host': 'CSE141L-1', 'submitted_host': '8f6038c5b664', 'submission_status': 'success', 'submitted_utc': datetime.datetime(2020, 1, 24, 2, 34, 13, 188345, tzinfo=<UTC>)}>
+
+        if args.csv:
+            rows = []
+            for i in jobs:
+                for k,v in i.items():
+                    if isinstance(v, datetime.datetime):
+                        i[k] = format_time_excel(i[k])
+                i.pop("submission_status_reasons", None)        
+                i.pop("status_reasons", None)        
+                rows.append(dict(i))
+
+            with open(args.csv, "w") as out:
+                writer = csv.DictWriter(out,fieldnames=rows[0].keys())
+                writer.writeheader()
+                for r in rows:
+                    writer.writerow(r)
+        else:
+            for i in jobs:
+                sys.stderr.write(f"{str(i)}\n")
+        
+    
 class Download(SubCommand):
     def __init__(self, parent):
         super(Download, self).__init__(parent,
@@ -150,6 +233,8 @@ class Top(SubCommand):
         
                     for j in copy.copy(live_jobs):
                         job = ds.pull(j)
+                        if not job:
+                            continue
                         now = datetime.datetime.now(pytz.utc)
                         if job['status'] == "COMPLETED":
                             try:
@@ -225,9 +310,12 @@ class Top(SubCommand):
                         if d > timeout:
                             overdue += 1
                         latency_sum += d
-                        d = j['completed_utc'] - j['started_utc']
-                        exec_time_sum += d
-                        
+
+                        try:
+                            exec_time_sum += j['completed_utc'] - j['started_utc']
+                        except TypeError:
+                            pass
+                            
                     if not args.verbose:
                         os.system("clear")
                     sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
@@ -245,7 +333,7 @@ class Top(SubCommand):
                     sys.stdout.write(f"We should have this many servers running: {servers_needed}\n")  
                     sys.stdout.write(f"Gradescope timeout %: {len(recent_jobs) and float(overdue)/len(recent_jobs)*100}\n")
                     sys.stdout.write(f"Current Time: {format_time_short(datetime.datetime.utcnow())}\n")
-                    rows.sort(key=lambda x: x[1], reverse=True)
+                    rows.sort(key=lambda x: (x[1], x[6]), reverse=True)
                     sys.stdout.write(columnize((header + rows)[:int(args.max_rows)], divider=" "))
                     sys.stdout.flush()
 
@@ -267,12 +355,11 @@ def main(argv=None):
 
     subparsers = parser.add_subparsers(help='sub-command help')
 
-    ls_parser = subparsers.add_parser('ls', help="List jobs")
-    ls_parser.set_defaults(func=cmd_ls)
-
     Top(subparsers)
     Cleanup(subparsers)
     Download(subparsers)
+    List(subparsers)
+    Report(subparsers)
 
     if argv == None:
         argv = sys.argv[1:]

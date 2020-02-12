@@ -47,7 +47,7 @@ def run_git(func,*argc, **kwargs):
     except:
         raise
     else:
-        log.note(f"git ran successfully.")
+        #log.note(f"git ran successfully.")
         return a
 
 def cache_git_credentials():
@@ -96,7 +96,7 @@ def check_for_updates():
 
     try:
         run_git(subprocess.check_call,"git fetch upstream".split(), stdout=dev_null, stderr=dev_null)
-        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(),stdout=dev_null, stderr=dev_null).decode("utf8").strip()
+        common_ancestor = run_git(subprocess.check_output, "git merge-base HEAD remotes/upstream/master".split(), stderr=dev_null).decode("utf8").strip()
         log.debug(f"Common ancestor for merge: {common_ancestor}")
     except:
         log.note("Unable to check for updates.")
@@ -106,8 +106,12 @@ def check_for_updates():
 
         sys.stdout.write("""
 ===================================================================
+===================================================================
 # The lab starter repo has been changed.  The diff follows.
-# Do `runlab --merge-updates` to merge the changes into your repo.\n""")
+# Do `runlab --merge-updates` to merge the changes into your repo.
+===================================================================
+===================================================================
+""")
         run_git(subprocess.run, f"git diff {common_ancestor} remotes/upstream/master -- ".split())
         sys.stdout.write("""
 ===================================================================\n""")
@@ -123,8 +127,9 @@ def merge_updates():
         return
 
     try:
-        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"], stdout=dev_null, stderr=dev_null)
+        run_git(subprocess.call,["git", "merge", "-m", "merge in updates from the starter repo", "remotes/upstream/master"], stdout=dev_null)
     except:
+        raise
         log.note("Unable to merge updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
         
     
@@ -197,7 +202,7 @@ def main(argv=None):
     parser.add_argument('--remote', action='store_true', default=False, help=sm("Run remotely"))
     parser.add_argument('--daemon', action='store_true', default=False, help=sm("Start a local server to run my job"))
     parser.add_argument('--solution', default=None, help=sm("Subdirectory to fetch inputs from"))
-        
+
     parser.add_argument('--lab-override', nargs='+', default=[], help=sm("Override lab.py parameters."))
     parser.add_argument('--debug', action="store_true", help=sm("Be more verbose about errors."))
     parser.add_argument('--zip',action='store_true', help=sm("Generate a zip file of inputs and outputs"))
@@ -223,25 +228,24 @@ def main(argv=None):
     if student_mode:
         cache_git_credentials()
 
+    if student_mode:
+        args.check_for_updates = True
 
-    if False:
-        if student_mode:
-            args.check_for_updates = True
+            
+    if args.check_for_updates:
+        if set_upstream():
+            check_for_updates()
 
-        if args.merge_updates:
-            try:
-                merge_updates()
-            except:
-                if debug:
-                    raise
-                return 1
-            else:
-                return 0
-
-        if args.check_for_updates:
-            if set_upstream():
-                check_for_updates()
-
+    if args.merge_updates:
+        try:
+            merge_updates()
+        except:
+            if debug:
+                raise
+            return 1
+        else:
+            return 0
+            
     if args.info != None:
         sys.stdout.write(show_info(args.directory, args.info))
         return 
@@ -273,6 +277,7 @@ def main(argv=None):
     else:
         args.command = None
 
+    log.note("Running your code...")
     try:
         submission = None
         if args.run_json is not None:
@@ -366,7 +371,7 @@ def main(argv=None):
                 with open("files.zip", "wb") as f:
                     f.write(result.build_file_zip_archive())
 
-            log.info(f"Grading results:\n{result.results}")
+            log.info(f"Grading results:\n{json.dumps(result.results, indent=4)}")
     except UserError as e: 
         log.error(f"User error (probably your fault): {repr(e)}")
         status_str = f"{repr(e)}"

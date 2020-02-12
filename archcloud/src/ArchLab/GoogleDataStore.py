@@ -42,14 +42,19 @@ class GoogleDataStore(BaseDataStore):
             log.debug(f"Getting job {job_id}: {entity}")
             return entity        
 
-
-    def query(self, **kwargs):
+    def query_iterator(self, **kwargs):
         log.debug(f"querying with {kwargs}")
         query = self.datastore_client.query(kind=self.kind)
+        limit = kwargs.get('limit',None)
+        kwargs.pop('limit', None)
+        
         for k,v in kwargs.items():
             query.add_filter(k, '=', v)
-        query_iter = query.fetch()
-        return list(query_iter)
+        query_iter = query.fetch(limit=limit)
+        return query_iter
+    
+    def query(self, **kwargs):
+        return list(self.query_iterator(**kwargs))
 
     def get_recently_completed_jobs(self, seconds_ago):
         query = self.datastore_client.query(kind=self.kind)

@@ -118,6 +118,7 @@ extern "C" {
 	void archlab_stop_quick() __attribute__((noinline));
 	void archlab_stop_quick();
 
+	int archlab_canary(long int count);
 
 #ifdef __cplusplus
 } // C linkage

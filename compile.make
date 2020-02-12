@@ -26,9 +26,18 @@ else
 C_OPTS ?= -O3 
 endif
 
-CFLAGS ?=  -Wall -Werror -g $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS)  -I$(PCM_ROOT) -pthread -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
+OPENMP?=no
+ifeq ($(OPENMP),yes)
+OPENMP_OPTS=-fopenmp
+OPENMP_LIBS=-lgomp
+else
+OPENMP_OPTS=
+OPENMP_LIBS=
+endif
+
+CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS)  -I$(PCM_ROOT) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lPCM -lpapi -lboost_program_options
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lPCM -lpapi -lboost_program_options $(OPENMP_LIBS)
 GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
@@ -45,8 +54,8 @@ $(error You cannot compile code with archlab on an Mac.  Instead, develop inside
 endif
 endif
 
-%.o : %.s
-	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
+#%.o : %.cpp
+#	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
 
 %.o : %.cpp
 	$(CXX) -c $(CXXFLAGS)  $< -o $@
@@ -105,7 +114,7 @@ RENAME_FLAGS?=
 	dot -Tsvg $< > $@ || rm -rf $@
 
 rename-clean:
-	rm -rf *.gv *-gv.pdf *.csv *.pin-trace
+	rm -rf *.gv *-gv.pdf *.pin-trace #*.csv 
 
 clean: rename-clean
 

@@ -306,7 +306,33 @@ extern "C" {
 	void archlab_stop_quick() {
 		asm("");
 	}
-  
+
+	// This is an ILP-intensive piece of code we use a "standard
+	// candle" for performance measurements.
+	int archlab_canary(long int count) {
+		static volatile long int x1[2];
+		static volatile long int z1[2];
+		int a = x1[0];
+		int b = z1[0];
+		volatile int s = 0;
+		uint64_t seed = 1;
+		for(long int i = 1; i < count; i++) {
+			if (fast_rand(&seed) % 1) {
+				s = s + ((a + i) ^
+					 (a - i) ^
+					 (a & i) ^
+					 (a | i) ^
+					 (b ^ i) 
+					 );
+			}
+			x1[0] += i;
+			x1[1] += i;
+			z1[0] += i;
+			z1[1] += i;
+		}
+		return 0;
+	}
+	
 }
 
 
