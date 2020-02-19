@@ -704,7 +704,7 @@ def run_submission_locally(sub,
         try:
             if run_pristine:
                 repo = sub.lab_spec.repo
-                if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+                if "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo and "@" not in repo:
                     repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
                 log.info("Cloning lab reference files...")
                 r, reasons = log_run(cmd=['git', 'clone', '-b', sub.lab_spec.reference_tag, repo , dirname])
@@ -860,7 +860,7 @@ def build_submission(user_directory,
         if repo is None:
             repo = user_directory
             
-        if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo:
+        if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo and "@" not in repo:
             repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
         try:
             subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
