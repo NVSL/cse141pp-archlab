@@ -110,7 +110,7 @@ class PacketCreate(PacketCommand):
                     log.debug(f"{d['hostname']} matches pattern.  new max = {maxn}")
             hostname = f"{basename}-{maxn+1}"
 
-        log.info(f"Creating host '{hostname}'")
+        log.warn(f"Creating host '{hostname}':  {os.environ['IN_DEPLOYMENT']}")
         userdata = subprocess.check_output(['show_boot.sh']).decode("utf8")
 
         log.debug(f"Usedata: {userdata}")
@@ -121,6 +121,7 @@ class PacketCreate(PacketCommand):
                                             operating_system='ubuntu_16_04',
                                             userdata=userdata)
         log.info(f"Created device {device}")
+        log.warn(f"Created host '{hostname}':  {os.environ['IN_DEPLOYMENT']}")
 
 class HostTop(PacketCommand):
     def __init__(self, parent):
@@ -208,6 +209,10 @@ class HostTop(PacketCommand):
                             except KeyError as e:
                                 log.warning(f"Got strange message: {d} ({e})")
                                 raise
+                    for n, h in hosts.items():
+                        if datetime.datetime.utcnow() - h.last_heart_beat > datetime.timedelta(minutes=30):
+                            del hosts[n]
+                        
                     rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker", "load"]]
                     for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
                         rows.append([h.name, h.ipaddr, h.id[:8],

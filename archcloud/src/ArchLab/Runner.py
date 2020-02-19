@@ -870,7 +870,7 @@ def build_submission(user_directory,
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
         if pristine:
             try:
-                log.info(f"Cloning {repo} to get the version in git...")
+                log.info(f"Cloning {repo} on branch {branch} to get the version in git...")
                 if branch is None:
                     subprocess.check_call(["git", "clone", repo, run_directory])
                 else:

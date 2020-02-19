@@ -131,6 +131,7 @@ def merge_updates():
     except:
         raise
         log.note("Unable to merge updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
+    log.note("Successfully merged updates.")
         
     
 def main(argv=None):
