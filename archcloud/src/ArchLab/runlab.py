@@ -262,7 +262,7 @@ def main(argv=None):
         if not args.pristine:
             args.pristine = True
             
-    if not CSE141Lab.does_papi_work():
+    if not CSE141Lab.does_papi_work() and not args.remote and not args.run_git_remotely:
         log.warn("Forcing '--devel' because PAPI doesn't work on this machine")
         args.devel = True
 
