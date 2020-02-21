@@ -209,7 +209,7 @@ class HostTop(PacketCommand):
                             except KeyError as e:
                                 log.warning(f"Got strange message: {d} ({e})")
                                 raise
-                    for n, h in hosts.items():
+                    for n, h in list(hosts.items()):
                         if datetime.datetime.utcnow() - h.last_heart_beat > datetime.timedelta(minutes=30):
                             del hosts[n]
                         

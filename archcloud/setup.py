@@ -35,7 +35,8 @@ setup(
             'set-cpu-freq=ArchLab.CPUFreq:set_freq_cli',
             'hosttool=ArchLab.hosttool:main',
             'test-lab=ArchLab.testlab:main',
-            'pretty-csv=ArchLab.csvpretty:main'
+            'pretty-csv=ArchLab.csvpretty:main',
+            'qdcache=ArchLab.QDCache:main'
         ]
     }
 )
