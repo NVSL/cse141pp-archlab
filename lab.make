@@ -61,7 +61,7 @@ starter:
 	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
 
-STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
+push-starter: STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
 STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
 TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
 BRANCH_NAME:=$(TAG_NAME)-branch
