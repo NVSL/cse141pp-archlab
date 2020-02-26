@@ -463,12 +463,29 @@ class SubmissionResult(object):
         except TypeError:
             raise MalformedObject
 
+def run_submission_by_proxy(proxy, submission):
+    data = dict(submission=json.dumps(submission._asdict()))
+    try:
+        r = requests.post(f"{proxy}/jobs/submit-full", data=data,timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
+    except:
+        raise ArchlabTransientError("Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape.")
+        
+    #log.debug(f"Got response: {r}")
+    r.raise_for_status()
+    response = r.json()
+    if response['status'] == "SUCCESS":
+        result = SubmissionResult._fromdict(response['result'])
+        result.write_outputs(".")
+        return result
+    else:
+        raise ArchlabError(response['reason'])
 
-def run_submission_by_proxy(proxy, repo, branch):
+    
+def run_repo_by_proxy(proxy, repo, branch):
     data = dict(repo=repo,
                 branch=branch)
     log.debug(f"Sending data: {data}")
-    lab_spec =LabSpec.load(".")
+
     try:
         r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
     except:
@@ -768,7 +785,8 @@ def run_submission_locally(sub,
                                            docker_image,
                                            "runlab", '--no-validate',  '--solution', '.',
                                            '--debug', '--json-status', status_path, '--directory', dirname, "--quieter"] +
-                                          (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []),
+                                          (['-v'] if (log.getLogger().getEffectiveLevel() < log.INFO) else []) +
+                                          ["--"] + sub.command,
                                           timeout=sub.lab_spec.time_limit)
                 
                 log_run(f"docker container stop job-{id[:8]}".split())

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, run_repo_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError
 import logging as log
 import json
 import platform
@@ -182,6 +182,7 @@ def main(argv=None):
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
     parser.add_argument('--branch',  help="When running a git repo, use this branch instead of the current branch")
     parser.add_argument('--run-git-remotely', action='store_true', default=False, help="Run the contents of this repo remotely")
+    parser.add_argument('--run-by-proxy', action='store_true', default=False, help="Run the contents of this directotry via a proxy")
 
     def sm(s):
         if student_mode:
@@ -294,7 +295,7 @@ def main(argv=None):
                                           args.solution,
                                           args.command,
                                           public_only=args.public_only,
-                                          username=os.environ.get("USER_EMAIL"),
+                                          username=os.environ.get("USER_EMAIL", None) or f"{os.environ.get('USER',None)}-on-{platform.node()}",
                                           pristine=args.pristine,
                                           repo=args.repo,
                                           branch=args.branch)
@@ -337,10 +338,12 @@ def main(argv=None):
             if args.remote:
                 result = run_submission_remotely(submission, daemon=args.daemon)
             elif args.run_git_remotely:
+                result = run_repo_by_proxy(proxy=args.proxy,
+                                           repo=args.repo,
+                                           branch=args.branch)
+            elif args.run_by_proxy:
                 result = run_submission_by_proxy(proxy=args.proxy,
-                                                 repo=args.repo,
-                                                 branch=args.branch)
-             
+                                                 submission=submission)
             else:
                 result = run_submission_locally(submission,
                                                 run_in_docker=args.docker,

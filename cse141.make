@@ -24,7 +24,7 @@ USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUIL
 #include $(BUILD)config.env
 
 # -O4 breaks google test sometimes.
-run_tests.o: C_OPTS=-O0
+run_tests.o: C_OPTS=-O4 -Wno-unknown-pragmas
 run_tests.o: $(BUILD)opt_cnn.hpp
 default:
 regression.out: run_tests.exe

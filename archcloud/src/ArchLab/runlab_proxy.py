@@ -1,13 +1,16 @@
+import platform
+import logging as log
+log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if True else "%(levelname)-8s %(message)s",
+                level=log.DEBUG)
+
 from flask import Flask, escape, request
 import json
 import subprocess
 import os
 import tempfile
-from .Runner import run_submission_remotely, build_submission, UserError, ArchlabError
+from .Runner import run_submission_remotely, build_submission, UserError, ArchlabError, Submission
 import traceback
 import sys
-import logging as log
-import platform
 import re
 import time
 import textwrap 
@@ -20,12 +23,43 @@ def fail(**kwargs):
     sys.stderr.write(t)
     return t
 
-log.basicConfig(format="{} %(levelname)-8s [%(filename)s:%(lineno)d]  %(message)s".format(platform.node()) if True else "%(levelname)-8s %(message)s",
-                level=log.DEBUG)
+@app.route('/hello',methods=["GET"])
+def submit_hello():
+    return "Hello"
 
+@app.route('/jobs/submit-full', methods=["POST"])
+def submit_job():
+    log.warning(f"Got request: {request.form}")
+    os.makedirs("/status_files", exist_ok=True)
+    _sub = request.form['submission']
+    submission = Submission._fromdict(json.loads(_sub))
+    submission.username += f"({request.remote_addr})"
+    
+    try:
+        result = run_submission_remotely(submission, daemon=True)
+    except UserError as e:
+        if debug:
+            raise
+        return fail(status="FAILURE",
+                    reason=f"{traceback.format_exc()}\nA user error occurred with your job.  There is probably something wrong with your submission: {repr(e)}")
+    except ArchlabError as e:
+        if debug:
+            raise
+        return fail(status="FAILURE",
+                    reason=f"{traceback.format_exc()}\nSomething unexpected went wrong in autograder.  Probably not your fault.: {repr(e)}")
+    except Exception as e:
+        if debug:
+            raise
+        return fail(status="FAILURE",
+                    reason=f"{traceback.format_exc()}\nAn exception occurred.  Probably not your fault: {repr(e)}.")
+    finally:
+        pass
+    
+    return json.dumps(dict(status="SUCCESS",
+                           result=result._asdict()))
 
 @app.route('/jobs/submit',methods=["POST"])
-def submit_job():
+def submit_gitjob():
     log.warning(f"Got request: {request.form}")
     os.makedirs("/status_files", exist_ok=True)
     repo = request.form['repo']
