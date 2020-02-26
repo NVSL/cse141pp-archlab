@@ -254,9 +254,9 @@ def main(argv=None):
             
     if args.run_git_remotely:
         if not args.repo:
-            args.repo = subprocess.check_output("git config --get remote.origin.url".split()).strip()
+            args.repo = subprocess.check_output("git config --get remote.origin.url".split()).strip().decode("utf8")
         if not args.branch:
-            args.branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD".split()).strip()
+            args.branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD".split()).strip().decode("utf8")
         args.pristine=True
         
     if args.repo or args.branch:
@@ -340,7 +340,8 @@ def main(argv=None):
             elif args.run_git_remotely:
                 result = run_repo_by_proxy(proxy=args.proxy,
                                            repo=args.repo,
-                                           branch=args.branch)
+                                           branch=args.branch,
+                                           command=args.command)
             elif args.run_by_proxy:
                 result = run_submission_by_proxy(proxy=args.proxy,
                                                  submission=submission)

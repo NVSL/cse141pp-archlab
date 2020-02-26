@@ -62,11 +62,15 @@ def submit_job():
 def submit_gitjob():
     log.warning(f"Got request: {request.form}")
     os.makedirs("/status_files", exist_ok=True)
-    repo = request.form['repo']
-    branch = request.form['branch']
+    r = request.form['request']
+    data = json.loads(r)
+    repo = data['repo']
+    branch = data['branch']
+    command = data['command']
 
-    # the wi20... is only optional because I accidently created an assignment without it.
-    student_repo = re.search("/CSE141pp/(wi20-CSE141L-)?(.*)-(\w+)", repo)
+    log.info(f"command = {command}")
+    
+    student_repo = re.search("/CSE141pp/(.*)-(\w+)", repo)
     master_repo = re.search("/NVSL/.*Lab-(.*)", repo)
     
     if student_repo:
@@ -93,7 +97,7 @@ def submit_gitjob():
     with tempfile.TemporaryDirectory(dir="/jobs/") as work_dir:
 
         try:
-            submission = build_submission(work_dir, username=username, repo=repo, branch=branch, pristine=True)
+            submission = build_submission(work_dir, username=username, repo=repo, branch=branch, pristine=True, command=command)
 
 #            if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
 #                raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")

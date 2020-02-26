@@ -8,7 +8,6 @@ from io import StringIO
 import traceback
 import importlib.util
 import logging as log
-import requests
 import json
 import copy
 from contextlib import contextmanager
@@ -19,13 +18,9 @@ import unittest
 from pathlib import Path
 import io
 import platform
-import pytest
 import base64
 from uuid import uuid4 as uuid
 import time
-from .BlobStore import BlobStore
-from .DataStore import DataStore
-from .PubSub import Publisher, Subscriber
 from zipfile import ZipFile
 from functools import reduce
 import http.client as http_client
@@ -464,6 +459,8 @@ class SubmissionResult(object):
             raise MalformedObject
 
 def run_submission_by_proxy(proxy, submission):
+    import requests
+    
     data = dict(submission=json.dumps(submission._asdict()))
     try:
         r = requests.post(f"{proxy}/jobs/submit-full", data=data,timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
@@ -481,15 +478,20 @@ def run_submission_by_proxy(proxy, submission):
         raise ArchlabError(response['reason'])
 
     
-def run_repo_by_proxy(proxy, repo, branch):
+def run_repo_by_proxy(proxy, repo, branch, command):
+    import requests
+    
     data = dict(repo=repo,
-                branch=branch)
-    log.debug(f"Sending data: {data}")
+                branch=branch,
+                command=command)
+    log.debug(f"Sending data: {repr(data)}")
 
+
+    j = json.dumps(data)
     try:
-        r = requests.post(f"{proxy}/jobs/submit", data=data,timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
-    except:
-        raise ArchlabTransientError("Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape.")
+        r = requests.post(f"{proxy}/jobs/submit", data=dict(request=j),timeout=int(os.environ['UNIVERSAL_TIMEOUT_SEC']))
+    except Exception as e:
+        raise ArchlabTransientError(f"Unable to connect to proxy.  Please report this on piazza.  In the meantime, you can submit via gradescape: {e}")
         
     log.debug(f"Got response: {r}")
     r.raise_for_status()
@@ -502,6 +504,10 @@ def run_repo_by_proxy(proxy, repo, branch):
         raise ArchlabError(response['reason'])
     
 def run_submission_remotely(submission, daemon=False):
+    from .BlobStore import BlobStore
+    from .DataStore import DataStore
+    from .PubSub import Publisher, Subscriber
+
     the_daemon = None
     subscriber = None
     publisher = None

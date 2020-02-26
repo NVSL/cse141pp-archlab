@@ -64,17 +64,17 @@ def main(argv=None):
         misses = []
         for a in line_addrs:
             if cache.is_hit(a):
-                misses.append("")
+                status = 0
             else:
-                misses.append(a)
-        plot_data.write(",".join(map(str, [linenum]+line_addrs+misses))+ "\n")
+                status = 1
+            plot_data.write(",".join(map(str, [linenum, a, 0, status])) + "\n")
 
     def plot_working_set(cache, plot_data, linenum, line_addrs):
         for k in cache.contents:
             plot_data.write(",".join(map(str,[linenum, k])) + "\n")
 
     log.debug(f"plotting {start}:{stop}")
-    with tempfile.NamedTemporaryFile(mode="w") as plot_data:
+    with open(args.out, "w") as plot_data:
         with tempfile.NamedTemporaryFile(mode="w") as working_set:
             linenum = 0
             with open(args.trace, "r") as file:
@@ -99,30 +99,6 @@ def main(argv=None):
 
                     column_count = int(len(l.split())/2)
 
-            gnuplot = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE)
-
-            outfile = io.StringIO()
-
-            outfile.write('set datafile separator ","\n')
-            outfile.write('set terminal png\n')
-            outfile.write(f'set output "{args.out}"\n')
-            outfile.write(f"plot ")
-#            outfile.write(f"'{working_set.name}' using 1:2 with points pt 7 ps 0.3 lc \"gray\",")
-            for n in range(1, column_count + 1):
-                outfile.write(f"'{plot_data.name}' using 1:{column_count + n + 1} with points pt 7 ps 0.3 lc \"red\",")
-                outfile.write(f"'{plot_data.name}' using 1:{n + 1} with dots,")
-                #outfile.write(f"'{args.out}' using 0:{column_count + n} with points pt 7 ps 0.5,")
-                #outfile.write(f"'{args.out}' using 0:{n} with points pt 7 ps 0.1,")
-
-
-            #outfile.write(f'\nset output "ws-{args.out}"\n')
-            #outfile.write(f"plot ")
-
-                #outfile.write(f"'{args.out}' using 0:{column_count + n} with points pt 7 ps 0.5,")
-                #outfile.write(f"'{args.out}' using 0:{n} with points pt 7 ps 0.1,")
-            outfile.write("\nquit\n")
-            log.debug(outfile.getvalue())
-            gnuplot.communicate(outfile.getvalue().encode("utf8"))
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
