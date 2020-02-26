@@ -45,6 +45,12 @@ lab-help:
 	@echo "make build-starter:  Build a starter repo"
 	@echo "make push-starter :  Create repo and push"
 
+STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
+STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
+TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
+BRANCH_NAME:=$(TAG_NAME)-branch
+STARTER_REPO_URL:=https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git
+
 .PHONY: starter
 starter:
 	rm -rf starter-repo
@@ -54,24 +60,20 @@ starter:
 	cd starter-repo; \
 	git init .; \
 	git add * .gitignore; \
+	echo $(STARTER_REPO_URL) > .starter_repo; git add .starter_repo; \
+	git add .starter_repo;\
 	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
 	)
-	(cd starter-repo; make test-lab)
+#	(cd starter-repo; make test-lab)
 	@echo "====================================================="
 	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
 
-push-starter: STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
-STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
-TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
-BRANCH_NAME:=$(TAG_NAME)-branch
-STARTER_REPO_URL:=https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git
 
 push-starter:
 	curl -H "Authorization: token $(GITHUB_OAUTH_TOKEN)" https://api.github.com/orgs/$(GITHUB_CLASSROOM_ORG)/repos -d "{\"name\":\"$(STARTER_REPO_NAME)\", \"private\":\"false\", \"visibility\": \"public\", \"is_template\":\"true\"}" -X POST > starter.json
 	! jextract errors < starter.json 2>/dev/null || (echo "Repo creation failed:"; cat starter.json; false)
 	(cd starter-repo; git remote add origin $(STARTER_REPO_URL))
-	(cd starter-repo; echo $STARTER_REPO_URL > .starter_repo; git add .starter_repo)
 	(cd starter-repo; git push -u origin master)
 	git tag -a -m "starter repo: $(STARTER_REPO_NAME)" $(TAG_NAME)
 	git branch $(BRANCH_NAME)	
