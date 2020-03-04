@@ -26,6 +26,13 @@ else
 C_OPTS ?= -O3 
 endif
 
+AUTO_VEC?=no
+ifeq ($(AUTO_VEC),yes)
+AUTO_VEC_FLAGS=-fopt-info-vec-all
+else
+AUTO_VEC_FLAGS?=
+endif
+
 OPENMP?=no
 ifeq ($(OPENMP),yes)
 OPENMP_OPTS=-fopenmp
@@ -35,9 +42,9 @@ OPENMP_OPTS=
 OPENMP_LIBS=
 endif
 
-CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS)  -I$(PCM_ROOT) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
+CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -I$(PCM_ROOT) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) #-fopenmp
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lPCM -lpapi -lboost_program_options $(OPENMP_LIBS)
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lPCM -lpapi -lboost_program_options $(OPENMP_LIBS) 
 GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
