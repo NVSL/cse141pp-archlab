@@ -213,7 +213,7 @@ def main(argv=None):
     parser.add_argument('--quieter', action="store_true", help=sm("Be quieter"))
     parser.add_argument('--check-for-updates', action='store_true', help=sm("Check for upstream updates"))
     parser.add_argument('--merge-updates', action='store_true', help="Merge in updates from starter repo.")
-    
+
     if argv == None:
         argv = sys.argv[1:]
         

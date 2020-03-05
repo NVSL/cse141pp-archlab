@@ -60,52 +60,23 @@ def main(argv=sys.argv[1:]):
                 recent_submissions = 0
                 latest_submission = None
 
-                #        for p in metadata['previous_submissions']:
-                #                t = dateutil.parser.parse(p['submission_time'])
-                #                if t > datetime.datetime.now() - datetime.timedelta(hours=1):
-                #                        recent_submissions += 1
-                #if latest_submission == None or t > dateutil.parser.parse(latest_submission['submission_time']):
-                #                        latest_submission = p
-                
                 log.debug(f"{output}")
-                if False and recent_submissions > 1:
-                        log.info("Too many recent submissions.  Copying old results to current results.")
-                        output = latest_submission['results']
-                else:
-                        start_time = time.time()
+                start_time = time.time()
 
-                        try:
-                                # Sometimes we don't get a
-                                # user from gradescope.  Resubmitting
-                                # seems to fix it.
-                                username= metadata['users'][0]["email"]
-                        except IndexError as e:
-                                raise ArchlabError("Malformed job metadata.  Probably gradescope's fault.  Resubmit.")
-                        
-                        submission = build_submission(submission_dir, username=username)
-                        
-                        if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
-                                raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
+                try:
+                        # Sometimes we don't get a
+                        # user from gradescope.  Resubmitting
+                        # seems to fix it.
+                        username= metadata['users'][0]["email"]
+                except IndexError as e:
+                        raise ArchlabError("Malformed job metadata.  Probably gradescope's fault.  Resubmit.")
 
-                        result = run_submission_remotely(submission, daemon=args.daemon)
-                
-                        # for filename in result.files:
-                        #         log.debug(f"output file {filename}")
-                        #         try:
-                        #                 contents = result.get_file(filename)
-                        #         except UnicodeDecodeError:
-                        #                 contents = "<couldn't decode file.  Is it binary>"
+                submission = build_submission(submission_dir, username=username)
 
-                        #         files.append(
-                        #                 {
-                        #                         "score": 0.0, # optional, but required if not on top level submission
-                        #                         "max_score": 0.0, # optional
-                        #                         "name": filename, # optional
-                        #                         "output": contents,
-                        #                         "visibility": "visible", # Optional visibility setting
-                        #                 }
-                        #         )
-                        # log.debug(f"{output}")
+                if submission.lab_spec.repo not in os.environ['VALID_LAB_STARTER_REPOS']:
+                        raise UserError(f"Repo {submission.lab_spec.repo} is not one of the repos that is permitted for this lab.  You are probably submitting the wrong repo or to the wrong lab.")
+
+                result = run_submission_remotely(submission, daemon=args.daemon)
         except UserError as e:
                 t = default_file_output()
                 t['name'] = "User Error"
@@ -176,7 +147,6 @@ If something seems to have not worked poperly, check the field right below this 
                         "score": 0.0, # optional, but required if not on top level submission
                         "max_score": 0.0, # optional
                         "name": "submission status",
-                
                         "visibility": "visible", # Optional visibility setting
                 }
                 if result:

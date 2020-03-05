@@ -132,14 +132,15 @@ class LabSpec(object):
         pass
 
     def run_gradescope_tests(self, result, dirname):
-        out =io.StringIO()
+        out = io.StringIO()
         Class = type(self).GradedRegressions
         log.debug(f"Running regressions for {Class}")
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Class)
         with cd(dirname):
-            with environment(**result.submission.env):
-                JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
-        result.results['gradescope_test_output'] = json.loads(out.getvalue())
+            #with environment(**result.submission.env):
+            JSONTestRunner(visibility='visible', stream=out, buffer=True).run(suite)
+        return json.loads(out.getvalue())
+
 
     def run_meta_regressions(self, *argc, **kwargs):
         Class = type(self).MetaRegressions
@@ -170,6 +171,7 @@ class LabSpec(object):
 
     # there no reason for these to be methods of this class
 
+    
     def csv_extract_by_line(self, file_contents, field, line=0):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
@@ -182,20 +184,17 @@ class LabSpec(object):
             return d[line][field]
     
 
-    def csv_extract_by_lookup(self, file_contents, field, column, value):
+    def csv_extract_by_lookup(self, file_contents, pattern, column):
         reader = csv.DictReader(StringIO(file_contents))
         d = list(reader)
         r = None
         for l in d:
-            if l[column] == value:
-                if r == None:
-                    try:
-                        return float(l[field])
-                    except:
-                        return l[field]
-                else:
-                    raise Exception(f"Multiple lines in output have {column}=={value}")
-        return r
+            if all([l[c] == q for c,q in pattern.items()]):
+                try:
+                    return float(l[column])
+                except:
+                    return l[column]
+        return None
     
     def csv_column_values(self, file_contents, field):
         reader = csv.DictReader(StringIO(file_contents))
@@ -844,7 +843,7 @@ def run_submission_locally(sub,
             log.debug("STDERR: \n{}".format(err.getvalue()))
             log.debug("STDERR_ENDS")
             result = SubmissionResult(sub, result_files, status, reasons)
-            sub.lab_spec.run_gradescope_tests(result, dirname)
+            result.results['gradescope_test_output'] = sub.lab_spec.run_gradescope_tests(result, dirname)
             if write_outputs:
                 result.write_outputs()
         except Exception as e:

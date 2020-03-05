@@ -10,6 +10,9 @@ import subprocess
 from uuid import uuid4 as uuid
 import pathlib
 import importlib
+import fnmatch
+import json
+import textwrap
 
 # this is for parameterizing tests
 def crossproduct(a,b):
@@ -57,6 +60,10 @@ test_flags = list(map(lambda x: TestFlags(*x), _test_flags))
 def test_configs(*solutions):
     t = crossproduct(list(map(lambda x:[x], solutions)), list(map(lambda x: [x], test_flags)))
     return t
+
+def wrap_message(text):
+    w = textwrap.TextWrapper(width=90,break_long_words=False,replace_whitespace=False)
+    return w.fill(text)
 
 def load_public_lab(private_lab):
     path =  os.path.join(pathlib.Path(private_lab).parent.absolute(), "lab.py")
@@ -170,7 +177,34 @@ class CSE141Lab(LabSpec):
         def run(self, result=None):
             self.currentResult = result # remember result for use in tearDown
             unittest.TestCase.run(self, result) # call superclass run method
-            
+
+        def assert_success_so_far(self,msg=None):
+            errors = len(self.currentResult.failures) + len(self.currentResult.errors)
+            if errors != 0:
+                raise Exception(wrap_message(msg if msg is not None else f"Test failed because {errors} error have already occurred.  These are usually things like the regressions didn't pass.  Please check above for the original error."))
+
+        def check_gtest_regression(self, label, filename):
+            with open(filename) as testjson:
+                results = json.load(testjson)
+
+            cmd = ["./run_tests.exe", f"--gtest_filter=*{label}*"]
+
+            for suite in results['testsuites']:
+                for test in suite['testsuite']:
+                    fullname = f"{test['classname']}.{test['name']}"
+                    if fnmatch.fnmatch(fullname, f"*{label}*"):
+                        print(f"Test name: {fullname}")
+                        if test['result'] != "COMPLETED":
+                            self.assertEqual(test['result'],"COMPLETED", "This test did not complete.  Not sure why.  Ask on piazza.  Provide a link to your gradescope build.")
+                        failures = test.get('failures')
+                        if failures:
+                            print(f"The test failed.  You can reproduce this with {' '.join(cmd)}:\n")
+                            print("\n\n".join(failures))
+                            self.assertTrue(False, "Test failed")
+                        else:
+                            print("The test passed!")
+
+        # TODO: REMOVE THIS FUNCTION
         def go_run_tests(self, label, cwd=None):
             self.regression_count += 1
 

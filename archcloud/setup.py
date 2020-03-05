@@ -36,7 +36,8 @@ setup(
             'hosttool=ArchLab.hosttool:main',
             'test-lab=ArchLab.testlab:main',
             'pretty-csv=ArchLab.csvpretty:main',
-            'qdcache=ArchLab.QDCache:main'
+            'qdcache=ArchLab.QDCache:main',
+            'gradelab=ArchLab.GradeLab:main'
         ]
     }
 )
