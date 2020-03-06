@@ -1,5 +1,5 @@
 
-EXAMPLES=random_access.exe hello_world.exe
+EXAMPLES=random_access.exe hello_world.exe side_channel.exe
 
 default: $(EXAMPLES)
 
