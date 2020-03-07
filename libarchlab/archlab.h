@@ -1,7 +1,9 @@
 #ifndef ARCHLAB_H_INCLUDED
 #define ARCHLAB_H_INCLUDED
 #include<stdint.h>
+
 #define GETTIMEOFDAY
+
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday
 #else
