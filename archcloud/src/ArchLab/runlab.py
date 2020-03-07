@@ -178,7 +178,8 @@ def main(argv=None):
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Be verbose")
     parser.add_argument('--pristine', action='store_true', default=False, help="Clone a new copy of the reference repo.")
     parser.add_argument('--info', nargs="?", default=None, const=[],  help="Print information about this lab an exit.  With an argument print that field of lab structure.")
-    parser.add_argument('--no-validate', action='store_false', default=True, dest='validate', help="Don't check for erroneously edited files.")
+    parser.add_argument('--no-validate', action='store_false', default=False, dest='validate', help="Don't check for erroneously edited files.")
+    parser.add_argument('--validate', action='store_true', default=False, dest='validate', help="Check for erroneously edited files.")
     parser.add_argument('command', nargs=argparse.REMAINDER, help="Command to run (optional).  By default, it'll run the command in lab.py.")
     parser.add_argument('--branch',  help="When running a git repo, use this branch instead of the current branch")
     parser.add_argument('--run-git-remotely', action='store_true', default=False, help="Run the contents of this repo remotely")
@@ -421,7 +422,7 @@ def main(argv=None):
             f.write(json.dumps(dict(exit_code=exit_code,
                                     status_str=status_str)))
 
-    if "KUBERNETES_PORT_443_TCP_PORT" in os.environ:
+    if student_mode and "KUBERNETES_PORT_443_TCP_PORT" in os.environ and not(args.remote or args.run_git_remotely or args.run_by_proxy):
         try:
             os.rename("benchmark.csv", "meaningless-benchmark.csv")
             log.note("I renamed benchmark.csv because they contain meaningless numbers since you are running ieng6")
