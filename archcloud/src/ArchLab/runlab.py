@@ -420,6 +420,20 @@ def main(argv=None):
         with open(args.json_status, "w") as f:
             f.write(json.dumps(dict(exit_code=exit_code,
                                     status_str=status_str)))
+
+    if "KUBERNETES_PORT_443_TCP_PORT" in os.environ:
+        try:
+            os.rename("benchmark.csv", "meaningless-benchmark.csv")
+            log.note("I renamed benchmark.csv because they contain meaningless numbers since you are running ieng6")
+        except:
+            pass
+
+        try:
+            os.rename("code.csv", "meaningless-code.csv")
+            log.note("I renamed code.csv because they contain meaningless numbers since you are running ieng6")
+        except:
+            pass
+        
     sys.exit(exit_code)
 
 if __name__ == '__main__':
