@@ -19,7 +19,8 @@ setup(
         "gradescope_utils",
         "packet-python",
         "flask",
-        "requests"
+        "requests",
+        "matplotlib"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
