@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
 
 	array = (char*)malloc(cache_size * target_lines);
 
+
 	flush_caches();
 	theDataCollector->disable_prefetcher();
 	

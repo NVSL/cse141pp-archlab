@@ -179,6 +179,8 @@ def main(argv=None):
         result = None
         try:
             try:
+
+                # Pull a job
                 job_id = subscriber.pull()
                 if job_id == "junk":
                     continue
@@ -197,6 +199,7 @@ def main(argv=None):
                 if job_data['status'] != "SUBMITTED":  # Someone else grabbed it.
                     continue
 
+                # Got one we should run!  Grab it.
                 job_submission_json = blobstore.read_file(job_id)
                 set_status("RUNNING", job_data['job_id'][:8])
 
@@ -207,6 +210,7 @@ def main(argv=None):
                     runner_host=platform.node()
                 )
 
+                # Run the job
                 result = run_job(
                     job_submission_json=job_submission_json,
                     in_docker=args.docker,
@@ -223,6 +227,7 @@ def main(argv=None):
                     continue
 
 
+                # Bundle up the output
                 if job_data.get('username',"") != None and '@' in job_data.get('username',""):
                     username = f"{job_data['username'].split('@')[0]}-"
 
@@ -246,9 +251,12 @@ def main(argv=None):
                     archive = None
 
                 result.limit_output_file_size(size_limit=10*1024*1024, msg="This is usually due to printing too much output.  Disable your debugging output.  " + ("The full output is available in the zip file: {archive}" if archive else "If you run this via gradescope, the full output will be in your zip archive for the run."))
+
+                # Store the result in the cloud
                 blobstore.write_file(f"{job_id}-result",
                                      json.dumps(result._asdict(), sort_keys=True, indent=4))
-                    
+
+                # Update it's status.
                 ds.update(
                     job_id,
                     status='COMPLETED',

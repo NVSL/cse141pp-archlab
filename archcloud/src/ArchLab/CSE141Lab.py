@@ -263,7 +263,7 @@ class CSE141Lab(LabSpec):
         
         
         def run_solution(self, solution, flags):
-            tag = f"{solution}-{'p' if flags.pristine else ''}-{'d' if flags.devel else ''}-{'g' if flags.gprof else ''}-{'r' if flags.remote else ''}-{'s' if flags.public_lab else ''}"
+            tag = f"{solution}-{'pristine' if flags.pristine else ''}-{'devel' if flags.devel else ''}-{'gprof' if flags.gprof else ''}-{'remote' if flags.remote else ''}-{'public' if flags.public_lab else ''}"
             log.info(f"=========================== Starting {tag} in {self.id()} in {os.getcwd()} ==========================================")
 
             if not CSE141Lab.does_papi_work() and not flags.devel:

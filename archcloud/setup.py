@@ -37,7 +37,7 @@ setup(
             'test-lab=ArchLab.testlab:main',
             'pretty-csv=ArchLab.csvpretty:main',
             'qdcache=ArchLab.QDCache:main',
-            'gradelab=ArchLab.GradeLab:main'
+#            'gradelab=ArchLab.GradeLab:main'  # I dont think this exists.
         ]
     }
 )
