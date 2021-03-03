@@ -75,11 +75,11 @@ void * thread_receiver(void * arg)
 			}
 		}
 		double now = wall_time();
-	}
-
 		std::cout << (now - start) << " "
 			  << (sleeping ? 1 : 0) << " "
 			  << (rdtsc() - before)/(target_lines + 100 + 0.0) << std::endl;
+	}
+	
 	return NULL;
 }
 
