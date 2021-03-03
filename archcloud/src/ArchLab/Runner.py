@@ -885,10 +885,15 @@ def build_submission(user_directory,
             
         if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo and "@" not in repo:
             repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+            log.debug(f"rewriting repo with token: {repo}")
+                        
+            
         try:
-            subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
-        except:
-            raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
+            log.debug(f"Checking for repo '{repo}' on branh '{branch}'")
+            log.debug(str(["git", "ls-remote", "--heads", repo, branch]))
+            subprocess.check_call(["git", "ls-remote", "--heads", repo, (branch if branch else "")])
+        except Exception as e:
+            raise UserError(f"Branch {branch} doesn't exist (did you push it?): {e}")
     
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
         if pristine:
