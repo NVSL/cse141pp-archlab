@@ -4,6 +4,8 @@
 #include"DataCollector.hpp"
 #include <cpucounters.h>
 
+using namespace pcm;
+
 
 class PCMMeasurementInterval;
 class PCMMeasurement: public Measurement {
