@@ -5,4 +5,5 @@ if [ -d archcloud/venv/ ]; then
 fi
 PATH=$PWD/tools/:$PWD/utils:$PWD/archcloud:$PIN_ROOT/:$PATH
 
-export LD_LIBRARY_PATH=/usr/local/lib
+export LD_LIBRARY_PATH=/usr/local/lib:$PWD/pcm
+
