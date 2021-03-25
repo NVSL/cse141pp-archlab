@@ -43,7 +43,7 @@ class GooglePublisher(BasePublisher):
         
     def create_topic(self, topic, **kwargs):
         try:
-            self.publisher.create_topic(topic, **kwargs)
+            self.publisher.create_topic(name=topic, **kwargs)
         except google.api_core.exceptions.AlreadyExists as e:
             raise AlreadyExists(repr(e))
         
