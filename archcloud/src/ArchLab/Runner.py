@@ -24,6 +24,8 @@ import time
 from zipfile import ZipFile
 from functools import reduce
 import http.client as http_client
+import pytest
+
 #http_client.HTTPConnection.debuglevel = 1
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
@@ -537,7 +539,7 @@ def run_submission_remotely(submission, daemon=False):
         # is late, the published items are lost.  Creating a
         # subscriber here fixes this.  We should never pull on this subscriber
         subscriber = Subscriber(name=os.environ['PUBSUB_SUBSCRIPTION'], 
-                              topic=os.environ['PUBSUB_TOPIC'])
+                                topic=os.environ['PUBSUB_TOPIC'])
 
         ds = DataStore()
 

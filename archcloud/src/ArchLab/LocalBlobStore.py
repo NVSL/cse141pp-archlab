@@ -32,7 +32,7 @@ class LocalBlobStore(BaseBlobStore):
     def get_files_by_prefix(self, prefix):
         p = Path(self.directory)
         matches = p.glob(f"{prefix}*")
-        return [string(m) for m in matches]
+        return [str(m) for m in matches]
     
 def test_local_blob_store():
     if "EMULATION_DIR" not in os.environ:

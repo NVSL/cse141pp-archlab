@@ -98,7 +98,19 @@ fi
     ! echo '{"a": "b"}' | jextract c
 }
 
-@test "freqs" {
+@test "get-freqs" {
+    get-cpu-freqs
+    eval `get-cpu-freqs`
+    echo $ARCHLAB_AVAILABLE_CPU_FREQUENCIES;
+    (t=$(which get-cpu-freqs); PATH=; $t)
+    eval `(t=$(which get-cpu-freqs); PATH=; $t)`
+    [ "$ARCHLAB_AVAILABLE_CPU_FREQUENCIES" = "" ]
+
+}
+@test "set-freqs" {
+    if ! which cpupower || ! cpupower; then # we need cpupower for set-cpu-freq to work
+	skip
+    fi
     get-cpu-freqs
     eval `get-cpu-freqs`
     echo $ARCHLAB_AVAILABLE_CPU_FREQUENCIES;
@@ -120,9 +132,11 @@ fi
     for CLOUD_MODE in $MODES; do
 	! labtool # should fail without arguments
 	labtool --help
-	labtool ls
 	labtool top --once
     done
+
+    CLOUD_MODE=CLOUD labtool ls
+
 }
 
 @test "hosttool" {
