@@ -233,7 +233,6 @@ def main(argv=None):
     if student_mode:
         args.check_for_updates = True
 
-            
     if args.check_for_updates:
         if set_upstream():
             check_for_updates()

@@ -334,7 +334,6 @@ class Submission(object):
             self.command = command
             self.username = username
             self.user_directory = user_directory
-      #      self.run_directory = run_directory
             self.solution = solution
             
     def _asdict(self):
