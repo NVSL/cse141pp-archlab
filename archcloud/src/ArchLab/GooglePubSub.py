@@ -93,7 +93,7 @@ class GoogleSubscriber(BaseSubscriber):
     def create_subscription(self, sub_path, topic_path, **kwargs):
 
         try:
-            GooglePublisher.get_publisher().create_topic(topic_path)
+            GooglePublisher.get_publisher().create_topic(name=topic_path)
         except google.api_core.exceptions.AlreadyExists:
             pass
 
