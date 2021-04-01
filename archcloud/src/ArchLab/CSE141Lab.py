@@ -138,7 +138,7 @@ class CSE141Lab(LabSpec):
         
         def open_file(self, name, root=None, mode="r"):
             if root == None:
-                root = os.environ['LAB_SUBMISSION_DIR']
+                root = os.environ.get('LAB_SUBMISSION_DIR', ".")
             else:
                 root = "."
                 
