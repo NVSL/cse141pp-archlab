@@ -33,7 +33,28 @@ import google.api_core
 
 
 status = "IDLE"
-keep_running = True
+
+running_mutex = threading.Lock()
+keep_running_flag = True
+
+def stop_running():
+    global keep_running_flag
+    global running_mutex
+
+    running_mutex.acquire()
+    try:
+        keep_running_flag = False
+    finally:
+        running_mutex.release()    
+
+def keep_running():
+    running_mutex.acquire()
+    try:
+        log.debug(f"keep_running_flag = {keep_running_flag}")
+        return keep_running_flag
+    finally:
+        running_mutex.release()    
+    
 my_id=str(uuid())
 heart = None
 valid_status = ["IDLE",
@@ -97,20 +118,19 @@ class CommandListener(object):
                 except DeadlineExceeded: 
                     pass
                 else:
-                    global keep_running
                     for r in messages: 
                         log.info(f"Received command: {r}")
                         command = json.loads(r)
                         if command['command'] == "exit":
-                            keep_running = False
+                            stop_running()
                         if command['command'] == "reload-python":
-                            keep_running = False
+                            stop_running()
                             set_status("RELOAD_PYTHON")
                         if command['command'] == "reload-docker":
-                            keep_running = False
+                            stop_running()
                             set_status("RELOAD_DOCKER")
                         if command['command'] == "shutdown":
-                            keep_running = False
+                            stop_running()
                             set_status("SHUTDOWN")
                         elif command['command'] == "send-heartbeat":
                             global heart
@@ -168,7 +188,6 @@ def main(argv=None):
                             topic=os.environ['PUBSUB_TOPIC'])
 
     global heart
-    global keep_running
 
     heart = Heart(float(args.heart_rate))
     head = CommandListener()
@@ -177,7 +196,7 @@ def main(argv=None):
     threading.Thread(target=head.listen, daemon=True).start()
     job_id = None
     job_data = dict()
-    while keep_running:
+    while keep_running():
         result = None
         try:
             try:
@@ -291,7 +310,8 @@ def main(argv=None):
                 if args.debug:
                     raise
             finally:
-                set_status("IDLE")
+                if keep_running():
+                    set_status("IDLE")
                 if args.just_once:
                     sys.exit(0)
         # This is to catch exceptions that arise during the processing
