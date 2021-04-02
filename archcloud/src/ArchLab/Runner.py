@@ -24,6 +24,8 @@ import time
 from zipfile import ZipFile
 from functools import reduce
 import http.client as http_client
+import pytest
+
 #http_client.HTTPConnection.debuglevel = 1
 
 from gradescope_utils.autograder_utils.json_test_runner import JSONTestRunner
@@ -332,7 +334,6 @@ class Submission(object):
             self.command = command
             self.username = username
             self.user_directory = user_directory
-      #      self.run_directory = run_directory
             self.solution = solution
             
     def _asdict(self):
@@ -537,7 +538,7 @@ def run_submission_remotely(submission, daemon=False):
         # is late, the published items are lost.  Creating a
         # subscriber here fixes this.  We should never pull on this subscriber
         subscriber = Subscriber(name=os.environ['PUBSUB_SUBSCRIPTION'], 
-                              topic=os.environ['PUBSUB_TOPIC'])
+                                topic=os.environ['PUBSUB_TOPIC'])
 
         ds = DataStore()
 
@@ -885,10 +886,15 @@ def build_submission(user_directory,
             
         if repo and "GITHUB_OAUTH_TOKEN" in os.environ and "http" in repo and "@" not in repo:
             repo = repo.replace("//", f"//{os.environ['GITHUB_OAUTH_TOKEN']}@", 1)
+            log.debug(f"rewriting repo with token: {repo}")
+                        
+            
         try:
-            subprocess.check_call(["git", "ls-remote", "--heads", repo, branch])
-        except:
-            raise UserError(f"Branch {branch} doesn't exist (did you push it?)")
+            log.debug(f"Checking for repo '{repo}' on branh '{branch}'")
+            log.debug(str(["git", "ls-remote", "--heads", repo, branch]))
+            subprocess.check_call(["git", "ls-remote", "--heads", repo, (branch if branch else "")])
+        except Exception as e:
+            raise UserError(f"Branch {branch} doesn't exist (did you push it?): {e}")
     
     with tempfile.TemporaryDirectory(dir="/tmp/") as run_directory:
         if pristine:

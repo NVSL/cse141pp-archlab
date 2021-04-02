@@ -79,9 +79,9 @@ push-starter:
 	git branch $(BRANCH_NAME)	
 	git push -u origin $(BRANCH_NAME)
 	git push origin $(TAG_NAME)
-	@echo "Lab Name                     : $$(runlab --info lab_name)"
-	@echo "Repo prefix                  : $(STARTER_REPO_NAME_BASE)"
-	@echo "Repo URL For github classroom: $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
+	@echo "Assignment Title             : $$(runlab --info lab_name)"
+	@echo "Custom repository prefix     : $(STARTER_REPO_NAME_BASE)"
+	@echo "Template Repository          : $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
 PRIVATE_FILES=*solution .git private.py test.py TA.md admin
 
