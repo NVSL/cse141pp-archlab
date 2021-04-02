@@ -11,28 +11,29 @@ class DeadlineExceeded(Exception):
 
 class PubSubAgent(object):
 
-    def add_namespace(self, name):
-        # This may seem redundant with the GOOGLE_RESOURCE_PREFIX, but
+    def add_namespace(self, name, prefix):
+        
+        # This may seem redundant with the prefix, but
         # we can't have a new bucket and datastore namespace for every
         # test.  Deleting them would be too painful.  Google cloud
         # automatically cleans up stale subscriptions, at least, and
         # maybe topics too.
         if 'PRIVATE_PUBSUB_NAMESPACE' in os.environ: 
-            return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}--{os.environ["PRIVATE_PUBSUB_NAMESPACE"]}--{name}'
+            return f'{prefix}--{os.environ["PRIVATE_PUBSUB_NAMESPACE"]}--{name}'
         else:
-            return f'{os.environ["GOOGLE_RESOURCE_PREFIX"]}-{name}'
+            return f'{prefix}-{name}'
         
 
 class BasePublisher(PubSubAgent):
     def __init__(self, topic, private_topic=False, **kwargs):
         log.debug("BasePublisher Constructor")        
-        
+
         if private_topic:
             self.topic = f"{topic}-{str(uuid())}"
         else:
             self.topic = topic
 
-        self._topic_name = self.add_namespace(self.topic)
+        self._topic_name = self.add_namespace(self.topic, os.environ["GOOGLE_RESOURCE_PREFIX"])
             
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         self.private_topic = private_topic
@@ -73,10 +74,12 @@ class BasePublisher(PubSubAgent):
 
 class BaseSubscriber(PubSubAgent):
 
-    def __init__(self, topic, name=None, **kwargs):
+    def __init__(self, topic, name=None, prefix=None, **kwargs):
 
         self.private_subscription = name is None
-        
+
+        prefix = os.environ["GOOGLE_RESOURCE_PREFIX"] if prefix is None else prefix;
+                
         if self.private_subscription:
             log.debug(f"name = {name}; creating private subscription on {topic}")
             self.subscription_name = str(uuid())
@@ -84,10 +87,10 @@ class BaseSubscriber(PubSubAgent):
             log.debug(f"name = {name}; creating shared subscription on {topic}")
             self.subscription_name = name
 
-        self._subscription_name = self.add_namespace(self.subscription_name)
+        self._subscription_name = self.add_namespace(self.subscription_name, prefix)
         
         self.topic = topic
-        self._topic_name = self.add_namespace(topic)
+        self._topic_name = self.add_namespace(topic, prefix)
 
         self.project = os.environ['GOOGLE_CLOUD_PROJECT']
         self.subscriber = self.create_subscriber()
@@ -106,6 +109,7 @@ class BaseSubscriber(PubSubAgent):
                 self.subscription = self.get_subscription(path=self.subscription_path)
         else:
             log.debug(f"Not creating subscription {self.subscription_path}.  It exists")
+
             
     def pull(self, max_messages=1, **kwargs):
         log.debug(f"Pulling on {self.subscription_path} from {self.topic_path}")
