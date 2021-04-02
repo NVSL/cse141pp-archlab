@@ -201,26 +201,27 @@ def do_test_subscriber(SubscriberType, PublisherType):
             topic.publish(str(i))
 
         missing = copy.deepcopy(items)
-        for i in range(0,20):
-            log.debug('shared 1')
+        for i in range(0,300):
+            log.debug(f'pulling shared1')
             for m in shared1.pull(timeout=1, max_messages=1):
-                log.debug(f"shared 1 Got {m}")
                 assert m in missing
                 missing.remove(m)
-            log.debug('shared 2')
+                log.debug(f"shared 1 Got {m}; missing={missing}")
+            log.debug(f'pulling shared2')
             for m in shared2.pull(timeout=1, max_messages=1):
-                log.debug(f"shared 2 Got {m}")
                 assert m in missing
                 missing.remove(m)
+                log.debug(f"shared 2 Got {m}; missing={missing}")
             if not missing:
                 break
         assert len(missing) == 0
 
         missing2 = copy.deepcopy(items)
-        for i in range(0,100):
-            log.debug('private')
+        for i in range(0,300):
+            log.debug(f'pulling missing2')
             for m in private.pull(timeout=1, max_messages=1):
                 missing2.remove(m)
+                log.debug(f'private got {m}; missing2={missing2}')
             if not missing2:
                 break
         assert len(missing2) == 0
