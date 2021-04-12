@@ -265,7 +265,7 @@ def main(argv=None):
                                                        content_type="application/zip")
                     except google.api_core.exceptions.BadRequest as e:
                         if "Unknown user" in repr(e):
-                            raise UserError(f"Unknown user: {job_data['username']}")
+                            raise UserError(f"Unknown user: Your email address needs to be associated with a google account.  It appears that '{job_data['username']}' is not.")
                         else:
                             raise
                 else:
