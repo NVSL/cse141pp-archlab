@@ -41,7 +41,8 @@ class PacketCommand(SubCommand):
             'per_page': 50
         }
         return self.manager.list_devices(project_id=self.project, params=params)
-        
+
+    
 class PacketList(PacketCommand):
     def __init__(self, parent):
         super(PacketList, self).__init__(parent_subparser=parent, name="ls", help="List hosts")
@@ -60,6 +61,7 @@ class PacketList(PacketCommand):
             rows.append([f"{h['hostname']}",f"{h['id']}", f"{h['ip_addresses'][0]['address']}"])
         sys.stdout.write(columnize(rows))
 
+        
 class PacketDelete(PacketCommand):
     def __init__(self, parent):
         super(PacketDelete, self).__init__(parent_subparser=parent, name="rm", help="List hosts")
@@ -169,69 +171,79 @@ class HostTop(PacketCommand):
             os.system("clear")
 
         try:
-            with Subscriber(topic=os.environ['HOST_EVENTS_TOPIC']) as subscriber:
-                send_command_to_hosts("send-heartbeat")
-                hosts = dict()
-                while True:
-                    try:
-                        messages = subscriber.pull(max_messages=5, timeout=3)
-                    except google.api_core.exceptions.DeadlineExceeded as e: 
-                        log.debug(e)
-                        pass
-                    else:
-                        for r in messages:
-                            d = json.loads(r)
-                            try:
-                                if d['id'] not in hosts:
-                                    current_devices = self.get_packet_hosts()
-                                    device_map = {x.hostname : x for x in current_devices}
-
-                                    if d['node'] in device_map:
-                                        ip_addr = device_map[d['node']]['ip_addresses'][0]['address']
-                                    else:
-                                        ip_addr = "unknown"
-                                    hosts[d['id']] = Host(id=d['id'],
-                                                          name=d['node'],
-                                                          status=d['status'],
-                                                          git_hash=d.get('sw_git_hash', " "*8),
-                                                          ipaddr=ip_addr,
-                                                          docker_image=d.get('docker_image', "unknown"),
-                                                          load=d.get("load", "unknown"))
-                                else:
-                                    host = hosts[d['id']]
-                                    stamp = eval(d['time'])
-                                    if stamp > host.last_heart_beat:
-                                        host.touch(stamp)
-                                        host.update_status(d['status'])
-                                        host.update_software(git_hash=d.get('sw_git_hash', " "*8),
-                                                             docker_image=d.get('docker_image', "unknown"))
-                                        host.load = d.get("load", "unknown")
-                            except KeyError as e:
-                                log.warning(f"Got strange message: {d} ({e})")
-                                raise
-                    for n, h in list(hosts.items()):
-                        if datetime.datetime.utcnow() - h.last_heart_beat > datetime.timedelta(minutes=30):
-                            del hosts[n]
+            with Subscriber(topic=os.environ['HOST_EVENTS_TOPIC'], prefix=os.environ["TESTING_GOOGLE_RESOURCE_PREFIX"]) as testing_subscriber:
+                with Subscriber(topic=os.environ['HOST_EVENTS_TOPIC'], prefix=os.environ["DEPLOYED_GOOGLE_RESOURCE_PREFIX"]) as deployed_subscriber:
+                    send_command_to_hosts("send-heartbeat")
+                    hosts = dict()
+                    while True:
+                        messages = []
                         
-                    rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker", "load"]]
-                    for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
-                        rows.append([h.name, h.ipaddr, h.id[:8],
-                                     format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
-                                     h.status,
-                                     format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
-                                     h.git_hash[:8],
-                                     h.docker_image,
-                                     h.load
-                        ])
+                        try:
+                            messages += testing_subscriber.pull(max_messages=5, timeout=3)
+                        except google.api_core.exceptions.DeadlineExceeded as e: 
+                            log.debug(e)
+                            pass
+                        
+                        try:
+                            messages += deployed_subscriber.pull(max_messages=5, timeout=3)
+                        except google.api_core.exceptions.DeadlineExceeded as e: 
+                            log.debug(e)
+                            pass
+                        
+                        else:
+                            for r in messages:
+                                d = json.loads(r)
+                                try:
+                                    if d['id'] not in hosts:
+                                        current_devices = self.get_packet_hosts()
+                                        device_map = {x.hostname : x for x in current_devices}
 
-                    if not args.verbose:
-                        os.system("clear")
-                    sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
-                    sys.stdout.write(columnize(rows, divider=" "))
-                    sys.stdout.flush()
-                    countdown -= 1
-                    if args.once and countdown == 0:
-                        break
+                                        if d['node'] in device_map:
+                                            ip_addr = device_map[d['node']]['ip_addresses'][0]['address']
+                                        else:
+                                            ip_addr = "unknown"
+                                        hosts[d['id']] = Host(id=d['id'],
+                                                              name=d['node'],
+                                                              status=d['status'],
+                                                              git_hash=d.get('sw_git_hash', " "*8),
+                                                              ipaddr=ip_addr,
+                                                              docker_image=d.get('docker_image', "unknown"),
+                                                              load=d.get("load", "unknown"))
+                                    else:
+                                        host = hosts[d['id']]
+                                        stamp = eval(d['time'])
+                                        if stamp > host.last_heart_beat:
+                                            host.touch(stamp)
+                                            host.update_status(d['status'])
+                                            host.update_software(git_hash=d.get('sw_git_hash', " "*8),
+                                                                 docker_image=d.get('docker_image', "unknown"))
+                                            host.load = d.get("load", "unknown")
+                                except KeyError as e:
+                                    log.warning(f"Got strange message: {d} ({e})")
+                                    raise
+                        for n, h in list(hosts.items()):
+                            if datetime.datetime.utcnow() - h.last_heart_beat > datetime.timedelta(minutes=30):
+                                del hosts[n]
+
+                        rows = [["host", "IP", "server-ID", "MIA", "status", "for", "SW", "Docker", "load"]]
+                        for n, h in sorted(hosts.items(), key=lambda kv: kv[1].name):
+                            rows.append([h.name, h.ipaddr, h.id[:8],
+                                         format_time_delta(datetime.datetime.utcnow()-h.last_heart_beat),
+                                         h.status,
+                                         format_time_delta(datetime.datetime.utcnow()-h.last_status_change),
+                                         h.git_hash[:8],
+                                         h.docker_image,
+                                         h.load
+                            ])
+
+                        if not args.verbose:
+                            os.system("clear")
+                        sys.stdout.write(f"Namespace: {os.environ['GOOGLE_RESOURCE_PREFIX']}; {os.environ['IN_DEPLOYMENT']} in {os.environ['CLOUD_MODE']}; DOCKER: {os.environ.get('THIS_DOCKER_IMAGE', 'unknown')}\n")
+                        sys.stdout.write(columnize(rows, divider=" "))
+                        sys.stdout.flush()
+                        countdown -= 1
+                        if args.once and countdown == 0:
+                            break
         except KeyboardInterrupt:
             return 0
 
