@@ -36,7 +36,7 @@ def submit_job():
     submission.username += f"({request.remote_addr})"
     
     try:
-        result = run_submission_remotely(submission, daemon=True)
+        result = run_submission_remotely(submission)#, daemon=True)
     except UserError as e:
         if debug:
             raise
