@@ -70,7 +70,7 @@ def submit_gitjob():
 
     log.info(f"command = {command}")
     
-    student_repo = re.search("/CSE141pp/(.*)-(\w+)", repo)
+    student_repo = re.search("/CSE142/(.*)-(\w+)", repo)
     master_repo = re.search("/NVSL/.*Lab-(.*)", repo)
     
     if student_repo:
