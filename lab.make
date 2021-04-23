@@ -83,6 +83,15 @@ push-starter:
 	@echo "Custom repository prefix     : $(STARTER_REPO_NAME_BASE)"
 	@echo "Template Repository          : $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
+update-starter:
+	git clone $(STARTER_REPO_URL)
+	make starter 
+	cd $(STARTER_REPO_NAME); rm -rf *; cp -r ../starter-repo/* .
+	git commit -am "merge in updates";
+	git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
+	git push
+	git push origin $(TAG_NAME)
+
 PRIVATE_FILES=*solution .git private.py test.py TA.md admin
 
 .PHONY: remove-private
