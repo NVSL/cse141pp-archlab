@@ -87,10 +87,10 @@ update-starter:
 	git clone $(STARTER_REPO_URL)
 	make starter 
 	cd $(STARTER_REPO_NAME); rm -rf *; cp -r ../starter-repo/* .
-	git commit -am "merge in updates";
-	git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
-	git push
-	git push origin $(TAG_NAME)
+	cd $(STARTER_REPO_NAME); git commit -am "merge in updates";
+	cd $(STARTER_REPO_NAME); git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
+	cd $(STARTER_REPO_NAME); git push
+	cd $(STARTER_REPO_NAME); git push origin $(TAG_NAME)
 
 PRIVATE_FILES=*solution .git private.py test.py TA.md admin
 
