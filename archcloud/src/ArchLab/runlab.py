@@ -122,7 +122,7 @@ def check_for_updates():
 def merge_updates():
 
     try:
-        run_git(subprocess.check_call,"git pull upstream master --allow-unrelated-histories -X their-".split(), stdout=dev_null, stderr=dev_null)
+        run_git(subprocess.check_call,"git pull upstream master --allow-unrelated-histories -X theirs".split(), stdout=dev_null, stderr=dev_null)
     except:
         log.note("Unable to check for updates.  Perhaps your upstream is not set.  This is not a big deal.  Please check the lab starter repo manually for updates.")
         return
