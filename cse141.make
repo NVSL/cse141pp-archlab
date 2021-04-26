@@ -44,6 +44,14 @@ ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
 CXX=g++-9
 endif
+ifeq ($(COMPILER),gcc-8)
+CC=gcc-8
+CXX=g++-8
+endif
+ifeq ($(COMPILER),gcc-7)
+CC=gcc-7
+CXX=g++-7
+endif
 
 
 # clean up
