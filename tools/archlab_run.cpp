@@ -10,7 +10,7 @@ namespace po = boost::program_options;
 
 int main(int argc, char *argv[]) {
 
-  float stats_period;
+
 
   int i = 0;
   while (i != argc && std::string(argv[i]) != "--") i++;
