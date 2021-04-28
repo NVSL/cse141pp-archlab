@@ -20,7 +20,8 @@ setup(
         "packet-python",
         "flask",
         "requests",
-        "matplotlib"
+        "matplotlib",
+        "pyperformance"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
