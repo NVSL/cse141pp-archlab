@@ -33,15 +33,15 @@ def main():
     parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
     parser.add_argument('--out', default="-", dest="output",help="output file")
     parser.add_argument('input', default="-", nargs="+", help="input files")
-    
+                    
     cmdline = parser.parse_args()
     log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
     outfile = open(cmdline.output, "w") if cmdline.output != "-" else sys.stdout;
 
     for f in cmdline.input:
-        infile = open(f) if cmdline.input != "-" else sys.stdin
+        infile = open(f) if f != "-" else sys.stdin
         inreader = csv.reader(infile)
-
+        
         r = []
         for l in inreader:
             r.append(list(map(fmt,l)))

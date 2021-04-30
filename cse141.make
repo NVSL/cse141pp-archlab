@@ -37,8 +37,8 @@ run_tests.exe: run_tests.o
 	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
-%.exe : $(BUILD)%.o main.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+%.exe : $(BUILD)%.o main.o 
+	$(CXX) $^ $(OBJS) $(LDFLAGS) -o $@
 
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9

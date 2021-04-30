@@ -38,6 +38,7 @@ setup(
             'hosttool=ArchLab.hosttool:main',
             'test-lab=ArchLab.testlab:main',
             'pretty-csv=ArchLab.csvpretty:main',
+            'merge-csv=ArchLab.csvmerge:main',
             'qdcache=ArchLab.QDCache:main',
 #            'gradelab=ArchLab.GradeLab:main'  # I dont think this exists.
         ]
