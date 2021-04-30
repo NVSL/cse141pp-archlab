@@ -811,7 +811,7 @@ def run_submission_locally(sub,
                 with environment(**sub.env):
                     status, reasons = log_run(sub.command, cwd=dirname, timeout=sub.lab_spec.time_limit)
                 
-            log.debug(f"Directory contents\n{list(Path(dirname).glob('**'))}")
+                    #log.debug(f"Directory contents\n{list(Path(dirname).glob('**'))}")
             for f in sub.lab_spec.output_files:
                 log.debug(f"Searching for output files matching '{f}'")
                 for filename in Path(dirname).glob(f):

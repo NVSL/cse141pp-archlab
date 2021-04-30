@@ -19,7 +19,6 @@ C_OPTS=$(OPTIMIZE)
 
 USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUILD) -I/home/jovyan/work/moneta/
 
-
 # load user config
 include $(BUILD)config.env
 
@@ -37,8 +36,8 @@ run_tests.exe: run_tests.o
 	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
-%.exe : $(BUILD)%.o main.o 
-	$(CXX) $^ $(OBJS) $(LDFLAGS) -o $@
+%.exe : %.o
+	$(CXX) $^ $(LDFLAGS) -o $@
 
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
