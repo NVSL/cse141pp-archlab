@@ -10,7 +10,7 @@ namespace po = boost::program_options;
 
 int main(int argc, char *argv[]) {
 
-  float stats_period;
+
 
   int i = 0;
   while (i != argc && std::string(argv[i]) != "--") i++;
@@ -29,18 +29,15 @@ int main(int argc, char *argv[]) {
     //std::cerr << commandv[0] << "|";
   }
   commandv[command_args] = NULL;
-  //std::cerr << "\n";
 
-  archlab_add_option<float>("stats-period", stats_period, 1, "How frequently to collect statistics");
+  //archlab_add_option<float>("stats-period", stats_period, 1, "How frequently to collect statistics");
   
   archlab_parse_cmd_line(&argc, argv);
-
   
   {
     ArchLabTimer timer; // create it.
     pristine_machine(); // reset the machine
     timer.
-      attr("Method", "function"). // Describing the measurement.
       go(); // Start measuring
 
     for(int i = 0;i  < 10000;i++) {}

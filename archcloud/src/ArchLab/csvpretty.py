@@ -32,20 +32,20 @@ def main():
     parser = argparse.ArgumentParser(description='Perform calculation on CSV files.')
     parser.add_argument('-v', action='store_true', dest="verbose", help="Be verbose")
     parser.add_argument('--out', default="-", dest="output",help="output file")
-    parser.add_argument('input', default="-", nargs=1, help="input file")
-    
+    parser.add_argument('input', default="-", nargs="+", help="input files")
+                    
     cmdline = parser.parse_args()
     log.basicConfig(level=log.DEBUG if cmdline.verbose else log.WARN)
-    
-    infile = open(cmdline.input[0]) if cmdline.input != "-" else sys.stdin
-    inreader = csv.reader(infile)
-
-    r = []
-    for l in inreader:
-        r.append(list(map(fmt,l)))
-    
     outfile = open(cmdline.output, "w") if cmdline.output != "-" else sys.stdout;
-    outfile.write(columnize(r, headers=True, divider='|'))
+
+    for f in cmdline.input:
+        infile = open(f) if f != "-" else sys.stdin
+        inreader = csv.reader(infile)
+        
+        r = []
+        for l in inreader:
+            r.append(list(map(fmt,l)))
+        outfile.write(columnize(r, headers=True, divider='|'))
     
 if __name__== "__main__":
     main()

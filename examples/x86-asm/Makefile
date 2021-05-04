@@ -18,6 +18,11 @@ exe: $(EXE)
 keypdfs: $(patsubst %.exe,%-gv.pdf,$(EXE)) $(TRACES)
 	open $^
 
+#test.exe: test.c
+#	gcc test.c -o test.exe
+%.exe : %.o  driver.o
+	$(CXX) $(filter %.o,$^) $(LDFLAGS) -o $@
+
 #######################################
 
 ilp_unrolled_%.exe : %.o  driver.o

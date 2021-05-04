@@ -15,6 +15,7 @@ from  .CSE141Lab import CSE141Lab
 import traceback
 from .Columnize import columnize
 import datetime
+from .showgrades import render_grades
 
 log.addLevelName(25, "NOTE")
 def note(*argc, **kwargs):
@@ -365,8 +366,24 @@ def main(argv=None):
                     sys.stdout.write(result.get_file(i))
                 elif i == "STDOUT.txt":
                     sys.stdout.write(result.get_file(i))
-                    
-                log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
+
+
+            if 'gradescope_test_output' in result.results:
+                sys.stdout.write(textwrap.dedent("""
+                #####################################################################################
+                  Autograder results
+                #####################################################################################
+
+                """))
+                sys.stdout.write(render_grades(result.results['gradescope_test_output'], False))
+                sys.stdout.write(textwrap.dedent("""
+
+                #####################################################################################
+                  Unless you are reading this on gradescope, these grades have not been recorded.
+                  You must submit via gradescope to get credit.
+                #####################################################################################
+                """))
+            log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
             if args.zip:
                 with open("files.zip", "wb") as f:
@@ -420,13 +437,13 @@ def main(argv=None):
     if student_mode and "KUBERNETES_PORT_443_TCP_PORT" in os.environ and not(args.remote or args.run_git_remotely or args.run_by_proxy):
         try:
             os.rename("benchmark.csv", "meaningless-benchmark.csv")
-            log.note("I renamed benchmark.csv because they contain meaningless numbers since you are running ieng6")
+            log.note("I renamed benchmark.csv because they contain meaningless numbers since you are running dsmlp.")
         except:
             pass
 
         try:
             os.rename("code.csv", "meaningless-code.csv")
-            log.note("I renamed code.csv because they contain meaningless numbers since you are running ieng6")
+            log.note("I renamed code.csv because they contain meaningless numbers since you are running dsmlp.")
         except:
             pass
         

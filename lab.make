@@ -13,7 +13,6 @@ $(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp
 	cp $< $@
 
 
-
 $(BUILD)config.env: $(LAB_SUBMISSION_DIR)/config.env
 	mkdir -p $(BUILD)
 	cp $< $@

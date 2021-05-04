@@ -20,7 +20,8 @@ setup(
         "packet-python",
         "flask",
         "requests",
-        "matplotlib"
+        "matplotlib",
+        "pyperformance"
      ],
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -37,6 +38,8 @@ setup(
             'hosttool=ArchLab.hosttool:main',
             'test-lab=ArchLab.testlab:main',
             'pretty-csv=ArchLab.csvpretty:main',
+            'merge-csv=ArchLab.csvmerge:main',
+            'show-grades=ArchLab.showgrades:main',
             'qdcache=ArchLab.QDCache:main',
 #            'gradelab=ArchLab.GradeLab:main'  # I dont think this exists.
         ]
