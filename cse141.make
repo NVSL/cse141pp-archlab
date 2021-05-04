@@ -22,23 +22,6 @@ USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUIL
 # load user config
 include $(BUILD)config.env
 
-# -O4 breaks google test sometimes.
-run_tests.o: C_OPTS=-O4 -Wno-unknown-pragmas
-run_tests.o: $(BUILD)opt_cnn.hpp
-default:
-regression.out: run_tests.exe
-	./run_tests.exe --gtest_output=json:regression.json > $@ || true
-
-# Build infrastructure
-include $(ARCHLAB_ROOT)/compile.make
-
-run_tests.exe: run_tests.o
-	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
-
-# build something
-%.exe : %.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
 CXX=g++-9
@@ -51,6 +34,25 @@ ifeq ($(COMPILER),gcc-7)
 CC=gcc-7
 CXX=g++-7
 endif
+
+
+# -O4 breaks google test sometimes.
+run_tests.o: C_OPTS=-O4 -Wno-unknown-pragmas
+run_tests.o: $(BUILD)opt_cnn.hpp
+default:
+regression.out: run_tests.exe
+	./run_tests.exe --gtest_output=json:regression.json > $@ || true
+
+
+# Build infrastructure
+include $(ARCHLAB_ROOT)/compile.make
+
+run_tests.exe: run_tests.o
+	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
+
+# build something
+%.exe : %.o
+	$(CXX) $^ $(LDFLAGS) -o $@
 
 
 # clean up
