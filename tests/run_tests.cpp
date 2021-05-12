@@ -70,6 +70,25 @@ MeasurementInterval & little_scan(bool flush, int count) {
 	return interval;
 }
 
+MeasurementInterval & tiny( int count) {
+
+	volatile int s = 0;
+	{
+		ArchLabTimer timer;
+		timer.go();
+		
+		for(int c = 0; c < count; c++) {
+			s += c;
+		}
+	}
+
+	auto last = theDataCollector->get_intervals();
+	auto & interval = *(last->back());
+	interval.build_json();
+	return interval;
+}
+
+
 TEST_F(ArchlabTest, cache_flush_test) {
 	pristine_machine();
 	theDataCollector->disable_prefetcher();
@@ -83,6 +102,24 @@ TEST_F(ArchlabTest, cache_flush_test) {
 	std::cerr << slow.get_value<float>("ARCHLAB_WALL_TIME") << "\n";
 	std::cerr << fast.get_value<float>("ARCHLAB_WALL_TIME") << "\n";*/
 	EXPECT_GT(slow.get_value<float>("ARCHLAB_WALL_TIME")/fast.get_value<float>("ARCHLAB_WALL_TIME"),5);
+}
+
+TEST_F(ArchlabTest, reset_stats_test) {
+	for (int i = 0; i < 10; i++) {
+		pristine_machine();
+		theDataCollector->disable_prefetcher();
+		auto & first = tiny(1000);
+		pristine_machine();
+		theDataCollector->disable_prefetcher();
+		auto & second= tiny(1000);
+
+		//std::cerr << first.get_value<uint64_t>("PAPI_TOT_CYC") << "\n";
+		//std::cerr << second.get_value<uint64_t>("PAPI_TOT_CYC") << "\n";
+		//std::cerr  << "-----------------\n";
+		EXPECT_NEAR(first.get_value<uint64_t>("PAPI_TOT_CYC"),
+			    second.get_value<uint64_t>("PAPI_TOT_CYC"),
+			    6000);
+	}
 }
 
 TEST_F(ArchlabTest, prefetcher_test) {
@@ -121,7 +158,7 @@ TEST_F(ArchlabTest, cpu_freq_test) {
 
 	//std::cerr << cpu_frequencies[1] << "\n";
 	//std::cerr << cpu_frequencies[2] << "\n";
-	EXPECT_NEAR(slow.get_value<float>("PAPI_TOT_CYC"), cpu_frequencies[2]*1000000, 2000000);
+	EXPECT_NEAR(slow.get_value<float>("PAPI_TOT_CYC"), cpu_frequencies[2]*1000000, 3000000);
 	EXPECT_NEAR(slow.get_value<float>("PAPI_TOT_CYC")/
 		    fast.get_value<float>("PAPI_TOT_CYC"),
 		    (0.0+cpu_frequencies[1])/(0.0+cpu_frequencies[0]), 0.01);

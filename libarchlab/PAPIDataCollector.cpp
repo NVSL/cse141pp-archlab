@@ -47,6 +47,7 @@ void PAPIDataCollector::init_rapl() {
 PAPIDataCollector::PAPIDataCollector() : DataCollector("PAPI"), event_set(PAPI_NULL), rapl_event_set(PAPI_NULL), rapl_cid(-1) {
 
 
+
 	int retval = PAPI_library_init( PAPI_VER_CURRENT );
 	if ( retval != PAPI_VER_CURRENT ) {
 		std::cerr << "PAPI version mismatch." << std::endl;
@@ -86,14 +87,14 @@ PAPIDataCollector::PAPIDataCollector() : DataCollector("PAPI"), event_set(PAPI_N
 		}
 	}
     
-	PAPI_option_t opt;
-	memset( &opt, 0x0, sizeof( PAPI_option_t ) ); 
-	opt.inherit.inherit = PAPI_INHERIT_ALL;
-	opt.inherit.eventset = event_set;
-	if( ( retval = PAPI_set_opt( PAPI_INHERIT, &opt ) ) != PAPI_OK ) {                                                                      
-		fprintf( stderr, "Problem with PAPI_set_opt: %s\n", PAPI_strerror(retval) );                    
-		exit(1);                                                             
-	}
+	//PAPI_option_t opt;
+	//memset( &opt, 0x0, sizeof( PAPI_option_t ) ); 
+	//opt.inherit.inherit = PAPI_INHERIT_ALL;
+	//opt.inherit.eventset = event_set;
+	//if( ( retval = PAPI_set_opt( PAPI_INHERIT, &opt ) ) != PAPI_OK ) {                                                                      
+	//		fprintf( stderr, "Problem with PAPI_set_opt: %s\n", PAPI_strerror(retval) );                    
+	//              exit(1);                                                             
+	//}
 }
 
 void PAPIDataCollector::track_stat(const std::string  & stat)
