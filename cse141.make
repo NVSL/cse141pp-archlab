@@ -17,7 +17,7 @@ DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
-USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT) -I./$(BUILD) -I. -I/home/jovyan/work/moneta/
+USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I/home/jovyan/work/moneta/ 
 
 # load user config
 include $(BUILD)config.env
@@ -51,7 +51,7 @@ run_tests.exe: run_tests.o
 	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
-%.exe : %.o
+%.exe : $(BUILD)%.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 
