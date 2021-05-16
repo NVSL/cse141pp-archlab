@@ -39,6 +39,7 @@ setup(
             'test-lab=ArchLab.testlab:main',
             'pretty-csv=ArchLab.csvpretty:main',
             'merge-csv=ArchLab.csvmerge:main',
+            'sort-csv=ArchLab.csvsort:main',
             'show-grades=ArchLab.showgrades:main',
             'qdcache=ArchLab.QDCache:main',
 #            'gradelab=ArchLab.GradeLab:main'  # I dont think this exists.
