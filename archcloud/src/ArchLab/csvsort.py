@@ -29,7 +29,7 @@ def main():
 
         s = sorted(r, key=lambda a: a[column])
         if cmdline.pretty:
-            outfile.write(prettify_dicts(r))
+            outfile.write(prettify_dicts(s))
         else:
             writer = csv.DictWriter(outfile,inreader.fieldnames)
             writer.writeheader()
