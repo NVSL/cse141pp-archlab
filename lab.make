@@ -4,13 +4,21 @@ BUILD?=build/
 .PRECIOUS: $(BUILD)%.cpp
 .PRECIOUS: $(BUILD)%.hpp
 
-$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp
+$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
 	mkdir -p $(BUILD)
-	cp $< $@
+	cp $< $@ 
 
-$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp
+$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp 
 	mkdir -p $(BUILD)
-	cp $< $@
+	cp $< $@ 
+
+$(BUILD)%.cpp: %.cpp  
+	mkdir -p $(BUILD)
+	cp $< $@ 
+
+$(BUILD)%.hpp: %.hpp 
+	mkdir -p $(BUILD)
+	cp $< $@ 
 
 
 $(BUILD)config.env: $(LAB_SUBMISSION_DIR)/config.env

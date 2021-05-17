@@ -34,14 +34,17 @@ def columnize(data, divider="|", headers=1):
         r += div.join((str(val).ljust(width) for val, width in zip(row, widths))) + "\n"
     return r
 
-def ns(d):
+def ns(d, header=None):
     r = []
+    if header is not None:
+        r.append(header)
     for k,v in d.items():
         r.append([k,repr(v)])
-    return columnize(r, headers=0)
+    return columnize(r, headers=(1 if header != None else 0))
 
 def do_calc(inreader):
     log.info(f"Input fields : {','.join(inreader.fieldnames)}")
+    original_fieldnames = inreader.fieldnames
     Field(*inreader.fieldnames[1].split("=", 2))
     fieldnames = [s.split("=", 2)[0] for s in inreader.fieldnames]
     fields = {}
@@ -53,7 +56,9 @@ def do_calc(inreader):
 
     out=[]
     inreader.fieldnames = fieldnames
+    row_num = 0
     for r in inreader:
+        row_num += 1
         log.info(f"Parsing {r}")
 
         # Convert row values into arithmetic values if possible
@@ -81,7 +86,8 @@ def do_calc(inreader):
                         r[k] = eval(fields[k].expression, {"__builtins__":None}, cleaned)
                     except Exception as e:
                         if i == len(fieldnames): # it's the last time through the loop, then we really have an error.
-                            raise CalcException(f"Expression '{fields[k].expression}' in column '{k}' is invalid: {e}\n{ns(r)}") from e
+                            error_row = [["line"]+ original_fieldnames]+[[row_num] + [r[x] for x in fieldnames]]
+                            raise CalcException(f"Expression '{fields[k].expression}' in column '{k}' on row {row_num} is invalid ({e}):\n{columnize(error_row)}") from e
                         retry = True
             if not retry:
                 break
@@ -107,7 +113,11 @@ def main():
     infile = open(cmdline.input) if cmdline.input != "-" else sys.stdin
     inreader = csv.DictReader(infile)
 
-    output = do_calc(inreader)
+    try:
+        output = do_calc(inreader)
+    except CalcException as e:
+        sys.stderr.write(f"{e}\n")
+        sys.exit(1)
         
     outfile = open(cmdline.output, "w") if cmdline.output != "-" else sys.stdout;
     outwriter = csv.writer(outfile)
@@ -131,6 +141,12 @@ class Tests(unittest.TestCase):
 
     def test_err(self):
         with open("test_inputs/fail.csv") as infile:
+            inreader = csv.DictReader(infile)
+            with self.assertRaises(CalcException):
+                do_calc(inreader)
+
+    def test_div0(self):
+        with open("test_inputs/div0.csv") as infile:
             inreader = csv.DictReader(infile)
             with self.assertRaises(CalcException):
                 do_calc(inreader)

@@ -369,20 +369,21 @@ def main(argv=None):
 
 
             if 'gradescope_test_output' in result.results:
-                sys.stdout.write(textwrap.dedent("""
-                #####################################################################################
-                  Autograder results
-                #####################################################################################
+               sys.stdout.write(textwrap.dedent("""
+               #####################################################################################
+               Autograder results
+               #####################################################################################
+               
+               """))
+               sys.stdout.write(render_grades(result.results['gradescope_test_output'], True, True))
+               sys.stdout.write(textwrap.dedent("""\
+               #####################################################################################
+               Unless you are reading this on gradescope, these grades have not been recorded.
+               You must submit via gradescope to get credit.
+               #####################################################################################
+               """))
+               
 
-                """))
-                sys.stdout.write(render_grades(result.results['gradescope_test_output'], False))
-                sys.stdout.write(textwrap.dedent("""
-
-                #####################################################################################
-                  Unless you are reading this on gradescope, these grades have not been recorded.
-                  You must submit via gradescope to get credit.
-                #####################################################################################
-                """))
             log.debug("Extracted results:\n" + json.dumps(result._asdict(), sort_keys=True, indent=4) + "\n")
 
             if args.zip:
