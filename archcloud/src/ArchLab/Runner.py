@@ -81,7 +81,7 @@ def collect_fields_of(obj):
     finally:
         obj._fields =  list(set(obj.__dict__.keys()) - set(before))
 
-safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/]"
+safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/\*]"
     
 class LabSpec(object):
 
