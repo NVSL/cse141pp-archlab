@@ -81,7 +81,7 @@ def collect_fields_of(obj):
     finally:
         obj._fields =  list(set(obj.__dict__.keys()) - set(before))
 
-safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/]"
+safe_env = r"[a-zA-Z0-9_\-\.\+\: =\"\'\/\*]"
     
 class LabSpec(object):
 
@@ -274,7 +274,7 @@ class LabSpec(object):
             return False, "You can only run make in this lab", command
 
         # just allow simple strings and filenames
-        if any(map(lambda x: not re.match(r"^[a-zA-Z0-9_\-\.]+$", x), command)):
+        if any(map(lambda x: not re.match(r"^[a-zA-Z0-9_\-\.\/\*]+$", x), command)):
             return False, f"One of these doesn't look like a make target: {command[1:]}", command
 
         return True, "", command
