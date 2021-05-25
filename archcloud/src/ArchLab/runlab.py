@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, run_repo_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError
+from .Runner import build_submission, run_submission_locally, run_submission_remotely, run_submission_by_proxy, run_repo_by_proxy, Submission, ArchlabError, UserError, SubmissionResult, LabSpec, ArchlabTransientError, ConfigException
 import logging as log
 import json
 import platform
@@ -391,7 +391,7 @@ def main(argv=None):
                     f.write(result.build_file_zip_archive())
 
             log.info(f"Grading results:\n{json.dumps(result.results, indent=4)}")
-    except UserError as e: 
+    except (UserError, ConfigException) as e: 
         log.error(f"User error (probably your fault): {repr(e)}")
         status_str = f"{repr(e)}"
         exit_code = 1

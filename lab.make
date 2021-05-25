@@ -94,7 +94,7 @@ update-starter:
 	git clone $(STARTER_REPO_URL)
 	make starter 
 	cd $(STARTER_REPO_NAME); rm -rf *; cp -r ../starter-repo/* .
-	cd $(STARTER_REPO_NAME); git add `git ls-files --others --exclude-standard`
+	#	cd $(STARTER_REPO_NAME); git add `git ls-files --others --exclude-standard`
 	cd $(STARTER_REPO_NAME); git commit -am "merge in updates";
 	cd $(STARTER_REPO_NAME); git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
 	cd $(STARTER_REPO_NAME); git push

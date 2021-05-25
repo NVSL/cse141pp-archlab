@@ -40,8 +40,7 @@ endif
 run_tests.o: C_OPTS=-O4 -Wno-unknown-pragmas
 run_tests.o: $(BUILD)opt_cnn.hpp
 default:
-regression.out: run_tests.exe
-	./run_tests.exe --gtest_output=json:regression.json > $@ || true
+
 
 
 # Build infrastructure

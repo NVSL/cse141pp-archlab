@@ -199,7 +199,7 @@ class CSE141Lab(LabSpec):
                         failures = test.get('failures')
                         if failures:
                             print(f"The test failed.  You can reproduce this with {' '.join(cmd)}:\n")
-                            print("\n\n".join(failures))
+                            print("\n\n".join(map(lambda x: x['failure'], failures)))
                             self.assertTrue(False, "Test failed")
                         else:
                             print("The test passed!")
