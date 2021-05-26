@@ -413,12 +413,15 @@ class SubmissionResult(object):
                     status_reasons=self.status_reasons)
     
     def write_outputs(self, directory=None):
+        log.debug(f"Writing {len(self.files)} outputs...")
         if not directory:
             directory = self.submission.user_directory
+        log.debug(f"Writing to {directory}")
         for i in self.files:
+            log.debug(f"Writing file {i}")
             p = os.path.abspath(os.path.join(directory, i))
-            directory = os.path.dirname(p)
-            os.makedirs(directory, exist_ok=True)
+            d = os.path.dirname(p)
+            os.makedirs(d, exist_ok=True)
             with open(p, "wb") as t:
                 log.debug(f"Writing data to {p}: {self.files[i][0:100]}")
                 t.write(base64.b64decode(self.files[i]))
