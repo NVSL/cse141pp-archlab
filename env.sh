@@ -1,9 +1,6 @@
 export ARCHLAB_ROOT=$PWD
-export PIN_ROOT=$(echo $ARCHLAB_ROOT/pin-*-linux)
-if [ -d archcloud/venv/ ]; then
-    . archcloud/venv/bin/activate
-fi
-PATH=$PWD/tools/:$PWD/utils:$PWD/archcloud:$PIN_ROOT/:$PATH
 
-export LD_LIBRARY_PATH=/usr/local/lib:$PWD/pcm
+PATH=$ARCHLAB_ROOT/tools/:$ARCHLAB_ROOT/utils:$ARCHLAB_ROOT/archcloud:$PIN_ROOT/:$ARCHLAB_ROOT/installed/bin:$PATH
+
+export LD_LIBRARY_PATH=$ARCHLAB_ROOT/installed/lib
 

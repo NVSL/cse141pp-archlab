@@ -2,7 +2,7 @@
 EXAMPLES=archlab_run archlab_check
 
 default: $(EXAMPLES)
-
+setup: default
 include ../compile.make
 ../libarchlab/libarchlab.a:
 	$(MAKE) -C ../libarchlab

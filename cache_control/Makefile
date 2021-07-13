@@ -3,6 +3,7 @@ obj-m += cache_control.o
 ONLY_IF_VALID=! [ -d /lib/modules/$(shell uname -r) ] ||
 all:
 	$(ONLY_IF_VALID) make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+setup: all
 clean:
 	$(ONLY_IF_VALID) make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
 modules_install:

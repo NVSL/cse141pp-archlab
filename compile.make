@@ -1,9 +1,7 @@
 #-*- Makefile -*-
 ARCHLAB=$(ARCHLAB_ROOT)
 PCM_ROOT=$(ARCHLAB)/pcm
-PAPI_ROOT=/usr/local
-PIN_ROOT=$(ARCHLAB)/pin
-export PIN_ROOT
+PAPI_ROOT=$(ARCHLAB_ROOT)/installed
 
 GPROF?=no
 ifeq ($(GPROF),no)
@@ -42,10 +40,10 @@ OPENMP_OPTS=
 OPENMP_LIBS=
 endif
 
-CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -I$(PCM_ROOT) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) $(LAB_CFLAGS) #-fopenmp
+CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS)  -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) $(LAB_CFLAGS)
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lpcm -lpapi -lboost_program_options $(OPENMP_LIBS) 
-GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab  -larchlab -lpapi -lboost_program_options $(OPENMP_LIBS) 
+GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
 ASM_FLAGS=

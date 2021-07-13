@@ -2,6 +2,7 @@
 EXAMPLES=random_access.exe hello_world.exe side_channel.exe
 
 default: $(EXAMPLES)
+setup: default
 
 include ../compile.make
 ../libarchlab/libarchlab.a:

@@ -1,11 +1,12 @@
 
 include ../compile.make
 
-SRCS= microbenchmarks.cpp DataCollector.cpp PCMDataCollector.cpp PAPIDataCollector.cpp PINDataCollector.cpp archlab.cpp
+SRCS= microbenchmarks.cpp DataCollector.cpp PAPIDataCollector.cpp PINDataCollector.cpp archlab.cpp
 
 OBJS=$(SRCS:.cpp=.o)
 
 default: libarchlab.a
+setup: default
 libarchlab.a: $(OBJS)
 	ar rcs $@ $^
 
