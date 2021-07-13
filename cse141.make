@@ -17,7 +17,7 @@ DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
-USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I/home/jovyan/work/moneta/ 
+USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I$(MONETA_ROOT)/moneta/ 
 
 # load user config
 include $(BUILD)config.env
