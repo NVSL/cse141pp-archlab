@@ -12,7 +12,7 @@ ifndef PIN_ROOT
 $(error PIN_ROOT is not set.  Have you sourced config.sh?  Maybe do it again.)
 endif
 
-setup: $(subdirs) #install-papi 
+setup: install-papi $(subdirs) 
 
 $(subdirs):
 	make -C $@ $(MAKECMDGOALS)
