@@ -1,39 +1,3 @@
-LAB_SUBMISSION_DIR?=.
-BUILD?=build/
-
-.PRECIOUS: $(BUILD)%.cpp
-.PRECIOUS: $(BUILD)%.hpp
-
-$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
-$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp 
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
-$(BUILD)%.cpp: %.cpp  
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
-$(BUILD)%.hpp: %.hpp 
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
-
-$(BUILD)config.env: $(LAB_SUBMISSION_DIR)/config.env
-	mkdir -p $(BUILD)
-	cp $< $@
-
-
-$(BUILD)%.inp: $(LAB_SUBMISSION_DIR)/%.inp
-	mkdir -p $(BUILD)
-	cp $< $@
-
-clean: _lab-clean
-.PHONY: _lab-clean
-_lab-clean:
-	rm -rf $(BUILD) .tmp
 
 # The build infrastructure wants a install target.
 .PHONY: install

@@ -12,15 +12,11 @@ endif
 
 include $(ARCHLAB_ROOT)/lab.make
 
-
 DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
 USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I$(MONETA_ROOT)/moneta/ 
-
-# load user config
-include $(BUILD)config.env
 
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
@@ -36,11 +32,43 @@ CXX=g++-7
 endif
 
 
-# -O4 breaks google test sometimes.
-run_tests.o: C_OPTS=-O4 -Wno-unknown-pragmas
-run_tests.o: $(BUILD)opt_cnn.hpp
-default:
+LAB_SUBMISSION_DIR?=.
+DJR_JOB_ROOT?=.
+BUILD?=build/
 
+.PRECIOUS: $(BUILD)%.cpp
+.PRECIOUS: $(BUILD)%.hpp
+
+$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
+	mkdir -p $(BUILD)
+	cp $< $@ 
+
+$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp 
+	mkdir -p $(BUILD)
+	cp $< $@ 
+
+$(BUILD)%.cpp: %.cpp  
+	mkdir -p $(BUILD)
+	cp $< $@ 
+
+$(BUILD)%.hpp: %.hpp 
+	mkdir -p $(BUILD)
+	cp $< $@ 
+
+-include $(wildcard $(BUILD)/*.d)
+
+#$(BUILD)%.inp: $(LAB_SUBMISSION_DIR)/%.inp
+#	mkdir -p $(BUILD)
+#	cp $< $@
+
+clean: _lab-clean
+.PHONY: _lab-clean
+_lab-clean:
+	rm -rf $(BUILD) .tmp
+
+.PHONY: copy_files
+copy-files:
+	for i in $(STUDENT_EDITABLE_FILES); do [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ] && (cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true);done
 
 
 # Build infrastructure
@@ -60,12 +88,3 @@ clean: lab-clean
 lab-clean:
 	rm -rf $(CLEANUP)
 
-#  lab test suite.
-TESTS?=.*
-.PHONY: test test-lab
-test-lab:
-	(unset LAB_SUBMISSION_DIR; test-lab)
-test: test-lab
-	if [ -f test.bats ]; then bats test.bats -f '$(TESTS)'; else true;fi
-
-###############
