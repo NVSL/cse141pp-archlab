@@ -1,13 +1,15 @@
 obj-m += cache_control.o
 
-ONLY_IF_VALID=! [ -d /lib/modules/$(shell uname -r) ] ||
+EFFECTIVE_UNAME?=$(shell uname -r)
+
+ONLY_IF_VALID=! [ -d /lib/modules/$(EFFECTIVE_UNAME) ] ||
 all:
-	$(ONLY_IF_VALID) make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+	$(ONLY_IF_VALID) make -C /lib/modules/$(EFFECTIVE_UNAME)/build M=$(shell pwd) modules
 setup: all
 clean:
-	$(ONLY_IF_VALID) make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
+	$(ONLY_IF_VALID) make -C /lib/modules/$(EFFECTIVE_UNAME)/build M=$(shell pwd) clean
 modules_install:
-	$(ONLY_IF_VALID) make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules_install
+	$(ONLY_IF_VALID) make -C /lib/modules/$(EFFECTIVE_UNAME)/build M=$(shell pwd) modules_install
 
 test.exe: test.c
 	$(CC) -g -Wall -Werror -I. $< -o $@
