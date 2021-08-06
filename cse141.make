@@ -66,9 +66,9 @@ clean: _lab-clean
 _lab-clean:
 	rm -rf $(BUILD) .tmp
 
-.PHONY: copy_files
+.PHONY: copy-files
 copy-files:
-	for i in $(STUDENT_EDITABLE_FILES); do [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ] && (cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true);done
+	for i in $(STUDENT_EDITABLE_FILES); do if [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ]; then (cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true) else true; fi;done
 
 
 # Build infrastructure
