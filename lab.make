@@ -16,7 +16,7 @@ lab-help:
 	@echo "make build-starter:  Build a starter repo"
 	@echo "make push-starter :  Create repo and push"
 
-STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(shell runlab --info short_name)
+STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)#-$(shell runlab --info short_name)
 STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
 TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
 BRANCH_NAME:=$(TAG_NAME)-branch
