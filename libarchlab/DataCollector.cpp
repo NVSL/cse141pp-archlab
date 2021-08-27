@@ -122,25 +122,26 @@ void DataCollector::start_timing(json & kv)
 		register_tag(k.key(), "", true);
 	}
 	
-	if (current_interval) {
+	if (timing_something) {
 		std::cerr << "You are already timing something.  You can't time something else." << std::endl;
 		exit(1);
 	}
 	enqueue_interval(n);
 	current_interval = n;
+	timing_something = true;
 	n->start();
 }
 
 void DataCollector::stop_timing()
 {
 
-	if (!current_interval) {
+	if (!timing_something) {
 		std::cerr << "You are not currently timing anything." << std::endl;
 		exit(1);
 	}
   
 	current_interval->stop();
-	current_interval = NULL;
+	timing_something = false;
 }
 
 json MeasurementInterval::build_json()

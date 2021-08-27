@@ -42,9 +42,9 @@ OPENMP_OPTS=
 OPENMP_LIBS=
 endif
 
-CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -MMD #-D_GLIBCXX_USE_CXX11_ABI=0
+CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I. -MMD #-D_GLIBCXX_USE_CXX11_ABI=0
 CXXFLAGS ?=$(CFLAGS) -std=gnu++11 
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -larchlab -lpapi -lboost_program_options $(OPENMP_LIBS) 
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -larchlab -lpapi -lboost_program_options -lm -lquadmath $(OPENMP_LIBS) 
 GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread  #-std=gnu++11  
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
