@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cpucounters.h>
+#include <fstream>
 #include "archlab.hpp"
 #include <cstring>
 
@@ -11,7 +11,7 @@
 #include<time.h>
 #include <stdarg.h>
 
-#include "PCMDataCollector.hpp"
+
 #include "PAPIDataCollector.hpp"
 #include "PINDataCollector.hpp"
 #include "NativeDataCollector.hpp"
@@ -108,9 +108,6 @@ extern "C" {
 		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "NATIVE") {
 			archlab_init(ARCHLAB_COLLECTOR_NONE);
       
-		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "PCM") {
-			archlab_init(ARCHLAB_COLLECTOR_PCM);
-      
 		} else if (boost::to_upper_copy<std::string>(archlab_parsed_options["engine"].as<std::string>()) == "ALL-CORE") {
 			archlab_init(ARCHLAB_COLLECTOR_ALLCORE);
       
@@ -200,9 +197,7 @@ extern "C" {
 	void archlab_init(int collector)
 	{
 		load_frequencies();
-		if (collector == ARCHLAB_COLLECTOR_PCM) {
-			theDataCollector = new PCMDataCollector();
-		} else if (collector == ARCHLAB_COLLECTOR_PAPI) {
+		if (collector == ARCHLAB_COLLECTOR_PAPI) {
 			theDataCollector = new PAPIDataCollector();
 		} else if (collector == ARCHLAB_COLLECTOR_PIN) {
 			theDataCollector = new PINDataCollector();

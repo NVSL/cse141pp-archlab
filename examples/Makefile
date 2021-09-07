@@ -1,7 +1,8 @@
 
-EXAMPLES=random_access.exe hello_world.exe side_channel.exe
+EXAMPLES=random_access.exe hello_world.exe side_channel.exe enumeration.exe
 
 default: $(EXAMPLES)
+setup: default
 
 include ../compile.make
 ../libarchlab/libarchlab.a:

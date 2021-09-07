@@ -251,7 +251,7 @@ VOID Instruction(INS ins, void * v)
         const ADDRINT iaddr = INS_Address(ins);
         const UINT32 instId = profile.Map(iaddr);
 
-        const UINT32 size = INS_MemoryReadSize(ins);
+        const UINT32 size = INS_MemoryOperandSize(ins, 0);
         const BOOL   single = (size <= 4);
                 
         if( KnobTrackLoads )
@@ -302,7 +302,7 @@ VOID Instruction(INS ins, void * v)
         const ADDRINT iaddr = INS_Address(ins);
         const UINT32 instId = profile.Map(iaddr);
             
-        const UINT32 size = INS_MemoryWriteSize(ins);
+        const UINT32 size = INS_MemoryOperandSize(ins, 0);
 
         const BOOL   single = (size <= 4);
                 
