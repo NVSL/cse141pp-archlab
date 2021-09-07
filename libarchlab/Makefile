@@ -1,7 +1,7 @@
 
 include ../compile.make
 
-SRCS= microbenchmarks.cpp DataCollector.cpp PAPIDataCollector.cpp PINDataCollector.cpp archlab.cpp
+SRCS= microbenchmarks.cpp DataCollector.cpp PAPIDataCollector.cpp PINDataCollector.cpp archlab.cpp IterationDimension.cpp
 
 OBJS=$(SRCS:.cpp=.o)
 
