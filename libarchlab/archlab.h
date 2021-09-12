@@ -50,7 +50,7 @@ extern "C" {
 		return 1.0*t.tv_sec + 1.e-6*t.tv_usec;
 #else
 		struct timespec t;
-		clock_gettime (CLOCK_MONOTONIC, &t);
+		clock_gettime (CLOCK_PROCESS_CPUTIME_ID, &t);//CLOCK_REALTIME, &t);
 		return 1.0*t.tv_sec + 1.e-9*t.tv_nsec;
 #endif
 	}
