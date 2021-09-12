@@ -38,6 +38,14 @@ BUILD?=build/
 
 .PRECIOUS: $(BUILD)%.cpp
 .PRECIOUS: $(BUILD)%.hpp
+.PRECIOUS: $(BUILD)%.s
+
+
+#%.so : $(BUILD)%.so
+#	cp $< $@
+
+$(BUILD)%.so: $(BUILD)%.o
+	$(CXX) $^ $(LDFLAGS) -shared -o $@
 
 $(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
 	mkdir -p $(BUILD)
@@ -78,8 +86,8 @@ run_tests.exe: run_tests.o
 	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
-%.exe : $(BUILD)%.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+%.exe : 
+	$(CXX) $^ $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
 
 
 # clean up

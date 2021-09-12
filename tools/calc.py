@@ -43,7 +43,10 @@ def ns(d, header=None):
     return columnize(r, headers=(1 if header != None else 0))
 
 def do_calc(inreader):
-    log.info(f"Input fields : {','.join(inreader.fieldnames)}")
+    if inreader.fieldnames:
+        log.info(f"Input fields : {','.join(inreader.fieldnames)}")
+    else:
+        return []
     original_fieldnames = inreader.fieldnames
     Field(*inreader.fieldnames[1].split("=", 2))
     fieldnames = [s.split("=", 2)[0] for s in inreader.fieldnames]
