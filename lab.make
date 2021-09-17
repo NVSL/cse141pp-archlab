@@ -16,56 +16,77 @@ lab-help:
 	@echo "make build-starter:  Build a starter repo"
 	@echo "make push-starter :  Create repo and push"
 
-STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)#-$(shell runlab --info short_name)
+LAB_NAME=$(shell cat short_name)
+STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(LAB_NAME)
 STARTER_REPO_NAME=$(STARTER_REPO_NAME_BASE)-starter
 TAG_NAME:=$(STARTER_REPO_NAME)-$(shell date "+%F-%s")
-BRANCH_NAME:=$(TAG_NAME)-branch
-STARTER_REPO_URL:=https://github.com/$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git
+BRANCH_NAME:=$(COURSE_INSTANCE)-starter
+STARTER_REPO_URL:=git@github.com:$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).git
+
+.PHONY: release
+release: Lab.ipynb
+
+Lab.ipynb: Lab-key.ipynb
+	nbrelease $< -o $@ 
+
+
+.PHONY: starter-branch	
+starter-branch:
+	git branch $(BRANCH_NAME) 
+	git push -u origin $(BRANCH_NAME)
 
 .PHONY: starter
 starter:
+	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
+	[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] # You need to be on branch for the starter, so you don't merge unwanted changes into the starter.
 	rm -rf starter-repo
 	git clone . starter-repo
-	$(MAKE) -C starter-repo remove-private
+	$(MAKE) -C starter-repo release remove-private
 	(name=$$(basename $(PWD));\
 	cd starter-repo; \
 	git init .; \
+	git add Lab.ipynb; \
 	git add * .gitignore; \
+	git checkout -b main;\
+	git branch -r master; \
 	echo $(STARTER_REPO_URL) > .starter_repo; git add .starter_repo; \
 	git add .starter_repo;\
 	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
 	)
-#	(cd starter-repo; make test-lab)
 	@echo "====================================================="
-	@echo "              Starter repo seems to work             "
 	@echo " 'make push-starter' to create repo "
 
 
 push-starter:
-	curl -H "Authorization: token $(GITHUB_OAUTH_TOKEN)" https://api.github.com/orgs/$(GITHUB_CLASSROOM_ORG)/repos -d "{\"name\":\"$(STARTER_REPO_NAME)\", \"private\":\"false\", \"visibility\": \"public\", \"is_template\":\"true\"}" -X POST > starter.json
-	! jextract errors < starter.json 2>/dev/null || (echo "Repo creation failed:"; cat starter.json; false)
-	(cd starter-repo; git remote add origin $(STARTER_REPO_URL))
-	(cd starter-repo; git push -u origin master)
-	git tag -a -m "starter repo: $(STARTER_REPO_NAME)" $(TAG_NAME)
-	git branch $(BRANCH_NAME)	
-	git push -u origin $(BRANCH_NAME)
-	git push origin $(TAG_NAME)
-	@echo "Assignment Title             : $$(runlab --info lab_name)"
+	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
+	echo $(GITHUB_OAUTH_TOKEN) | gh auth login --with-token
+	(cd starter-repo;\
+	gh config set git_protocol ssh -h github.com; \
+	gh repo create --private -y $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME); \
+	git push --set-upstream origin main;)
+	$(MAKE) show-names
+
+.PHONY: show-names
+show-names:
+	@echo "Assignment Title             : Check Lab.ipynb"
 	@echo "Custom repository prefix     : $(STARTER_REPO_NAME_BASE)"
 	@echo "Template Repository          : $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
 update-starter:
-	git clone $(STARTER_REPO_URL)
-	make starter 
-	cd $(STARTER_REPO_NAME); rm -rf *; cp -r ../starter-repo/* .
-	#	cd $(STARTER_REPO_NAME); git add `git ls-files --others --exclude-standard`
-	cd $(STARTER_REPO_NAME); git commit -am "merge in updates";
-	cd $(STARTER_REPO_NAME); git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
-	cd $(STARTER_REPO_NAME); git push
-	cd $(STARTER_REPO_NAME); git push origin $(TAG_NAME)
+	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
+	rm -rf fresh_starter
+	gh repo clone $(STARTER_REPO_URL) fresh_starter
+	$(MAKE) starter 
+	cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .
+	cd fresh_starter; git add  $$(cd ../starter-repo; git ls-files --exclude-standard)
+	cd fresh_starter; git commit -am "merge in updates"
+	cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
+	cd fresh_starter; git push
+	cd fresh_starter; git push origin $(TAG_NAME)
 
-PRIVATE_FILES=*solution .git private.py test.py TA.md admin
+
+_PRIVATE_FILES= *solution .git private.py test.py TA.md admin
 
 .PHONY: remove-private
 remove-private:
-	rm -rf $(PRIVATE_FILES) .travis.yml # Ideally, we would keep this, but right now .travis.yml has my docker_access_token in it.
+	rm -rf $(_PRIVATE_FILES) $(PRIVATE_FILES) .travis.yml # Ideally, we would keep this, but right now .travis.yml has my docker_access_token in it.
