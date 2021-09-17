@@ -324,7 +324,7 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
 
 	current_nominal_mhz = MHz;
 	char buf[1024];
-	sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz > /dev/null", MHz);
+	sprintf(buf, "cpupower frequency-set --freq %dMHz > /dev/null", MHz);
 	int r = system(buf);
 	if (r != 0) {
 		std::cerr << "Couldn't set cpu frequency to " << MHz << "MHz (" << r << ")" << std::endl;
