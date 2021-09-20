@@ -2,7 +2,7 @@
 #define ARCHLAB_H_INCLUDED
 #include<stdint.h>
 
-#define GETTIMEOFDAY
+//#define GETTIMEOFDAY
 
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday
@@ -20,8 +20,6 @@
 #define MB (1024*KB)
 #define GB (1024*MB)
 
-
-#define ARCHLAB_COLLECTOR_PCM 0
 #define ARCHLAB_COLLECTOR_PAPI 1
 #define ARCHLAB_COLLECTOR_PIN 2
 #define ARCHLAB_COLLECTOR_NONE 3
@@ -52,7 +50,7 @@ extern "C" {
 		return 1.0*t.tv_sec + 1.e-6*t.tv_usec;
 #else
 		struct timespec t;
-		clock_gettime (CLOCK_MONOTONIC, &t);
+		clock_gettime (CLOCK_PROCESS_CPUTIME_ID, &t);//CLOCK_REALTIME, &t);
 		return 1.0*t.tv_sec + 1.e-9*t.tv_nsec;
 #endif
 	}

@@ -42,10 +42,10 @@ OPENMP_OPTS=
 OPENMP_LIBS=
 endif
 
-CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -I$(PCM_ROOT) -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) $(LAB_CFLAGS) #-fopenmp
-CXXFLAGS ?=$(CFLAGS) -std=gnu++11
-ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -L$(PCM_ROOT) -larchlab -lpcm -lpapi -lboost_program_options $(OPENMP_LIBS) 
-GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread #-fopenmp
+CFLAGS ?=  -Wall -Werror -g $(EXTRA) $(C_OPTS) $(PROFILE_FLAGS) $(DEBUG_FLAGS) $(AUTO_VEC_FLAGS) -fPIC -pthread $(OPENMP_OPTS) -I$(ARCHLAB)/libarchlab -I$(ARCHLAB) -I$(PAPI_ROOT)/include $(USER_CFLAGS) -I. -MMD #-D_GLIBCXX_USE_CXX11_ABI=0
+CXXFLAGS ?=$(CFLAGS) -std=gnu++11 
+ARCHLAB_LDFLAGS= -L$(PAPI_ROOT)/lib -L$(ARCHLAB)/libarchlab -larchlab -lpapi -lboost_program_options -lm -lquadmath -ldl $(OPENMP_LIBS) 
+GENERIC_LDFLAGS= $(USER_LDFLAGS) $(LD_OPTS) $(PROFILE_FLAGS) -pthread  #-std=gnu++11  
 LDFLAGS ?= $(GENERIC_LDFLAGS) $(ARCHLAB_LDFLAGS)
 
 ASM_FLAGS=
@@ -61,14 +61,24 @@ $(error You cannot compile code with archlab on an Mac.  Instead, develop inside
 endif
 endif
 
-#%.o : %.cpp
-#	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
-
 %.o : %.cpp
-	$(CXX) -c $(CXXFLAGS)  $< -o $@
+	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
 
-%.o : %.c
-	$(CC) -c $(CFLAGS)  $< -o $@
+#%.o : %.s
+#	$(CXX) -g -c $< -o $@
+
+%.s : %.cpp
+	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+
+%.s : %.c
+	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
+
+
+#%.o : %.cpp
+#	$(CXX) -c $(CXXFLAGS)  $< -o $@
+
+#%.o : %.c
+#	$(CC) -c $(CFLAGS)  $< -o $@
 
 %.i : %.cpp
 	$(CXX) -E -c $(CXXFLAGS) $(CPP_FLAGS) $< -o $@
@@ -76,12 +86,6 @@ endif
 	$(CC) -E -c $(CFLAGS) $(CPP_FLAGS) $< -o $@
 %.s : %.asm
 	cp $< $@
-
-%.s : %.cpp
-	$(CXX) -S -c $(CXXFLAGS) $(ASM_FLAGS) -g0 $< -o $@
-
-%.s : %.c
-	$(CC) -S -c $(CFLAGS) $(ASM_FLAGS) -g0 $< -o $@
 
 %.pin-trace: %.exe
 	pin -t $(ARCHLAB)/pin-tools/obj-intel64/trace_archlab.so -o $@ -- $(abspath $<) $(TRACE_ARGS) --engine pin

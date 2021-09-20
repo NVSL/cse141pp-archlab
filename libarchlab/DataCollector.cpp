@@ -122,25 +122,26 @@ void DataCollector::start_timing(json & kv)
 		register_tag(k.key(), "", true);
 	}
 	
-	if (current_interval) {
+	if (timing_something) {
 		std::cerr << "You are already timing something.  You can't time something else." << std::endl;
 		exit(1);
 	}
 	enqueue_interval(n);
 	current_interval = n;
+	timing_something = true;
 	n->start();
 }
 
 void DataCollector::stop_timing()
 {
 
-	if (!current_interval) {
+	if (!timing_something) {
 		std::cerr << "You are not currently timing anything." << std::endl;
 		exit(1);
 	}
   
 	current_interval->stop();
-	current_interval = NULL;
+	timing_something = false;
 }
 
 json MeasurementInterval::build_json()
@@ -323,7 +324,7 @@ void DataCollector::set_cpu_clock_frequency(int MHz) {
 
 	current_nominal_mhz = MHz;
 	char buf[1024];
-	sprintf(buf, "/usr/bin/cpupower frequency-set --freq %dMHz > /dev/null", MHz);
+	sprintf(buf, "cpupower frequency-set --freq %dMHz > /dev/null", MHz);
 	int r = system(buf);
 	if (r != 0) {
 		std::cerr << "Couldn't set cpu frequency to " << MHz << "MHz (" << r << ")" << std::endl;

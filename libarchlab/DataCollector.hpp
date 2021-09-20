@@ -31,7 +31,7 @@ public:
 	}
   
 	template<class T>
-	void add_field(char * name, const T & v) {
+	void add_field(const char * name, const T & v) {
 		kv[name] = v;
 	}
   
@@ -53,6 +53,7 @@ class DataCollector {
 	std::string stats_filename;
 	const std::string collector_name;
 	MeasurementInterval * current_interval;
+	bool timing_something;
 	json default_kv;
 	std::map<pthread_t*, pthread_t*> threads;
 	std::map<std::string, std::string> output_aliases;
@@ -66,7 +67,7 @@ class DataCollector {
 	
 protected:
 	virtual MeasurementInterval * newMeasurementInterval() {return new MeasurementInterval();}
-	explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL), current_nominal_mhz(1000)  {}
+	explicit DataCollector(const std::string &name): collector_name(name), current_interval(NULL), timing_something(false), current_nominal_mhz(1000)  {}
 public:
 
 	typedef pthread_t *Thread;
@@ -102,6 +103,7 @@ public:
 	void enqueue_interval(MeasurementInterval *mi) {
 		stored_intervals.push_back(mi);
 		current_interval = mi;
+		timing_something = true;
 	}
 
 	std::string build_csv_row(MeasurementInterval * mi);
@@ -114,6 +116,10 @@ public:
 	void write_csv(const char * filename);
 	void write_csv(std::ostream & out);
 	void write_stats();
+	template<class T>
+	void set_tag(const std::string & tag, const T & value) {
+		current_interval->add_field(tag.c_str(), value);
+	}
 	void register_stat(const std::string & stat);
 	void register_calc(const std::string & exp);
 	template<class T>
