@@ -26,8 +26,8 @@ STARTER_REPO_URL:=git@github.com:$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME).gi
 .PHONY: release
 release: Lab.ipynb
 
-Lab.ipynb: Lab-key.ipynb
-	nbrelease $< -o $@ 
+%.ipynb: %.key.ipynb
+	nbrelease -I $(NB_RELEASE_INCLUDES) $< -o $@ 
 
 
 .PHONY: starter-branch	
