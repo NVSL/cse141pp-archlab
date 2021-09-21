@@ -29,6 +29,18 @@ release: Lab.ipynb
 %.ipynb: %.key.ipynb
 	nbrelease -I $(NB_RELEASE_INCLUDES) $< -o $@ 
 
+.PRECIOUS: %.full-key.ipynb
+%.full-key.ipynb %.summary.txt : %.key.ipynb 
+	nbrelease -I $(NB_RELEASE_INCLUDES) --make-key $< -o $@ | tee $*.summary.txt
+
+%.template.ipynb: %.full-key.ipynb
+	turnin-lab $<  -o $@
+
+.PHONY: key
+key: Lab.template.ipynb Lab.summary.txt
+	cp Lab.template.ipynb admin/
+	cp Lab.summary.txt admin/
+	git add admin/Lab.summary.txt admin/Lab.template.ipynb
 
 .PHONY: starter-branch	
 starter-branch:
