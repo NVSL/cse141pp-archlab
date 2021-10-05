@@ -49,9 +49,11 @@ starter-branch:
 
 .PHONY: starter
 starter:
-	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
-	[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] # You need to be on branch for the starter, so you don't merge unwanted changes into the starter.
+	@[ $(LAB_NAME) != "" ] || (echo you must set LAB_NAME on the command line: LAB_NAME=foo; exit 1)
+	@[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] || (echo  You need to be on branch for the starter, so you do not merge unwanted changes into the starter.; exit 1)
 	rm -rf starter-repo
+	git tag -a  -m "Source for $(TAG_NAME)" $(TAG_NAME)
+	git push  --tags
 	git clone . starter-repo
 	$(MAKE) -C starter-repo release remove-private
 	(name=$$(basename $(PWD));\
@@ -92,8 +94,8 @@ update-starter:
 	cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .
 	cd fresh_starter; git add  $$(cd ../starter-repo; git ls-files --exclude-standard)
 	cd fresh_starter; git commit -am "merge in updates"
-	cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
-	cd fresh_starter; git push
+	cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD) for $(TAG_NAME)" $(TAG_NAME)
+	cd fresh_starter; git push --tags
 	cd fresh_starter; git push origin $(TAG_NAME)
 
 
