@@ -28,6 +28,8 @@ public:
 	void get_usage(std::ostream &f);
 	void track_stat(const std::string &stat);
 	void clear_tracked_stats();
-
+	int get_event_set() {
+		return event_set;
+	}
 };
 #endif
