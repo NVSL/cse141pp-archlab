@@ -94,6 +94,7 @@ public:
 	virtual void clear_tracked_stats();
 	virtual void get_usage(std::ostream & f);
 	virtual int  run_child(char *exec, char *argv[]);
+	virtual void prepare_to_spawn() {}
 	
 	void set_stat_output_name(const std::string & original_name, const std::string & output_name);
 	Thread run_thread(void *(*start_routine) (void *), void *arg);

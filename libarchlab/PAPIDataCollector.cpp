@@ -214,3 +214,15 @@ json PAPIMeasurementInterval::build_json()
 }
 
 
+
+void PAPIDataCollector::prepare_to_spawn(){
+	PAPI_option_t opt;
+	memset( &opt, 0x0, sizeof( PAPI_option_t ) ); 
+	opt.inherit.inherit = PAPI_INHERIT_ALL;
+	opt.inherit.eventset = get_event_set();
+	int retval;
+	if( ( retval = PAPI_set_opt( PAPI_INHERIT, &opt ) ) != PAPI_OK ) {                                                                      
+		fprintf( stderr, "Problem with PAPI_set_opt: %s\n", PAPI_strerror(retval) );                    
+		exit(1);                                                             
+	}
+}

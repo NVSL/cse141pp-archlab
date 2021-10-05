@@ -31,5 +31,6 @@ public:
 	int get_event_set() {
 		return event_set;
 	}
+	void prepare_to_spawn();
 };
 #endif
