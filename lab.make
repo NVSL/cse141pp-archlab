@@ -91,12 +91,13 @@ update-starter:
 	rm -rf fresh_starter
 	gh repo clone $(STARTER_REPO_URL) fresh_starter
 	$(MAKE) starter 
-	cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .
-	cd fresh_starter; git add  $$(cd ../starter-repo; git ls-files --exclude-standard)
-	cd fresh_starter; git commit -am "merge in updates"
-	cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD) for $(TAG_NAME)" $(TAG_NAME)
-	cd fresh_starter; git push --tags
-	cd fresh_starter; git push origin $(TAG_NAME)
+	(cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .)
+	(cd fresh_starter; git add  $$(cd ../starter-repo; git ls-files --exclude-standard))
+	(cd fresh_starter; git commit -am "merge in updates")
+	(cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD) for $(TAG_NAME)" $(TAG_NAME))
+	(cd fresh_starter; git push --tags)
+	(cd fresh_starter; git push)
+	(cd fresh_starter; git push origin $(TAG_NAME))
 
 
 _PRIVATE_FILES= *solution .git private.py test.py TA.md admin
