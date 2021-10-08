@@ -47,14 +47,6 @@ BUILD?=build/
 $(BUILD)%.so: $(BUILD)%.o
 	$(CXX) $^ $(LDFLAGS) -shared -o $@
 
-$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
-$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp 
-	mkdir -p $(BUILD)
-	cp $< $@ 
-
 $(BUILD)%.cpp: %.cpp  
 	mkdir -p $(BUILD)
 	cp $< $@ 
@@ -62,6 +54,17 @@ $(BUILD)%.cpp: %.cpp
 $(BUILD)%.hpp: %.hpp 
 	mkdir -p $(BUILD)
 	cp $< $@ 
+
+
+#$(BUILD)%.cpp: $(LAB_SUBMISSION_DIR)/%.cpp  
+#	mkdir -p $(BUILD)
+#	echo hello
+#	cp $< $@ 
+
+#$(BUILD)%.hpp: $(LAB_SUBMISSION_DIR)/%.hpp 
+#	mkdir -p $(BUILD)
+#	echo hello
+#	cp $< $@ 
 
 -include $(wildcard $(BUILD)/*.d)
 
@@ -76,7 +79,7 @@ _lab-clean:
 
 .PHONY: copy-files
 copy-files:
-	for i in $(STUDENT_EDITABLE_FILES); do if [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ]; then (echo Copying $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i; cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true) else true; fi;done
+	for i in $(STUDENT_EDITABLE_FILES); do if [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ]; then (echo Copying $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i; cp -a $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true) else true; fi;done
 
 
 # Build infrastructure
