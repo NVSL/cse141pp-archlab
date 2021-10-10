@@ -1,6 +1,7 @@
 
 # The build infrastructure wants a install target.
 .PHONY: install
+
 install:
 
 #ifeq ($(DEVEL_MODE),yes)
