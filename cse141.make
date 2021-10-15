@@ -16,7 +16,7 @@ DEBUG?=no
 
 C_OPTS=$(OPTIMIZE)
 
-USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I$(MONETA_ROOT)/moneta/ 
+USER_CFLAGS=-I/usr/local/include -I$(CANELA_ROOT)  -I$(BUILD)  -I$(MONETA_ROOT)/moneta/ 
 
 ifeq ($(COMPILER),gcc-9)
 CC=gcc-9
@@ -66,7 +66,7 @@ $(BUILD)%.hpp: %.hpp
 #	echo hello
 #	cp $< $@ 
 
--include $(wildcard $(BUILD)/*.d)
+-include $(wildcard $(BUILD)/*.d) $(wildcard *.d)
 
 #$(BUILD)%.inp: $(LAB_SUBMISSION_DIR)/%.inp
 #	mkdir -p $(BUILD)
