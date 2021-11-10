@@ -87,12 +87,20 @@ show-names:
 	@echo "Custom repository prefix     : $(STARTER_REPO_NAME_BASE)"
 	@echo "Template Repository          : $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
-update-starter:
+.PHONY: update-starter
+update-starter: prep-update-starter push-update
+
+.PHONY: prep-update-starter
+prep-update-starter:
 	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
 	rm -rf fresh_starter
 	gh repo clone $(STARTER_REPO_URL) fresh_starter
 	$(MAKE) starter 
 	(cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .)
+	(cd fresh_starter; git diff)
+
+.PHONY: push-update
+push-update:
 	(cd fresh_starter; git add -f $$(cd ../starter-repo; git ls-files --exclude-standard))
 	(cd fresh_starter; git commit -am "merge in updates")
 	(cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD) for $(TAG_NAME)" $(TAG_NAME))
