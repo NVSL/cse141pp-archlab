@@ -41,7 +41,7 @@ release: Lab.ipynb
 key: Lab.template.ipynb Lab.summary.txt
 	cp Lab.template.ipynb admin/
 	cp Lab.summary.txt admin/
-	git add admin/Lab.summary.txt admin/Lab.template.ipynb
+	git add -f admin/Lab.summary.txt admin/Lab.template.ipynb
 
 .PHONY: starter-branch	
 starter-branch:
