@@ -1,5 +1,7 @@
 #ifndef FASTRAND_H_INCLUDED
 #define FASTRAND_H_INCLUDED
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

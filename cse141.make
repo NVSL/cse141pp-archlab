@@ -75,7 +75,8 @@ $(BUILD)%.hpp: %.hpp
 clean: _lab-clean
 .PHONY: _lab-clean
 _lab-clean:
-	rm -rf $(BUILD) .tmp
+	-rm -rf $(BUILD) .tmp
+	@if [ -e $(BUILD) ]; then echo -ne "************************* UNABLE TO DELETE $(BUILD) Clean unsuccessful ******************************\n Here's what's in build:\n";  ls -alR $(BUILD);  echo -ne "If there's a '$(BUILD).nsf*', you'll need to rename 'build' to 'junk'.  Then 'make clean' will succeed\n"; fi
 
 .PHONY: copy-files
 copy-files:
