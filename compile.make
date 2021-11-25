@@ -62,7 +62,7 @@ endif
 endif
 
 %.o : %.cpp
-	$(CC) -c $(CFLAGS) $(ASM_FLAGS) $< -o $@
+	$(CC) -c $(CXXFLAGS) $(ASM_FLAGS) $< -o $@
 
 #%.o : %.s
 #	$(CXX) -g -c $< -o $@

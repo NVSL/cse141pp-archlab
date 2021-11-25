@@ -31,7 +31,8 @@ release: Lab.ipynb
 	nbrelease -I $(NB_RELEASE_INCLUDES) $< -o $@ 
 
 .PRECIOUS: %.full-key.ipynb
-%.full-key.ipynb %.summary.txt : %.key.ipynb 
+%.full-key.ipynb %.summary.txt : %.key.ipynb
+	nbclean $<
 	nbrelease -I $(NB_RELEASE_INCLUDES) --make-key $< -o $@ | tee $*.summary.txt
 
 %.template.ipynb: %.full-key.ipynb
@@ -90,6 +91,7 @@ show-names:
 .PHONY: update-starter
 update-starter: prep-update-starter push-update
 
+# Prepare an update to the starter and preview the diff
 .PHONY: prep-update-starter
 prep-update-starter:
 	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
@@ -99,6 +101,7 @@ prep-update-starter:
 	(cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .)
 	(cd fresh_starter; git diff)
 
+# push the update you just prepared
 .PHONY: push-update
 push-update:
 	(cd fresh_starter; git add -f $$(cd ../starter-repo; git ls-files --exclude-standard))
