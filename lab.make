@@ -1,4 +1,3 @@
-
 # The build infrastructure wants a install target.
 .PHONY: install
 
@@ -14,8 +13,10 @@ install:
 help: lab-help
 
 lab-help:
-	@echo "make build-starter:  Build a starter repo"
-	@echo "make push-starter :  Create repo and push"
+	@echo "make starter-branch:  Create starter branch"
+	@echo "make starter:   Build a starter repo"
+	@echo "make push-starter     :   Create repo and push"
+	@echo "make update-starter   :   Update the starter"
 
 LAB_NAME=$(shell cat short_name)
 STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(LAB_NAME)
