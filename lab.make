@@ -13,8 +13,9 @@ install:
 help: lab-help
 
 lab-help:
-	@echo "make build-starter:  Build a starter repo"
-	@echo "make push-starter :  Create repo and push"
+	@echo "make starter LAB_NAME=<lab-name>:  Build a starter repo"
+	@echo "make update-starter LAB_NAME=<lab-name>:              Update the starter"
+	@echo "make push-starter LAB_NAME=<lab-name>:                Push the starter"
 
 LAB_NAME=$(shell cat short_name)
 STARTER_REPO_NAME_BASE=$(COURSE_INSTANCE)-$(COURSE_NAME)-$(LAB_NAME)
@@ -50,7 +51,7 @@ starter-branch:
 .PHONY: starter
 starter:
 	[ $(LAB_NAME) != "" ] # you must set LAB_NAME on the command line: LAB_NAME=foo
-	[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] # You need to be on branch for the starter, so you don't merge unwanted changes into the starter.
+	[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] # You need to be on the branch for the starter, so you don't merge unwanted changes into the starter.
 	rm -rf starter-repo
 	git clone . starter-repo
 	$(MAKE) -C starter-repo release remove-private
@@ -60,8 +61,8 @@ starter:
 	git add Lab.ipynb; \
 	git add * .gitignore; \
 	git checkout -b main;\
-	git branch -r master; \
-	echo $(STARTER_REPO_URL) > .starter_repo; git add .starter_repo; \
+	git branch -r -d master; \
+	echo $(STARTER_REPO_URL) > .starter_repo; \
 	git add .starter_repo;\
 	git -c user.name='Starter Builder' -c user.email='none@none.org' commit -m "initial import from $$name"\
 	)
@@ -75,12 +76,13 @@ push-starter:
 	(cd starter-repo;\
 	gh config set git_protocol ssh -h github.com; \
 	gh repo create --private -y $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME); \
+	git remote add origin git@github.com:$(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME); \
 	git push --set-upstream origin main;)
 	$(MAKE) show-names
 
 .PHONY: show-names
 show-names:
-	@echo "Assignment Title             : Check Lab.ipynb"
+	@echo "Assignment Title             : Look inside Lab.ipynb"
 	@echo "Custom repository prefix     : $(STARTER_REPO_NAME_BASE)"
 	@echo "Template Repository          : $(GITHUB_CLASSROOM_ORG)/$(STARTER_REPO_NAME)"
 
