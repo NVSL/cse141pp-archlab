@@ -18,19 +18,6 @@ C_OPTS=$(OPTIMIZE)
 
 USER_CFLAGS=-I$(GOOGLE_TEST_ROOT)/googletest/include -I$(CANELA_ROOT)  -I$(BUILD)  -I$(MONETA_ROOT)/moneta/ 
 
-ifeq ($(COMPILER),gcc-9)
-CC=gcc-9
-CXX=g++-9
-endif
-ifeq ($(COMPILER),gcc-8)
-CC=gcc-8
-CXX=g++-8
-endif
-ifeq ($(COMPILER),gcc-7)
-CC=gcc-7
-CXX=g++-7
-endif
-
 
 LAB_SUBMISSION_DIR?=.
 DJR_JOB_ROOT?=.
