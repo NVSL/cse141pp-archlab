@@ -82,8 +82,8 @@ copy-files:
 # Build infrastructure
 include $(ARCHLAB_ROOT)/compile.make
 
-run_tests.exe: run_tests.o
-	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
+#run_tests.exe: run_tests.o
+#	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
 %.exe : 

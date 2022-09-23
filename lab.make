@@ -1,4 +1,3 @@
-
 # The build infrastructure wants a install target.
 .PHONY: install
 install:
@@ -54,7 +53,7 @@ starter:
 	[ "$(shell git rev-parse --abbrev-ref HEAD)" = $(BRANCH_NAME) ] # You need to be on the branch for the starter, so you don't merge unwanted changes into the starter.
 	rm -rf starter-repo
 	git clone . starter-repo
-	$(MAKE) -C starter-repo release remove-private
+	$(MAKE) -C starter-repo release encrypt-files remove-private
 	(name=$$(basename $(PWD));\
 	cd starter-repo; \
 	git init .; \
@@ -104,3 +103,7 @@ _PRIVATE_FILES= *solution .git private.py test.py TA.md admin
 .PHONY: remove-private
 remove-private:
 	rm -rf $(_PRIVATE_FILES) $(PRIVATE_FILES) .travis.yml # Ideally, we would keep this, but right now .travis.yml has my docker_access_token in it.
+
+.PHONY: encrypt-files
+encrypt-files:
+	for f in $(ENCRYPTED_FILES); do cse142-encrypt --in $$f --out $$f.encrypted; done
