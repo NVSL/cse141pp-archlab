@@ -76,6 +76,25 @@ include $(ARCHLAB_ROOT)/compile.make
 %.exe : 
 	$(CXX) $^ $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
 
+%.cpp :%.cpp.encrypted
+	cse142-decrypt --in $< --out $@ || echo > $@
+
+#%.cpp.encrypted :%.cpp
+#	cse142-encrypt --in $< --out $@ 
+
+
+.PHONY: decrypt-files
+decrypt-files:
+	for f in $(ENCRYPTED_FILES); do cse142-decrypt --in $(addsuffix .encrypted,$$f) --out $$f; done
+
+.PHONY: delete-plaintext
+delete-plaintext:
+	rm -rf $(ENCRYPTED_FILES)
+
+.PHONY: delete-cyphertext
+delete-cyphertext:
+	rm -rf $(addsuffix .encrypted,$(ENCRYPTED_FILES))
+
 
 # clean up
 .PHONY: clean

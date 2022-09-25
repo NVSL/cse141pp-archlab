@@ -107,3 +107,4 @@ remove-private:
 .PHONY: encrypt-files
 encrypt-files:
 	for f in $(ENCRYPTED_FILES); do cse142-encrypt --in $$f --out $$f.encrypted; done
+
