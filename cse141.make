@@ -73,8 +73,8 @@ include $(ARCHLAB_ROOT)/compile.make
 #	$(CXX) $^ $(LDFLAGS) -L$(GOOGLE_TEST_ROOT)/lib -lgtest -lgtest_main  -o $@
 
 # build something
-%.exe : 
-	$(CXX) $^ $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
+#%.exe : 
+#	$(CXX) $^ $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
 
 %.cpp :%.cpp.encrypted
 	cse142-decrypt --in $< --out $@ || echo > $@
