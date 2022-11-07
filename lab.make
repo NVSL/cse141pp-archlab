@@ -58,7 +58,7 @@ starter:
 	cd starter-repo; \
 	git init .; \
 	git add Lab.ipynb; \
-	git add * .gitignore; \
+	git add -f * .gitignore; \
 	git checkout -b main;\
 	git branch -r -d master; \
 	echo $(STARTER_REPO_URL) > .starter_repo; \
@@ -91,7 +91,7 @@ update-starter:
 	gh repo clone $(STARTER_REPO_URL) fresh_starter
 	$(MAKE) starter 
 	cd fresh_starter; rm -rf *; cp -a ../starter-repo/* ../.gitignore .
-	cd fresh_starter; git add  $$(cd ../starter-repo; git ls-files --exclude-standard)
+	cd fresh_starter; git add -f  $$(cd ../starter-repo; git ls-files --exclude-standard)
 	cd fresh_starter; git commit -am "merge in updates"
 	cd fresh_starter; git tag -a -m "updates from $$(git rev-parse HEAD)" $(TAG_NAME)
 	cd fresh_starter; git push
