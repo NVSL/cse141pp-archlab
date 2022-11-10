@@ -63,7 +63,8 @@ _lab-clean:
 
 .PHONY: copy-files
 copy-files:
-	for i in $(STUDENT_EDITABLE_FILES); do if [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ]; then (cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ || true) else true; fi;done
+	@echo Copying student files
+	for i in $(STUDENT_EDITABLE_FILES); do if [ -e $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i ]; then ((cp $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i  ./ && echo "copied $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i") || echo "File exists but copy failed") else echo "Didn't find $(DJR_JOB_ROOT)/$(LAB_SUBMISSION_DIR)/$$i"; fi;done
 
 
 # Build infrastructure
